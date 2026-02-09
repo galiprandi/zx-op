@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: zx-op-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zx_op
+      POSTGRES_USER: zx_user
+      POSTGRES_PASSWORD: zx_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./api/prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zx_user -d zx_op"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
