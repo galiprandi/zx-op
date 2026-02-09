@@ -78,8 +78,6 @@ A local-first management system for a massive inflatable attraction. The system 
 * **Yellow:** < 5 minutes remaining.
 * **Red:** Time expired (Go to Check-in).
 
-
-
 ---
 
 ## 6. Resilience & Offline Features
