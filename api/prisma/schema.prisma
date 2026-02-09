@@ -17,7 +17,7 @@ model User {
 }
 
 model Wristband {
-  id           String     @id
+  id           String     @id @default(cuid())
   qrCode       String     @unique
   userId       String?
   user         User?      @relation(fields: [userId], references: [id])
@@ -47,6 +47,7 @@ model Product {
   description String?
   price       Float
   category    String
+  required    Boolean @default(false)
   isDeleted   Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
