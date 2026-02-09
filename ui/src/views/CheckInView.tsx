@@ -1,15 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Scan, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { MobileLayout } from "@/components/MobileLayout";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useSocket } from "@/hooks/useSocket";
 
 // Real API functions
@@ -19,168 +14,422 @@ const api = {
 		if (!response.ok) throw new Error("Failed to fetch products");
 		return response.json();
 	},
+	createCheckin: async (data: CheckinData) => {
+		const response = await fetch("http://localhost:3001/api/checkin", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(data),
+		});
+		if (!response.ok) throw new Error("Failed to create checkin");
+		return response.json();
+	},
 };
+
+interface CheckinData {
+	wristbandCode: string;
+	products: { id: string; quantity: number }[];
+	transactionNumber?: string;
+}
+
+interface CartItem {
+	product: Product;
+	quantity: number;
+}
+
+interface Product {
+	id: string;
+	name: string;
+	description?: string;
+	price: number;
+	category: string;
+	required: boolean;
+	isDeleted: boolean;
+}
 
 export function CheckInView() {
 	useSocket(); // Initialize socket connection for real-time updates
 
 	const [wristbandCode, setWristbandCode] = useState("");
+	const [transactionNumber, setTransactionNumber] = useState("");
+	const [cart, setCart] = useState<CartItem[]>([]);
+	const [showConfirmation, setShowConfirmation] = useState(false);
+	const [isScanning, setIsScanning] = useState(false);
+
+	const queryClient = useQueryClient();
 
 	const { data: products = [] } = useQuery({
 		queryKey: ["products"],
 		queryFn: api.getProducts,
 	});
 
+	const checkinMutation = useMutation({
+		mutationFn: api.createCheckin,
+		onSuccess: () => {
+			setShowConfirmation(true);
+			setTimeout(() => {
+				setShowConfirmation(false);
+				resetForm();
+			}, 3000);
+			queryClient.invalidateQueries({ queryKey: ["products"] });
+		},
+		onError: (error) => {
+			console.error("Error creating checkin:", error);
+			alert("Error al procesar el check-in");
+		},
+	});
+
 	const requiredProducts = products.filter(
-		(product) => !product.isDeleted && product.required,
+		(product: Product) => !product.isDeleted && product.required,
 	);
 	const optionalProducts = products.filter(
-		(product) => !product.isDeleted && !product.required,
+		(product: Product) => !product.isDeleted && !product.required,
 	);
 
+	const resetForm = () => {
+		setWristbandCode("");
+		setTransactionNumber("");
+		setCart([]);
+	};
+
+	const addToCart = (product: Product) => {
+		setCart((prevCart) => {
+			const existingItem = prevCart.find(
+				(item) => item.product.id === product.id,
+			);
+			if (existingItem) {
+				return prevCart.map((item) =>
+					item.product.id === product.id
+						? { ...item, quantity: item.quantity + 1 }
+						: item,
+				);
+			}
+			return [...prevCart, { product, quantity: 1 }];
+		});
+	};
+
+	const removeFromCart = (productId: string) => {
+		setCart((prevCart) =>
+			prevCart.filter((item) => item.product.id !== productId),
+		);
+	};
+
+	const updateQuantity = (productId: string, quantity: number) => {
+		if (quantity <= 0) {
+			removeFromCart(productId);
+		} else {
+			setCart((prevCart) =>
+				prevCart.map((item) =>
+					item.product.id === productId ? { ...item, quantity } : item,
+				),
+			);
+		}
+	};
+
+	const getTotalPrice = () => {
+		return cart.reduce(
+			(total, item) => total + item.product.price * item.quantity,
+			0,
+		);
+	};
+
+	const getTotalItems = () => {
+		return cart.reduce((total, item) => total + item.quantity, 0);
+	};
+
+	const handleScan = () => {
+		setIsScanning(true);
+		// Simulate barcode scanning
+		setTimeout(() => {
+			setWristbandCode("SCAN123456");
+			setIsScanning(false);
+		}, 1000);
+	};
+
+	const handleCheckin = () => {
+		if (!wristbandCode || cart.length === 0) {
+			alert("Por favor ingrese el código de pulsera y agregue productos");
+			return;
+		}
+
+		const checkinData: CheckinData = {
+			wristbandCode,
+			products: cart.map((item) => ({
+				id: item.product.id,
+				quantity: item.quantity,
+			})),
+			transactionNumber: transactionNumber || undefined,
+		};
+
+		checkinMutation.mutate(checkinData);
+	};
+
+	const formatPrice = (price: number) => {
+		return new Intl.NumberFormat("es-CL", {
+			style: "currency",
+			currency: "CLP",
+		}).format(price);
+	};
+
 	return (
-		<div className="max-w-2xl mx-auto space-y-6">
-			<div className="text-center">
-				<h2 className="text-2xl font-bold mb-2">Check-in</h2>
-				<p className="text-muted-foreground">
-					Asigna tiempo y productos a una pulsera
-				</p>
-			</div>
+		<MobileLayout>
+			<div className="p-4 space-y-4">
+				{/* Wristband Input */}
+				<div className="relative">
+					<Input
+						id="wristband"
+						placeholder="Código de pulsera"
+						value={wristbandCode}
+						onChange={(e) => setWristbandCode(e.target.value)}
+						className="text-lg pr-16 h-14"
+					/>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onClick={handleScan}
+						disabled={isScanning}
+						className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
+					>
+						{isScanning ? (
+							<div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+						) : (
+							<Scan className="w-5 h-5 text-blue-600" />
+						)}
+					</Button>
+				</div>
 
-			{/* Wristband Input */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Código de Pulsera</CardTitle>
-					<CardDescription>
-						Escanea o ingresa el código QR/Barcode
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="space-y-2">
-						<Label htmlFor="wristband">Código</Label>
-						<Input
-							id="wristband"
-							placeholder="Ingrese o escanee código"
-							value={wristbandCode}
-							onChange={(e) => setWristbandCode(e.target.value)}
-							className="text-lg"
-						/>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Required Products */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Productos Obligatorios</CardTitle>
-					<CardDescription>
-						Productos requeridos para el ingreso
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{requiredProducts.length > 0 ? (
-						<div className="space-y-3">
-							{requiredProducts.map((product) => (
-								<div
-									key={product.id}
-									className="flex items-center justify-between p-3 border rounded-lg"
-								>
-									<div>
-										<div className="font-medium">{product.name}</div>
-										{product.description && (
-											<div className="text-sm text-muted-foreground">
-												{product.description}
+				{/* Products Grid */}
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+					{/* Required Products */}
+					{requiredProducts.length > 0 && (
+						<div className="space-y-2">
+							<div className="flex items-center justify-between px-2">
+								<h3 className="font-semibold text-yellow-700">
+									Productos Obligatorios
+								</h3>
+								<span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+									Requerido
+								</span>
+							</div>
+							<div className="grid grid-cols-2 gap-2">
+								{requiredProducts
+									.filter((product: Product) => {
+										const cartItem = cart.find(
+											(item) => item.product.id === product.id,
+										);
+										return !cartItem; // Solo mostrar productos que no están en el carrito
+									})
+									.slice(0, 4) // Máximo 4 productos
+									.map((product: Product) => (
+										<div
+											key={product.id}
+											className="p-2 border rounded bg-yellow-50 flex flex-col justify-between cursor-pointer hover:bg-yellow-100 transition-colors"
+											onClick={() => addToCart(product)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													addToCart(product);
+												}
+											}}
+											tabIndex={0}
+											role="button"
+										>
+											<div>
+												<div className="font-medium text-xs mb-1">
+													{product.name}
+												</div>
+												<div className="text-sm font-bold text-yellow-700">
+													{formatPrice(product.price)}
+												</div>
 											</div>
-										)}
+										</div>
+									))}
+							</div>
+						</div>
+					)}
+
+					{/* Optional Products */}
+					{optionalProducts.length > 0 && (
+						<div className="space-y-2">
+							<h3 className="font-semibold px-2">Productos Opcionales</h3>
+							<div className="grid grid-cols-2 gap-2">
+								{optionalProducts
+									.filter((product: Product) => {
+										const cartItem = cart.find(
+											(item) => item.product.id === product.id,
+										);
+										return !cartItem; // Solo mostrar productos que no están en el carrito
+									})
+									.slice(0, 4) // Máximo 4 productos
+									.map((product: Product) => (
+										<div
+											key={product.id}
+											className="p-2 border rounded flex flex-col justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+											onClick={() => addToCart(product)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													addToCart(product);
+												}
+											}}
+											tabIndex={0}
+											role="button"
+										>
+											<div>
+												<div className="font-medium text-xs mb-1">
+													{product.name}
+												</div>
+												<div className="text-sm font-bold text-green-600">
+													{formatPrice(product.price)}
+												</div>
+											</div>
+										</div>
+									))}
+							</div>
+						</div>
+					)}
+				</div>
+
+				{/* Cart Summary */}
+				{cart.length > 0 && (
+					<div className="space-y-2">
+						<div className="flex items-center justify-between px-2">
+							<h3 className="font-semibold text-green-800">Carrito</h3>
+							<span className="text-sm text-green-600 font-medium">
+								{getTotalItems()} items
+							</span>
+						</div>
+						<div className="space-y-2">
+							{cart.map((item) => (
+								<div
+									key={item.product.id}
+									className="flex items-center justify-between p-2 bg-white border rounded"
+								>
+									<div className="flex-1">
+										<div className="font-medium text-xs">
+											{item.product.name}
+										</div>
+										<div className="text-xs text-gray-500">
+											{formatPrice(item.product.price)} c/u
+										</div>
 									</div>
-									<div className="text-lg font-bold text-green-600">
-										${product.price.toLocaleString("es-CL")}
+									<div className="flex items-center gap-1">
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												updateQuantity(item.product.id, item.quantity - 1)
+											}
+											className="h-6 w-6 p-0"
+										>
+											-
+										</Button>
+										<span className="w-6 text-center text-xs font-medium">
+											{item.quantity}
+										</span>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												updateQuantity(item.product.id, item.quantity + 1)
+											}
+											className="h-6 w-6 p-0"
+										>
+											+
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onClick={() => removeFromCart(item.product.id)}
+											className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+										>
+											<Trash2 className="w-3 h-3" />
+										</Button>
 									</div>
 								</div>
 							))}
+							<div className="flex justify-between items-center p-2 border-t">
+								<span className="font-bold text-sm">TOTAL:</span>
+								<span className="font-bold text-lg text-green-600">
+									{formatPrice(getTotalPrice())}
+								</span>
+							</div>
 						</div>
-					) : (
-						<div className="text-center text-muted-foreground py-8">
-							📦 No hay productos obligatorios
-						</div>
-					)}
-				</CardContent>
-			</Card>
+					</div>
+				)}
 
-			{/* Optional Products */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Productos Opcionales</CardTitle>
-					<CardDescription>
-						Agrega productos adicionales si lo deseas
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{optionalProducts.length > 0 ? (
-						<div className="space-y-3">
-							{optionalProducts.map((product) => (
-								<div
-									key={product.id}
-									className="flex items-center justify-between p-3 border rounded-lg"
-								>
-									<div>
-										<div className="font-medium">{product.name}</div>
-										{product.description && (
-											<div className="text-sm text-muted-foreground">
-												{product.description}
-											</div>
-										)}
-									</div>
-									<div className="text-lg font-bold text-green-600">
-										${product.price.toLocaleString("es-CL")}
+				{/* Transaction */}
+				<div className="space-y-2">
+					<h3 className="font-semibold px-2">No. Transacción (Opcional)</h3>
+					<Input
+						id="transaction"
+						placeholder="Referencia de pago"
+						value={transactionNumber}
+						onChange={(e) => setTransactionNumber(e.target.value)}
+						className="text-sm h-10"
+					/>
+				</div>
+
+				{/* Action Buttons */}
+				<div className="flex flex-col gap-2 pb-8">
+					<Button
+						type="button"
+						size="lg"
+						className="flex-1 h-16 text-lg font-bold bg-blue-600 hover:bg-blue-700"
+						disabled={
+							!wristbandCode || cart.length === 0 || checkinMutation.isPending
+						}
+						onClick={handleCheckin}
+					>
+						{checkinMutation.isPending ? (
+							<div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+						) : (
+							<>
+								Check-in
+								<span className="ml-2">{formatPrice(getTotalPrice())}</span>
+							</>
+						)}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						size="lg"
+						className="flex-1 h-12 text-lg font-bold"
+						onClick={resetForm}
+					>
+						<X className="w-5 h-5 mr-2" />
+						Limpiar
+					</Button>
+				</div>
+
+				{/* Confirmation Modal */}
+				{showConfirmation && (
+					<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+						<Card className="w-full max-w-sm animate-fadeIn">
+							<CardHeader className="text-center">
+								<div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+									<Check className="w-8 h-8 text-green-600" />
+								</div>
+								<CardTitle className="text-xl text-green-600">
+									¡Check-in Exitoso!
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="text-center space-y-3">
+								<div className="text-sm text-gray-600">
+									<div className="font-medium">Pulsera: {wristbandCode}</div>
+									<div className="font-medium">Items: {getTotalItems()}</div>
+									<div className="font-bold text-lg text-green-600">
+										Total: {formatPrice(getTotalPrice())}
 									</div>
 								</div>
-							))}
-						</div>
-					) : (
-						<div className="text-center text-muted-foreground py-8">
-							🛒 No hay productos opcionales disponibles
-						</div>
-					)}
-				</CardContent>
-			</Card>
-
-			{/* Transaction */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Transacción</CardTitle>
-					<CardDescription>Número de transacción (opcional)</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div className="space-y-2">
-						<Label htmlFor="transaction">N° Transacción</Label>
-						<Input
-							id="transaction"
-							placeholder="Opcional"
-							className="text-lg"
-						/>
+							</CardContent>
+						</Card>
 					</div>
-				</CardContent>
-			</Card>
-
-			{/* Action Buttons */}
-			<div className="flex gap-4">
-				<Button
-					size="lg"
-					className="flex-1 h-14 text-lg"
-					disabled={!wristbandCode}
-				>
-					✅ Procesar Check-in
-				</Button>
-				<Button
-					variant="outline"
-					size="lg"
-					className="flex-1 h-14 text-lg"
-					onClick={() => setWristbandCode("")}
-				>
-					🔄 Limpiar
-				</Button>
+				)}
 			</div>
-		</div>
+		</MobileLayout>
 	);
 }
