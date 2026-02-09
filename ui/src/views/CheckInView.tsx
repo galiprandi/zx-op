@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Scan, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MobileLayout } from "@/components/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,11 +49,20 @@ interface Product {
 export function CheckInView() {
 	useSocket(); // Initialize socket connection for real-time updates
 
+	const inputRef = useRef<HTMLInputElement>(null);
+
 	const [wristbandCode, setWristbandCode] = useState("");
 	const [transactionNumber, setTransactionNumber] = useState("");
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [showConfirmation, setShowConfirmation] = useState(false);
 	const [isScanning, setIsScanning] = useState(false);
+
+	// Auto focus on mount
+	useEffect(() => {
+		if (inputRef.current) {
+			inputRef.current.focus();
+		}
+	}, []);
 
 	const queryClient = useQueryClient();
 
@@ -171,11 +180,45 @@ export function CheckInView() {
 	};
 
 	return (
-		<MobileLayout>
+		<MobileLayout
+			footer={
+				<div className="flex flex-col gap-2">
+					<Button
+						type="button"
+						size="lg"
+						className="flex-1 h-16 text-lg font-bold bg-blue-600 hover:bg-blue-700"
+						disabled={
+							!wristbandCode || cart.length === 0 || checkinMutation.isPending
+						}
+						onClick={handleCheckin}
+					>
+						{checkinMutation.isPending ? (
+							<div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+						) : (
+							<>
+								Check-in
+								<span className="ml-2">{formatPrice(getTotalPrice())}</span>
+							</>
+						)}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						size="lg"
+						className="flex-1 h-12 text-lg font-bold"
+						onClick={resetForm}
+					>
+						<X className="w-5 h-5 mr-2" />
+						Limpiar
+					</Button>
+				</div>
+			}
+		>
 			<div className="p-4 space-y-4">
 				{/* Wristband Input */}
-				<div className="relative">
+				<div className="relative mb-6">
 					<Input
+						ref={inputRef}
 						id="wristband"
 						placeholder="Código de pulsera"
 						value={wristbandCode}
@@ -373,60 +416,26 @@ export function CheckInView() {
 					/>
 				</div>
 
-				{/* Action Buttons */}
-				<div className="flex flex-col gap-2 pb-8">
-					<Button
-						type="button"
-						size="lg"
-						className="flex-1 h-16 text-lg font-bold bg-blue-600 hover:bg-blue-700"
-						disabled={
-							!wristbandCode || cart.length === 0 || checkinMutation.isPending
-						}
-						onClick={handleCheckin}
-					>
-						{checkinMutation.isPending ? (
-							<div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-						) : (
-							<>
-								Check-in
-								<span className="ml-2">{formatPrice(getTotalPrice())}</span>
-							</>
-						)}
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						size="lg"
-						className="flex-1 h-12 text-lg font-bold"
-						onClick={resetForm}
-					>
-						<X className="w-5 h-5 mr-2" />
-						Limpiar
-					</Button>
-				</div>
-
 				{/* Confirmation Modal */}
 				{showConfirmation && (
 					<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-						<Card className="w-full max-w-sm animate-fadeIn">
-							<CardHeader className="text-center">
+						<div className="w-full max-w-sm bg-white rounded-lg shadow-lg p-6 animate-fadeIn">
+							<div className="text-center">
 								<div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
 									<Check className="w-8 h-8 text-green-600" />
 								</div>
-								<CardTitle className="text-xl text-green-600">
+								<h3 className="text-xl font-bold text-green-600 mb-4">
 									¡Check-in Exitoso!
-								</CardTitle>
-							</CardHeader>
-							<CardContent className="text-center space-y-3">
-								<div className="text-sm text-gray-600">
+								</h3>
+								<div className="text-sm text-gray-600 space-y-2">
 									<div className="font-medium">Pulsera: {wristbandCode}</div>
 									<div className="font-medium">Items: {getTotalItems()}</div>
 									<div className="font-bold text-lg text-green-600">
 										Total: {formatPrice(getTotalPrice())}
 									</div>
 								</div>
-							</CardContent>
-						</Card>
+							</div>
+						</div>
 					</div>
 				)}
 			</div>
