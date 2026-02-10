@@ -8,7 +8,7 @@ This system manages the flow of passengers in a massive inflatable attraction (*
 
 * **Code & Documentation:** All source code, variable names, database schemas, and technical documentation must be in **English**.
 * **Comments:** All comments within the codebase must be in **English**.
-* **User Interface (UI):** The staff and public-facing interfaces should be in **Spanish** (unless otherwise specified).
+* **User Interface (UI):** The staff and public-facing interfaces should be in **Spanish** (unless otherwise specified). Follow the [UI Design Guide](./ui/DESIGN-GUIDE.md) for the dark, mobile-first styling system.
 * **Developer Communication:** Communication with the Project Owner will be conducted in **Spanish**.
 
 ## 3. Domain Definitions (Aviation Analogy)
