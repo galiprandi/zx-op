@@ -1,24 +1,21 @@
 #!/bin/bash
 
 # Script para iniciar el servidor de desarrollo con HTTPS
-# Esto permite el acceso a la cámara desde dispositivos móviles en la red local
+# Genera certificados nuevos automáticamente cada vez para evitar problemas
 
 echo "🚀 Iniciando servidor de desarrollo con HTTPS..."
 echo "📱 Los dispositivos móviles podrán acceder usando la IP local"
-echo "🔒 Se usará un certificado auto-firmado (aceptar la advertencia de seguridad)"
+echo "🔒 Se generarán certificados SSL frescos automáticamente"
 echo ""
 
 cd "$(dirname "$0")"
 
-# Verificar que los certificados existan
-if [ ! -f "certs/key.pem" ] || [ ! -f "certs/cert.pem" ]; then
-    echo "📋 Generando certificados SSL auto-firmados..."
-    mkdir -p certs
-    cd certs
-    ./generate-cert.sh
-    cd ..
-    echo "✅ Certificados generados"
-fi
+# Siempre generar certificados nuevos para esta sesión
+echo "📋 Generando certificados SSL frescos para esta sesión..."
+mkdir -p certs
+cd certs
+./generate-cert.sh
+cd ..
 
 echo ""
 echo "🌐 URLs de acceso:"

@@ -2,10 +2,10 @@
 
 ## 📱 Acceso desde Dispositivos Móviles
 
-### 1. Iniciar Servidor
+### 1. Iniciar Servidor (con certificados automáticos)
 ```bash
 cd ui
-./start-https.sh
+npm run dev:https
 ```
 
 ### 2. URL para Móviles
@@ -26,11 +26,18 @@ https://192.168.68.58:3000/
 ### 4. Permitir Cámara
 - Cuando la app solicite permiso, tocar "Permitir"
 
+## ✨ Características Automáticas
+
+- **🔄 Certificados nuevos cada sesión** - Nunca tendrás problemas de certificados expirados
+- **📱 Compatible con móviles** - Funciona en Chrome, Safari, etc.
+- **🔐 SSL seguro para desarrollo** - Certificados auto-firmados válidos por 1 año
+
 ## ⚠️ Importante
 
 - **La advertencia "Tu conexión no es privada" es NORMAL**
 - **Es un certificado auto-firmado para desarrollo**
 - **No hay riesgo real de seguridad en tu red local**
+- **Los certificados se regeneran automáticamente cada vez**
 
 ## 🔧 Si no funciona
 
@@ -39,6 +46,19 @@ https://192.168.68.58:3000/
 3. **Permisos:** Revisar configuración de cámara del móvil
 4. **IP correcta:** Usar la IP que muestra Vite al iniciar
 
-## 📞 Soporte
+## 📞 Comandos Útiles
+
+```bash
+# Iniciar con HTTPS y certificados automáticos
+npm run dev:https
+
+# Iniciar normal (sin HTTPS)
+npm run dev
+
+# Generar certificados manualmente
+cd certs && ./generate-cert.sh
+```
+
+## 📋 Soporte
 
 Ver `MOBILE-ACCESS.md` para instrucciones detalladas.

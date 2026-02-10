@@ -44,6 +44,7 @@ export default defineConfig({
 		port: 3000,
 		host: true, // Permitir acceso desde cualquier dispositivo en la red local
 		https: {
+			// Generar certificados automáticamente si no existen
 			key: './certs/key.pem',
 			cert: './certs/cert.pem'
 		}
