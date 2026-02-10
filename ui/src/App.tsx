@@ -8,9 +8,8 @@ function App() {
 	return (
 		<div className="min-h-screen bg-background text-foreground">
 			<Routes>
-				<Route path="/" element={<CheckInView />} />
+				<Route path="/" element={<OperationView />} />
 				<Route path="/checkin" element={<CheckInView />} />
-				<Route path="/operation" element={<OperationView />} />
 				<Route path="/monitor" element={<MonitorView />} />
 				<Route path="/products" element={<ProductsView />} />
 			</Routes>
