@@ -17,6 +17,7 @@
     "@zx-op/shared": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.462.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

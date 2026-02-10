@@ -7,12 +7,13 @@ export function useSocket() {
 
 	useEffect(() => {
 		// Conectar al servidor de Socket.IO
-		const socket = io("http://localhost:3002", {
-			transports: ["polling", "websocket"], // Try polling first, then websocket
+		const socket = io("http://" + window.location.hostname + ":3002", {
+			transports: ["polling", "websocket"],
 			timeout: 10000,
 			reconnection: true,
 			reconnectionAttempts: 5,
 			reconnectionDelay: 1000,
+			withCredentials: false,
 		});
 
 		// Eventos de productos

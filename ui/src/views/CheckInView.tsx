@@ -1,25 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Scan, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Check, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import { MobileLayout } from "@/components/MobileLayout";
+import { ProductTouchable } from "@/components/ProductTouchable";
+import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useSocket } from "@/hooks/useSocket";
 
 // Real API functions
 const api = {
 	getProducts: async () => {
-		const response = await fetch("http://localhost:3001/api/products");
+		const response = await fetch(
+			"http://" + window.location.hostname + ":3001/api/products",
+		);
 		if (!response.ok) throw new Error("Failed to fetch products");
 		return response.json();
 	},
 	createCheckin: async (data: CheckinData) => {
-		const response = await fetch("http://localhost:3001/api/checkin", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(data),
-		});
+		const response = await fetch(
+			"http://" + window.location.hostname + ":3001/api/checkin",
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(data),
+			},
+		);
 		if (!response.ok) throw new Error("Failed to create checkin");
 		return response.json();
 	},
@@ -49,20 +55,10 @@ interface Product {
 export function CheckInView() {
 	useSocket(); // Initialize socket connection for real-time updates
 
-	const inputRef = useRef<HTMLInputElement>(null);
-
 	const [wristbandCode, setWristbandCode] = useState("");
 	const [transactionNumber, setTransactionNumber] = useState("");
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [showConfirmation, setShowConfirmation] = useState(false);
-	const [isScanning, setIsScanning] = useState(false);
-
-	// Auto focus on mount
-	useEffect(() => {
-		if (inputRef.current) {
-			inputRef.current.focus();
-		}
-	}, []);
 
 	const queryClient = useQueryClient();
 
@@ -145,15 +141,6 @@ export function CheckInView() {
 		return cart.reduce((total, item) => total + item.quantity, 0);
 	};
 
-	const handleScan = () => {
-		setIsScanning(true);
-		// Simulate barcode scanning
-		setTimeout(() => {
-			setWristbandCode("SCAN123456");
-			setIsScanning(false);
-		}, 1000);
-	};
-
 	const handleCheckin = () => {
 		if (!wristbandCode || cart.length === 0) {
 			alert("Por favor ingrese el código de pulsera y agregue productos");
@@ -217,28 +204,12 @@ export function CheckInView() {
 			<div className="p-4 space-y-4">
 				{/* Wristband Input */}
 				<div className="relative mb-6">
-					<Input
-						ref={inputRef}
-						id="wristband"
-						placeholder="Código de pulsera"
+					<QRScanner
 						value={wristbandCode}
-						onChange={(e) => setWristbandCode(e.target.value)}
+						onChange={setWristbandCode}
+						placeholder="Código de pulsera"
 						className="text-lg pr-16 h-14"
 					/>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onClick={handleScan}
-						disabled={isScanning}
-						className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
-					>
-						{isScanning ? (
-							<div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-						) : (
-							<Scan className="w-5 h-5 text-blue-600" />
-						)}
-					</Button>
 				</div>
 
 				{/* Products Grid */}
@@ -264,28 +235,11 @@ export function CheckInView() {
 									})
 									.slice(0, 4) // Máximo 4 productos
 									.map((product: Product) => (
-										<div
+										<ProductTouchable
 											key={product.id}
-											className="p-2 border rounded bg-yellow-50 flex flex-col justify-between cursor-pointer hover:bg-yellow-100 transition-colors"
-											onClick={() => addToCart(product)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter" || e.key === " ") {
-													e.preventDefault();
-													addToCart(product);
-												}
-											}}
-											tabIndex={0}
-											role="button"
-										>
-											<div>
-												<div className="font-medium text-xs mb-1">
-													{product.name}
-												</div>
-												<div className="text-sm font-bold text-yellow-700">
-													{formatPrice(product.price)}
-												</div>
-											</div>
-										</div>
+											product={product as any}
+											onClick={addToCart as any}
+										/>
 									))}
 							</div>
 						</div>
@@ -305,28 +259,11 @@ export function CheckInView() {
 									})
 									.slice(0, 4) // Máximo 4 productos
 									.map((product: Product) => (
-										<div
+										<ProductTouchable
 											key={product.id}
-											className="p-2 border rounded flex flex-col justify-between cursor-pointer hover:bg-gray-100 transition-colors"
-											onClick={() => addToCart(product)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter" || e.key === " ") {
-													e.preventDefault();
-													addToCart(product);
-												}
-											}}
-											tabIndex={0}
-											role="button"
-										>
-											<div>
-												<div className="font-medium text-xs mb-1">
-													{product.name}
-												</div>
-												<div className="text-sm font-bold text-green-600">
-													{formatPrice(product.price)}
-												</div>
-											</div>
-										</div>
+											product={product as any}
+											onClick={addToCart as any}
+										/>
 									))}
 							</div>
 						</div>
