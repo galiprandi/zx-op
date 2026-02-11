@@ -11,7 +11,7 @@
   "scripts": {
     "dev:all": "concurrently \"pnpm dev:api\" \"pnpm dev:ui\"",
     "dev:api": "pnpm --filter api dev",
-    "dev:ui": "pnpm --filter ui dev",
+    "dev:ui": "pnpm --filter ui dev --open",
     "build:api": "pnpm --filter api build",
     "build:ui": "pnpm --filter ui build --open",
     "build": "pnpm build:api && pnpm build:ui",

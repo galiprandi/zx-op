@@ -7,7 +7,7 @@ export function useSocket() {
 
 	useEffect(() => {
 		// Conectar al servidor de Socket.IO
-		const socket = io("http://" + window.location.hostname + ":" + (import.meta.env.VITE_SOCKET_PORT || '4000'), {
+		const socket = io("http://" + window.location.hostname + ":" + (import.meta.env.VITE_API_SOCKET_PORT || '4000'), {
 			transports: ["polling", "websocket"],
 			timeout: 10000,
 			reconnection: true,

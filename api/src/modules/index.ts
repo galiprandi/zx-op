@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../prisma/generated';
 import { Server as SocketIOServer } from 'socket.io';
 
 // Services

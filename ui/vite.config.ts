@@ -47,7 +47,13 @@ export default defineConfig({
 			// Generar certificados automáticamente si no existen
 			key: './certs/key.pem',
 			cert: './certs/cert.pem'
-		}
+		},
+		proxy: {
+			'/api': {
+				target: 'http://localhost:3000',
+				changeOrigin: true,
+			},
+		},
 	},
 	build: {
 		outDir: "dist",

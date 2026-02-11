@@ -23,14 +23,16 @@ import { Label } from "@/components/ui/label";
 import { useSocket } from "@/hooks/useSocket";
 
 // Real API functions
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
 const api = {
 	getProducts: async () => {
-		const response = await fetch("http://localhost:3001/api/products");
+		const response = await fetch(`${API_BASE}/api/products`);
 		if (!response.ok) throw new Error("Failed to fetch products");
 		return response.json();
 	},
 	createProduct: async (data: ProductFormData) => {
-		const response = await fetch("http://localhost:3001/api/products", {
+		const response = await fetch(`${API_BASE}/api/products`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(data),
@@ -39,7 +41,7 @@ const api = {
 		return response.json();
 	},
 	updateProduct: async (id: string, data: ProductFormData) => {
-		const response = await fetch(`http://localhost:3001/api/products/${id}`, {
+		const response = await fetch(`${API_BASE}/api/products/${id}`, {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(data),
@@ -48,7 +50,7 @@ const api = {
 		return response.json();
 	},
 	deleteProduct: async (id: string) => {
-		const response = await fetch(`http://localhost:3001/api/products/${id}`, {
+		const response = await fetch(`${API_BASE}/api/products/${id}`, {
 			method: "DELETE",
 		});
 		if (!response.ok) throw new Error("Failed to delete product");

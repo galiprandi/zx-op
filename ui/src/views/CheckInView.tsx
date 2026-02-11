@@ -9,23 +9,20 @@ import { Input } from "@/components/ui/input";
 import { useSocket } from "@/hooks/useSocket";
 
 // Real API functions
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
 const api = {
 	getProducts: async () => {
-		const response = await fetch(
-			"http://" + window.location.hostname + ":3001/api/products",
-		);
+		const response = await fetch(`${API_BASE}/api/products`);
 		if (!response.ok) throw new Error("Failed to fetch products");
 		return response.json();
 	},
 	createCheckin: async (data: CheckinData) => {
-		const response = await fetch(
-			"http://" + window.location.hostname + ":3001/api/checkin",
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(data),
-			},
-		);
+		const response = await fetch(`${API_BASE}/api/checkin`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(data),
+		});
 		if (!response.ok) throw new Error("Failed to create checkin");
 		return response.json();
 	},

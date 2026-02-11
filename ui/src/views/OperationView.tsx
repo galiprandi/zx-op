@@ -1,9 +1,8 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MobileLayout } from "@/components/MobileLayout";
 import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
-import { useSocket } from "@/hooks/useSocket";
 import {
 	Card,
 	CardContent,
@@ -12,43 +11,11 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useSocket } from "@/hooks/useSocket";
+import { useWristbandSession } from "@/hooks/useWristbands";
+import { pauseSession, startSession } from "../api/operation";
 
 type ActionTone = "primary" | "success" | "warning";
-
-interface SessionData {
-	id: string;
-	status: "IDLE" | "ACTIVE" | "PAUSED" | "ENDED";
-	purchasedMinutes: number;
-	remainingMinutes: number;
-	remainingSeconds: number;
-	wristband: {
-		id: string;
-		qrCode: string;
-	};
-}
-
-// API functions
-const api = {
-	getActiveSession: async (qrCode: string): Promise<SessionData> => {
-		const response = await fetch(`http://localhost:3001/api/sessions/active/${qrCode}`);
-		if (!response.ok) throw new Error("Failed to fetch session");
-		return response.json();
-	},
-	startSession: async (id: string) => {
-		const response = await fetch(`http://localhost:3001/api/sessions/${id}/start`, {
-			method: "PUT",
-		});
-		if (!response.ok) throw new Error("Failed to start session");
-		return response.json();
-	},
-	pauseSession: async (id: string) => {
-		const response = await fetch(`http://localhost:3001/api/sessions/${id}/pause`, {
-			method: "PUT",
-		});
-		if (!response.ok) throw new Error("Failed to pause session");
-		return response.json();
-	},
-};
 
 export function OperationView() {
 	const [wristbandCode, setWristbandCode] = useState("");
@@ -58,46 +25,23 @@ export function OperationView() {
 
 	const queryClient = useQueryClient();
 
-	const {
-		data: sessionData,
-		isLoading,
-		error,
-	} = useQuery<SessionData, Error>({
-		queryKey: ["session", wristbandCode],
-		queryFn: () => api.getActiveSession(wristbandCode),
-		enabled: !!wristbandCode,
-		retry: 1,
-	});
+	const { wristband, isLoading, error } = useWristbandSession(wristbandCode);
 
 	const startMutation = useMutation({
-		mutationFn: api.startSession,
+		mutationFn: startSession,
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["session", wristbandCode] });
 		},
 	});
 
 	const pauseMutation = useMutation({
-		mutationFn: api.pauseSession,
+		mutationFn: pauseSession,
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["session", wristbandCode] });
 		},
 	});
 
-	// Placeholder data until API integration arrives
-	const mockSession: Partial<SessionData> & { totalMinutes: number } = {
-		status: "ACTIVE",
-		remainingMinutes: 12,
-		remainingSeconds: 45,
-		totalMinutes: 20,
-	};
-
-	// Use API data or fallback to mock for now
-	const currentSession = sessionData || mockSession;
-
-	const remainingSeconds =
-		(currentSession.remainingMinutes || 0) * 60 + (currentSession.remainingSeconds || 0);
-	const totalSeconds = sessionData ? sessionData.purchasedMinutes * 60 : mockSession.totalMinutes * 60;
-	const progressValue = Math.min(100, (remainingSeconds / totalSeconds) * 100);
+	// Use API data
 
 	const getTimeColor = (minutes: number) => {
 		if (minutes > 5) return "text-green-500";
@@ -106,7 +50,7 @@ export function OperationView() {
 	};
 
 	const getActionButton = () => {
-		const status = sessionData?.status || "IDLE";
+		const status = wristband?.status || "IDLE";
 		if (status === "ACTIVE") {
 			return { text: "⏸️ PAUSAR", tone: "warning" as ActionTone };
 		}
@@ -125,11 +69,11 @@ export function OperationView() {
 	};
 
 	const handlePrimaryAction = () => {
-		if (!wristbandCode || !sessionData) return;
-		if (sessionData.status === "ACTIVE") {
-			pauseMutation.mutate(sessionData.id);
+		if (!wristbandCode || !wristband) return;
+		if (wristband.status === "ACTIVE") {
+			pauseMutation.mutate(wristband.id);
 		} else {
-			startMutation.mutate(sessionData.id);
+			startMutation.mutate(wristband.id);
 		}
 	};
 
@@ -146,11 +90,18 @@ export function OperationView() {
 					<Button
 						type="button"
 						size="lg"
-						disabled={!wristbandCode || !sessionData || startMutation.isPending || pauseMutation.isPending}
+						disabled={
+							!wristbandCode ||
+							!wristband ||
+							startMutation.isPending ||
+							pauseMutation.isPending
+						}
 						onClick={handlePrimaryAction}
 						className={`h-16 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed ${actionToneClass[actionButton.tone]}`}
 					>
-						{startMutation.isPending || pauseMutation.isPending ? "Procesando..." : actionButton.text}
+						{startMutation.isPending || pauseMutation.isPending
+							? "Procesando..."
+							: actionButton.text}
 					</Button>
 					<Button
 						type="button"
@@ -201,8 +152,8 @@ export function OperationView() {
 
 				{wristbandCode ? (
 					<div className="space-y-4">
-						<Card className={!sessionData ? "border-0 bg-transparent" : ""}>
-							{sessionData && (
+						<Card className={!wristband ? "border-0 bg-transparent" : ""}>
+							{wristband && (
 								<CardHeader>
 									<CardTitle>Estado de Sesión</CardTitle>
 									<CardDescription>
@@ -216,38 +167,66 @@ export function OperationView() {
 										<p>Cargando sesión...</p>
 									</div>
 								) : error ? (
-									<div className="text-center text-red-500">
-										<p>No es posible conectarse al servidor</p>
-									</div>
-								) : sessionData ? (
+									<Titles
+										text="No es posible conectarse al servidor"
+										type="error"
+									/>
+								) : wristband ? (
 									<>
-										<div className="text-center">
-											<div
-												className={`text-6xl font-bold font-mono ${getTimeColor(currentSession.remainingMinutes || 0)}`}
-											>
-												{String(currentSession.remainingMinutes || 0).padStart(2, "0")}:
-												{String(currentSession.remainingSeconds || 0).padStart(2, "0")}
-											</div>
-											<div className="text-sm text-muted-foreground mt-2">
-												Estado: <span className="font-medium">{sessionData?.status || "IDLE"}</span>
-											</div>
-										</div>
+										{(() => {
+											const remainingSeconds =
+												(wristband.remainingMinutes || 0) * 60 +
+												(wristband.remainingSeconds || 0);
+											const totalSeconds = wristband.purchasedMinutes * 60;
+											const progressValue = Math.min(
+												100,
+												(remainingSeconds / totalSeconds) * 100,
+											);
+											return (
+												<>
+													<div className="text-center">
+														<div
+															className={`text-6xl font-bold font-mono ${getTimeColor(wristband.remainingMinutes || 0)}`}
+														>
+															{String(wristband.remainingMinutes || 0).padStart(
+																2,
+																"0",
+															)}
+															:
+															{String(wristband.remainingSeconds || 0).padStart(
+																2,
+																"0",
+															)}
+														</div>
+														<div className="text-sm text-muted-foreground mt-2">
+															Estado:{" "}
+															<span className="font-medium">
+																{wristband.status || "IDLE"}
+															</span>
+														</div>
+													</div>
 
-										<div className="grid grid-cols-3 gap-3 text-sm">
-											<div className="flex flex-col items-center gap-1">
-												<div className="w-3 h-3 bg-green-500 rounded-full" />
-												<span>+5 min</span>
-											</div>
-											<div className="flex flex-col items-center gap-1">
-												<div className="w-3 h-3 bg-yellow-500 rounded-full" />
-												<span>-5 min</span>
-											</div>
-											<div className="flex flex-col items-center gap-1">
-												<div className="w-3 h-3 bg-red-500 rounded-full" />
-												<span>Excedido</span>
-											</div>
-										</div>
-										<Progress value={progressValue} className="mt-4 h-3" />
+													<div className="grid grid-cols-3 gap-3 text-sm">
+														<div className="flex flex-col items-center gap-1">
+															<div className="w-3 h-3 bg-green-500 rounded-full" />
+															<span>+5 min</span>
+														</div>
+														<div className="flex flex-col items-center gap-1">
+															<div className="w-3 h-3 bg-yellow-500 rounded-full" />
+															<span>-5 min</span>
+														</div>
+														<div className="flex flex-col items-center gap-1">
+															<div className="w-3 h-3 bg-red-500 rounded-full" />
+															<span>Excedido</span>
+														</div>
+													</div>
+													<Progress
+														value={progressValue}
+														className="mt-4 h-3"
+													/>
+												</>
+											);
+										})()}
 									</>
 								) : (
 									<Titles text="No existe" type="error" />
@@ -255,7 +234,7 @@ export function OperationView() {
 							</CardContent>
 						</Card>
 
-						{sessionData && (
+						{wristband && (
 							<div className="grid gap-3 sm:grid-cols-2">
 								<Card className="border-green-100 bg-green-50/70">
 									<CardContent className="space-y-2 p-4">
@@ -263,7 +242,7 @@ export function OperationView() {
 											Próxima ventana
 										</p>
 										<p className="text-3xl font-bold text-green-800">
-											{(currentSession.remainingMinutes || 0) > 5 ? "+5" : "-5"} min
+											{(wristband.remainingMinutes || 0) > 5 ? "+5" : "-5"} min
 										</p>
 										<p className="text-sm text-green-700/80">
 											Actualiza el semáforo según prioridad
@@ -296,11 +275,26 @@ export function OperationView() {
 	);
 }
 
-
-const Titles = ({text, type}: {text: string, type?: 'warning' | 'info' |'error'}) => {
-    return (
-        <div>
-            <h1 className={type === 'warning' ? 'text-red-500' : type === 'error' ? 'text-red-500' : 'text-blue-500'}>{text}</h1>
-        </div>
-    );
-}
+const Titles = ({
+	text,
+	type,
+}: {
+	text: string;
+	type?: "warning" | "info" | "error";
+}) => {
+	return (
+		<div>
+			<h1
+				className={
+					type === "warning"
+						? "text-red-500"
+						: type === "error"
+							? "text-red-500"
+							: "text-blue-500"
+				}
+			>
+				{text}
+			</h1>
+		</div>
+	);
+};
