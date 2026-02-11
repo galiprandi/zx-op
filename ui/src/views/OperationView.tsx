@@ -217,8 +217,7 @@ export function OperationView() {
 									</div>
 								) : error ? (
 									<div className="text-center text-red-500">
-										<p>Error al cargar la sesión</p>
-										<p className="text-sm">{(error as Error).message}</p>
+										<p>No es posible conectarse al servidor</p>
 									</div>
 								) : sessionData ? (
 									<>
@@ -251,9 +250,7 @@ export function OperationView() {
 										<Progress value={progressValue} className="mt-4 h-3" />
 									</>
 								) : (
-									<div className="text-center text-muted-foreground">
-										<p>No encontrado</p>
-									</div>
+									<Titles text="No existe" type="error" />
 								)}
 							</CardContent>
 						</Card>
@@ -297,4 +294,13 @@ export function OperationView() {
 			</div>
 		</MobileLayout>
 	);
+}
+
+
+const Titles = ({text, type}: {text: string, type?: 'warning' | 'info' |'error'}) => {
+    return (
+        <div>
+            <h1 className={type === 'warning' ? 'text-red-500' : type === 'error' ? 'text-red-500' : 'text-blue-500'}>{text}</h1>
+        </div>
+    );
 }
