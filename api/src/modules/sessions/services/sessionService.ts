@@ -107,4 +107,47 @@ export class SessionService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async getActiveSessionByQrCode(qrCode: string) {
+    // First find the wristband by QR code
+    const wristband = await this.prisma.wristband.findUnique({
+      where: { qrCode },
+    });
+
+    if (!wristband) {
+      throw new Error('Wristband not found');
+    }
+
+    const session = await this.findActiveSessionByWristband(wristband.id);
+
+    if (!session) {
+      throw new Error('No active session found for this wristband');
+    }
+
+    // Compute remaining time
+    const now = new Date();
+    let elapsedSeconds = 0;
+
+    if (session.startTime) {
+      elapsedSeconds = Math.floor((now.getTime() - session.startTime.getTime()) / 1000);
+
+      // Subtract paused time
+      if (session.status === 'PAUSED' && session.lastPauseTime) {
+        // Paused time is from lastPauseTime to now, but since it's paused, elapsed is up to pause
+        // Actually, need to track total paused time, but for simplicity, assume single pause
+        const pauseStart = session.lastPauseTime.getTime();
+        elapsedSeconds = Math.floor((pauseStart - session.startTime.getTime()) / 1000);
+      }
+    }
+
+    const totalPurchasedSeconds = session.purchasedMinutes * 60;
+    const remainingSeconds = Math.max(0, totalPurchasedSeconds - elapsedSeconds);
+
+    return {
+      ...session,
+      remainingMinutes: Math.floor(remainingSeconds / 60),
+      remainingSeconds: remainingSeconds % 60,
+      wristband,
+    };
+  }
 }

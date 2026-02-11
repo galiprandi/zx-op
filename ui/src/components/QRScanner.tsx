@@ -9,6 +9,7 @@ interface QRScannerProps {
 	placeholder?: string;
 	className?: string;
 	disabled?: boolean;
+	onSubmit?: () => void;
 }
 
 interface Html5QrcodeScanner {
@@ -27,6 +28,7 @@ export function QRScanner({
 	placeholder = "Código de pulsera",
 	className = "",
 	disabled = false,
+	onSubmit,
 }: QRScannerProps) {
 	const [isScanning, setIsScanning] = useState(false);
 	const [showScanner, setShowScanner] = useState(false);
@@ -141,6 +143,7 @@ export function QRScanner({
 				<Input
 					value={value}
 					onChange={(e) => onChange(e.target.value)}
+					onKeyDown={(e) => { if (e.key === 'Enter') onSubmit?.(); }}
 					placeholder={placeholder}
 					disabled={disabled}
 					className={`text-lg pr-16 h-14 ${className}`}
@@ -220,6 +223,7 @@ export function QRScanner({
 											id="manual-input"
 											value={value}
 											onChange={(e) => onChange(e.target.value)}
+											onKeyDown={(e) => { if (e.key === 'Enter') onSubmit?.(); }}
 											placeholder={placeholder}
 											autoFocus
 											className="text-lg"

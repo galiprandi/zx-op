@@ -14,8 +14,8 @@ export async function sessionRoutes(fastify: FastifyInstance, controller: Sessio
   // Pause session
   fastify.put('/api/sessions/:id/pause', controller.pauseSession.bind(controller));
 
-  // End session
-  fastify.put('/api/sessions/:id/end', controller.endSession.bind(controller));
+  // Get active session by wristband QR code
+  fastify.get('/api/sessions/active/:qrCode', controller.getActiveSessionByQrCode.bind(controller));
 
   // Delete session
   fastify.delete('/api/sessions/:id', controller.deleteSession.bind(controller));

@@ -3,11 +3,15 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "workspaces": ["api", "ui", "shared"],
+  "workspaces": [
+    "api",
+    "ui",
+    "shared"
+  ],
   "scripts": {
-    "dev:api": "pnpm --filter api dev",
-    "dev:ui": "pnpm --filter ui dev",
     "dev:all": "concurrently \"pnpm dev:api\" \"pnpm dev:ui\"",
+    "dev:api": "pnpm --filter api dev",
+    "dev:ui": "pnpm --filter ui dev --open",
     "build:api": "pnpm --filter api build",
     "build:ui": "pnpm --filter ui build",
     "build": "pnpm build:api && pnpm build:ui",
@@ -31,5 +35,5 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0"
   },
-  "packageManager": "pnpm@9.15.4"
+  "packageManager": "pnpm@10.29.2"
 }

@@ -52,16 +52,19 @@ export function useSocket() {
 		socket.on("session:started", () => {
 			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
 			queryClient.invalidateQueries({ queryKey: ["sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["session"] });
 		});
 
 		socket.on("session:paused", () => {
 			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
 			queryClient.invalidateQueries({ queryKey: ["sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["session"] });
 		});
 
 		socket.on("session:ended", () => {
 			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
 			queryClient.invalidateQueries({ queryKey: ["sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["session"] });
 		});
 
 		// Eventos de transacciones
