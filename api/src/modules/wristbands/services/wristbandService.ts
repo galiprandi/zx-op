@@ -21,7 +21,7 @@ export class WristbandService {
   }
 
   async createWristband(qrCode: string, userId?: string) {
-    const data: any = { qrCode };
+    const data: {qrCode: string; userId?: string} = { qrCode };
     if (userId !== undefined && userId !== null) {
       data.userId = userId;
     }

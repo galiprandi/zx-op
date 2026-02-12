@@ -1,26 +1,26 @@
+import { AxiosError } from "axios";
 import { API } from "./api";
+import type { SessionData } from "@shared/types";
 
-interface ApiResponse<T> {
-  data: T;
-}
+export const getActiveSession = async (code: string): Promise<SessionData> => {
+  try {
+    const { data } = await API.get<SessionData>(`/api/sessions/active/${code}`);
+    return data;
+  } catch (error) {
+    if (
+      error instanceof AxiosError &&
+      error.response?.status === 404 &&
+      typeof error.response.data === "object"
+    ) {
+      const message = (error.response.data as { error?: string })?.error;
+      throw new Error(message || "Session not found");
+    }
+    throw error;
+  }
+};
 
-export const getActiveSession = async (code: string): Promise<SessionData> =>
-  API.get<ApiResponse<SessionData>>(`/api/sessions/active/${code}`).then(({ data }) => data.data);
+export const startSession = async (id: string) =>
+  API.put<SessionData>(`/api/sessions/${id}/start`).then(({ data }) => data);
 
-export const startSession = async (id: string): Promise<SessionData> =>
-  API.put<ApiResponse<SessionData>>(`/api/sessions/${id}/start`).then(({ data }) => data.data);
-
-export const pauseSession = async (id: string): Promise<SessionData> =>
-  API.put<ApiResponse<SessionData>>(`/api/sessions/${id}/pause`).then(({ data }) => data.data);
-
-export interface SessionData {
-  id: string;
-  status: "IDLE" | "ACTIVE" | "PAUSED" | "ENDED";
-  purchasedMinutes: number;
-  remainingMinutes: number;
-  remainingSeconds: number;
-  wristband: {
-    id: string;
-    qrCode: string;
-  };
-}
+export const pauseSession = async (id: string) =>
+  API.put<SessionData>(`/api/sessions/${id}/pause`).then(({ data }) => data);

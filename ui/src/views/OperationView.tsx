@@ -11,8 +11,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useSocket } from "@/hooks/useSocket";
-import { useWristbandSession } from "@/hooks/useWristbands";
+import { useWristband } from "@/hooks/useWristbands";
 import { pauseSession, startSession } from "../api/operation";
 
 type ActionTone = "primary" | "success" | "warning";
@@ -21,11 +20,10 @@ export function OperationView() {
 	const [wristbandCode, setWristbandCode] = useState("");
 	const [inputValue, setInputValue] = useState("");
 
-	useSocket(); // Initialize socket connection for real-time updates
 
 	const queryClient = useQueryClient();
 
-	const { wristband, isLoading, error } = useWristbandSession(wristbandCode);
+	const { wristband, isLoading, error } = useWristband(wristbandCode);
 
 	const startMutation = useMutation({
 		mutationFn: startSession,
@@ -117,15 +115,6 @@ export function OperationView() {
 			}
 		>
 			<div className="p-4 space-y-6">
-				<div className="text-center space-y-1">
-					<p className="text-xs uppercase tracking-[0.3em] text-blue-600">
-						Zona Xtreme
-					</p>
-					<h2 className="text-2xl font-bold">Operación</h2>
-					<p className="text-sm text-muted-foreground">
-						Control de ingreso y monitoreo de pulseras
-					</p>
-				</div>
 
 				<div className="space-y-2">
 					<div className="flex items-center justify-between">
@@ -263,13 +252,7 @@ export function OperationView() {
 							</div>
 						)}
 					</div>
-				) : (
-					<Card className="border-dashed">
-						<CardContent className="py-8 text-center text-muted-foreground">
-							Escanea una pulsera para ver su estado en tiempo real.
-						</CardContent>
-					</Card>
-				)}
+				) : null}
 			</div>
 		</MobileLayout>
 	);

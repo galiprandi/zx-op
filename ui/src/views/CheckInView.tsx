@@ -1,52 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { createCheckin, type CheckinPayload } from "@/api/checkin";
+import type { Product } from "@/api/products";
 import { MobileLayout } from "@/components/MobileLayout";
 import { ProductTouchable } from "@/components/ProductTouchable";
 import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useProducts } from "@/hooks/useProducts";
 import { useSocket } from "@/hooks/useSocket";
-
-// Real API functions
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-
-const api = {
-	getProducts: async () => {
-		const response = await fetch(`${API_BASE}/api/products`);
-		if (!response.ok) throw new Error("Failed to fetch products");
-		return response.json();
-	},
-	createCheckin: async (data: CheckinData) => {
-		const response = await fetch(`${API_BASE}/api/checkin`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(data),
-		});
-		if (!response.ok) throw new Error("Failed to create checkin");
-		return response.json();
-	},
-};
-
-interface CheckinData {
-	wristbandCode: string;
-	products: { id: string; quantity: number }[];
-	transactionNumber?: string;
-}
 
 interface CartItem {
 	product: Product;
 	quantity: number;
-}
-
-interface Product {
-	id: string;
-	name: string;
-	description?: string;
-	price: number;
-	category: string;
-	required: boolean;
-	isDeleted: boolean;
 }
 
 export function CheckInView() {
@@ -58,14 +25,14 @@ export function CheckInView() {
 	const [showConfirmation, setShowConfirmation] = useState(false);
 
 	const queryClient = useQueryClient();
-
-	const { data: products = [] } = useQuery({
-		queryKey: ["products"],
-		queryFn: api.getProducts,
-	});
+	const {
+		requiredProducts,
+		optionalProducts,
+		
+	} = useProducts();
 
 	const checkinMutation = useMutation({
-		mutationFn: api.createCheckin,
+		mutationFn: (data: CheckinPayload) => createCheckin(data),
 		onSuccess: () => {
 			setShowConfirmation(true);
 			setTimeout(() => {
@@ -80,12 +47,7 @@ export function CheckInView() {
 		},
 	});
 
-	const requiredProducts = products.filter(
-		(product: Product) => !product.isDeleted && product.required,
-	);
-	const optionalProducts = products.filter(
-		(product: Product) => !product.isDeleted && !product.required,
-	);
+	
 
 	const resetForm = () => {
 		setWristbandCode("");
@@ -144,7 +106,7 @@ export function CheckInView() {
 			return;
 		}
 
-		const checkinData: CheckinData = {
+		const checkinData: CheckinPayload = {
 			wristbandCode,
 			products: cart.map((item) => ({
 				id: item.product.id,
@@ -234,8 +196,8 @@ export function CheckInView() {
 									.map((product: Product) => (
 										<ProductTouchable
 											key={product.id}
-											product={product as any}
-											onClick={addToCart as any}
+											product={product as unknown as Product}
+											onClick={addToCart as unknown as (product: Product) => void}
 										/>
 									))}
 							</div>
@@ -258,8 +220,8 @@ export function CheckInView() {
 									.map((product: Product) => (
 										<ProductTouchable
 											key={product.id}
-											product={product as any}
-											onClick={addToCart as any}
+											product={product as unknown as Product}
+											onClick={addToCart as unknown as (product: Product) => void}
 										/>
 									))}
 							</div>
