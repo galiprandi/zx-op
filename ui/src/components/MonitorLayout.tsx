@@ -14,7 +14,7 @@ export function MonitorLayout({ children, className }: MonitorLayoutProps) {
 
 	const navItems = [
 		{ path: "/checkin", label: "Check-in", icon: Package },
-		{ path: "/operation", label: "Operación", icon: Target },
+		{ path: "/", label: "Operación", icon: Target },
 		{ path: "/monitor", label: "Monitor", icon: BarChart3 },
 		{ path: "/products", label: "Productos", icon: Settings },
 	];
