@@ -12,6 +12,7 @@ import { playerSessionRoutes } from './playerSessions/routes/playerSessionRoutes
 import { checkinRoutes } from './checkin/routes/checkinRoutes';
 import { productRoutes } from './products/routes/productRoutes';
 import { transactionRoutes } from './transactions/routes/transactionRoutes';
+import { dashboardRoutes } from './dashboard/routes/dashboardRoutes';
 import { initializeSocketIO } from './playerSessions/services/socketService';
 
 /**
@@ -36,6 +37,9 @@ export async function registerModules(app: FastifyInstance) {
 
   await app.register(transactionRoutes);
   console.log('✅ Transactions module registered');
+
+  await app.register(dashboardRoutes);
+  console.log('✅ Dashboard module registered');
 
   console.log('🚀 All modules registered successfully');
 }
@@ -92,6 +96,14 @@ export const moduleInfo = {
         'GET /api/transactions/stats'
       ],
       dependencies: ['socketIO']
+    },
+    {
+      name: 'dashboard',
+      description: 'Dashboard statistics and monitoring',
+      routes: [
+        'GET /api/dashboard/stats'
+      ],
+      dependencies: ['transactions', 'playerSessions']
     }
   ],
   removedModules: [

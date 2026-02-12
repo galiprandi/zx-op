@@ -27,26 +27,33 @@
   }
 
   .dark {
-    /* Vercel-inspired dark theme */
-    --background: 255 255 255 / 0.01;
-    --foreground: 255 255 255 / 0.9;
-    --card: 255 255 255 / 0.05;
-    --card-foreground: 255 255 255 / 0.9;
-    --popover: 255 255 255 / 0.05;
-    --popover-foreground: 255 255 255 / 0.9;
-    --primary: 255 255 255 / 0.9;
-    --primary-foreground: 0 0 0 / 0.9;
-    --secondary: 255 255 255 / 0.08;
-    --secondary-foreground: 255 255 255 / 0.8;
-    --muted: 255 255 255 / 0.08;
-    --muted-foreground: 255 255 255 / 0.6;
-    --accent: 255 255 255 / 0.08;
-    --accent-foreground: 255 255 255 / 0.9;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 255 255 255 / 0.9;
+    /* Zona Xtreme Dark Theme - Design Guide compliant */
+    --background: 220 18% 6%;
+    --foreground: 210 40% 96%;
+    --card: 220 18% 10%;
+    --card-foreground: 210 40% 96%;
+    --popover: 220 18% 10%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 210 100% 67%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 220 10% 35%;
+    --muted-foreground: 210 40% 96%;
+    --accent: 265 80% 70%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 210 40% 96%;
     --border: 255 255 255 / 0.1;
     --input: 255 255 255 / 0.1;
     --ring: 255 255 255 / 0.2;
+    
+    /* Semantic status colors */
+    --status-playing: 142 71% 45%;
+    --status-warning: 45 100% 50%;
+    --status-danger: 0 72% 55%;
+    --status-paused: 35 92% 50%;
+    --status-waiting: 210 100% 67%;
   }
 }
 

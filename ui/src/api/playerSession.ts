@@ -63,7 +63,8 @@ export const formatTimeRemaining = (seconds: number): string => {
   }
 };
 
-export const getSessionProgress = (session: ActiveSessionResponse): number => {
+// Helper functions for UI - overloaded to accept both session types
+export const getSessionProgress = (session: SessionStatusResponse | ActiveSessionResponse): number => {
   if (session.totalAllowedSeconds === 0) return 0;
   const consumed = session.accumulatedSeconds + (session.isActive ? 
     Math.floor((new Date().getTime() - new Date(session.lastStartAt!).getTime()) / 1000) : 0);
@@ -76,10 +77,10 @@ export const getSessionColor = (remainingSeconds: number): 'green' | 'yellow' | 
   return 'red'; // <= 1 minute
 };
 
-export const isSessionExpired = (session: ActiveSessionResponse): boolean => {
+export const isSessionExpired = (session: SessionStatusResponse | ActiveSessionResponse): boolean => {
   return session.remainingSeconds <= 0;
 };
 
-export const isSessionActive = (session: ActiveSessionResponse): boolean => {
+export const isSessionActive = (session: SessionStatusResponse | ActiveSessionResponse): boolean => {
   return session.isActive && !isSessionExpired(session);
 };

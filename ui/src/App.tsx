@@ -1,8 +1,8 @@
 import { Route, Routes } from "react-router-dom";
 import { CheckInView } from "./views/CheckInView";
-import { MonitorView } from "./views/MonitorView";
 import { OperationView } from "./views/OperationView";
 import { ProductsView } from "./views/ProductsView";
+import { MonitorView } from "./views/MonitorView";
 
 function App() {
 	return (
