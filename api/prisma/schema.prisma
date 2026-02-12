@@ -55,6 +55,13 @@ model Transaction {
   createdAt       DateTime      @default(now())
 }
 
+model SystemSetting {
+  id            String   @id @default("system")
+  maxOccupancy  Int      @default(100)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 enum LogAction {
   CHECKIN
   PLAY

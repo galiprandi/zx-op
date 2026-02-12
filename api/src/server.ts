@@ -166,6 +166,29 @@ async function main() {
   // Transactions
   app.get('/api/transactions', () => prisma.transaction.findMany({ include: { playerSession: true, product: true }, orderBy: { createdAt: 'desc' } }));
 
+  // System settings - occupancy
+  app.get('/api/system/settings', async () => {
+    const setting = await prisma.systemSetting.findUnique({ where: { id: 'system' } });
+    if (setting) return setting;
+    return prisma.systemSetting.create({ data: { id: 'system', maxOccupancy: 100 } });
+  });
+
+  app.put('/api/system/settings', async (req, reply) => {
+    const { maxOccupancy } = req.body as { maxOccupancy?: number };
+    const parsed = Number(maxOccupancy);
+    if (!Number.isFinite(parsed)) {
+      return reply.status(400).send({ error: 'maxOccupancy must be a number' });
+    }
+
+    const updated = await prisma.systemSetting.upsert({
+      where: { id: 'system' },
+      update: { maxOccupancy: parsed },
+      create: { id: 'system', maxOccupancy: parsed },
+    });
+
+    return updated;
+  });
+
   const port = Number(process.env.PORT || 3000);
   const host = process.env.HOST || '0.0.0.0';
   

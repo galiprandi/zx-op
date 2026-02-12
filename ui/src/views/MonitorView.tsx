@@ -7,10 +7,21 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Play, Pause, AlertCircle, Users, Clock, TrendingUp } from "lucide-react";
+import {
+	Play,
+	Pause,
+	AlertCircle,
+	Users,
+	Clock,
+	TrendingUp,
+	Settings,
+} from "lucide-react";
 import { useSocket } from "@/hooks/useSocket";
 import { useActiveSessions } from "@/hooks/usePlayerSession";
 import { getSessionColor, getSessionProgress } from "@/api/playerSession";
+import { getSystemSettings, updateSystemSettings, type SystemSettings } from "@/api/system";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 interface ActiveSession {
 	id: string;
@@ -28,6 +39,16 @@ interface ActiveSession {
 
 export function MonitorView() {
 	useSocket(); // Initialize socket connection for real-time updates
+	const queryClient = useQueryClient();
+	const [isConfigOpen, setIsConfigOpen] = useState(false);
+	const [localMax, setLocalMax] = useState<number | "">("");
+	const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+	useEffect(() => {
+		if (!toast) return;
+		const timer = setTimeout(() => setToast(null), 3000);
+		return () => clearTimeout(timer);
+	}, [toast]);
 
 	// Get real-time active sessions data
 	const {
@@ -39,11 +60,46 @@ export function MonitorView() {
 		totalPlaying,
 		totalPaused,
 		totalExpiringSoon,
-		occupancyRate,
 		isLoading,
 		error,
 		refreshSessions
 	} = useActiveSessions();
+
+	const { data: systemSettings, isLoading: loadingSettings } = useQuery<SystemSettings>({
+		queryKey: ["systemSettings"],
+		queryFn: getSystemSettings,
+		staleTime: 1000 * 60,
+	});
+
+	if (systemSettings && localMax === "") {
+		setLocalMax(systemSettings.maxOccupancy);
+	}
+
+	const { mutate: saveSettings, isPending: saving } = useMutation({
+		mutationFn: updateSystemSettings,
+		onSuccess: (data) => {
+			setToast({ message: "Capacidad actualizada", type: "success" });
+			setIsConfigOpen(false);
+			setLocalMax(data.maxOccupancy);
+			queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+		},
+		onError: () => {
+			setToast({ message: "Error al guardar", type: "error" });
+		},
+	});
+
+	const maxOccupancy = systemSettings?.maxOccupancy ?? 0;
+	const occupancyPercentage = maxOccupancy > 0 ? Math.min(100, (totalPlaying / maxOccupancy) * 100) : 0;
+
+	const handleSave = () => {
+		if (localMax === "") return;
+		const parsed = Number(localMax);
+		if (!Number.isFinite(parsed)) {
+			setToast({ message: "Ingresa un número válido", type: "error" });
+			return;
+		}
+		saveSettings({ maxOccupancy: parsed });
+	};
 
 	// Helper functions for UI
 	const getTimeColor = (remainingSeconds: number) => {
@@ -67,7 +123,7 @@ export function MonitorView() {
 	};
 
 	// Loading state
-	if (isLoading) {
+	if (isLoading || loadingSettings) {
 		return (
 			<MonitorLayout>
 				<div className="flex items-center justify-center min-h-[60vh]">
@@ -103,6 +159,11 @@ export function MonitorView() {
 
 	return (
 		<MonitorLayout>
+			{toast && (
+				<div className={`fixed top-4 right-4 z-50 rounded-lg px-4 py-3 shadow-lg text-sm text-white ${toast.type === "success" ? "bg-green-600" : "bg-red-600"}`}>
+					{toast.message}
+				</div>
+			)}
 			<div className="space-y-6">
 				{/* Header */}
 				<div className="text-center">
@@ -179,11 +240,26 @@ export function MonitorView() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="text-3xl font-bold text-blue-500">
-								{Math.round(occupancyRate)}%
+							<div className="flex items-center justify-between gap-2 mb-2">
+								<div>
+									<div className="text-3xl font-bold text-blue-500">
+										{Math.round(occupancyPercentage)}%
+									</div>
+									<p className="text-xs text-gray-600 mt-1">
+										En juego: {totalPlaying} / Capacidad: {maxOccupancy || "-"}
+									</p>
+								</div>
+								<button
+									onClick={() => setIsConfigOpen(true)}
+									className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50"
+								>
+									<Settings className="w-4 h-4" />
+									Configurar
+								</button>
 							</div>
+							<Progress value={occupancyPercentage} className="h-2" />
 							<p className="text-xs text-gray-600 mt-1">
-								{totalActive} sesiones totales
+								Sesiones totales: {totalActive}
 							</p>
 						</CardContent>
 					</Card>
@@ -367,7 +443,45 @@ export function MonitorView() {
 						</div>
 					</CardContent>
 				</Card>
-			</div>
+
+			{isConfigOpen && (
+				<div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center px-4">
+					<div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl w-full max-w-sm p-6 relative">
+						<button
+							onClick={() => setIsConfigOpen(false)}
+							className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
+						>
+							×
+						</button>
+						<h3 className="text-lg font-semibold mb-1">Capacidad máxima</h3>
+						<p className="text-sm text-gray-600 mb-4">Define la cantidad máxima de jugadores en juego.</p>
+						<label className="text-sm text-gray-700 mb-2 block" htmlFor="maxOccupancy">Número de jugadores</label>
+						<input
+							id="maxOccupancy"
+							type="number"
+							className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base bg-white text-gray-900"
+							value={localMax}
+							onChange={(e) => setLocalMax(e.target.value === "" ? "" : Number(e.target.value))}
+						/>
+						<div className="flex justify-end gap-2 mt-6">
+							<button
+								onClick={() => setIsConfigOpen(false)}
+								className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+							>
+								Cancelar
+							</button>
+							<button
+								onClick={handleSave}
+								disabled={saving}
+								className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+							>
+								{saving ? "Guardando..." : "Guardar"}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+		</div>
 		</MonitorLayout>
 	);
 }
