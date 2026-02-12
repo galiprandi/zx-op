@@ -21,6 +21,7 @@ export function CheckInView() {
 	useSocket(); // Initialize socket connection for real-time updates
 
 	const [barcodeId, setBarcodeId] = useState("");
+	const [activeBarcode, setActiveBarcode] = useState(""); // The barcode we're actually searching for
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [showConfirmation, setShowConfirmation] = useState(false);
 	const [lastCheckinData, setLastCheckinData] = useState<CheckinResponse | null>(null);
@@ -33,8 +34,8 @@ export function CheckInView() {
 		calculateTotalTime: calculateCartTotalTime,
 	} = useProducts();
 
-	// Get current session status for the scanned barcode
-	const { session, isLoading: sessionLoading } = usePlayerSession(barcodeId);
+	// Get current session status only when we actively search
+	const { session, isLoading: sessionLoading } = usePlayerSession(activeBarcode);
 
 	const checkinMutation = useMutation({
 		mutationFn: (data: CheckinPayload) => createCheckin(data),
@@ -56,8 +57,15 @@ export function CheckInView() {
 
 	const resetForm = () => {
 		setBarcodeId("");
+		setActiveBarcode("");
 		setCart([]);
 		setLastCheckinData(null);
+	};
+
+	const handleBarcodeSearch = () => {
+		if (barcodeId.trim()) {
+			setActiveBarcode(barcodeId.trim());
+		}
 	};
 
 	const addToCart = (product: Product) => {
@@ -102,18 +110,40 @@ export function CheckInView() {
 		return calculateCartTotalTime(cart.map(item => ({ id: item.product.id, quantity: item.quantity })));
 	};
 
+	// Filter products for display based on session state
+	const getAvailableRequiredProducts = () => {
+		// If session exists, don't show required products (they should already have them)
+		if (session) return [];
+		return requiredProducts.filter((product) => {
+			const cartItem = cart.find((item) => item.product.id === product.id);
+			return !cartItem;
+		});
+	};
+
+	const getAvailableOptionalProducts = () => {
+		return optionalProducts.filter((product) => {
+			// For existing sessions, allow adding more time products even if they're already in cart
+			if (session && isTimeProduct(product)) {
+				return true; // Always show time products for existing sessions
+			}
+			// For non-time products or new sessions, check if already in cart
+			const cartItem = cart.find((item) => item.product.id === product.id);
+			return !cartItem;
+		});
+	};
+
 	const getTotalItems = () => {
 		return cart.reduce((total, item) => total + item.quantity, 0);
 	};
 
 	const handleCheckin = () => {
-		if (!barcodeId || cart.length === 0) {
+		if (!activeBarcode || cart.length === 0) {
 			alert("Por favor ingrese el código de pulsera y agregue productos");
 			return;
 		}
 
 		const checkinData = {
-			barcodeId,
+			barcodeId: activeBarcode,
 			products: cart.map((item) => ({
 				id: item.product.id,
 				quantity: item.quantity,
@@ -125,7 +155,9 @@ export function CheckInView() {
 
 	// Calculate session status display
 	const getSessionStatusDisplay = () => {
-		if (!barcodeId) return null;
+		// Don't show anything if no active barcode search
+		if (!activeBarcode) return null;
+		
 		if (sessionLoading) {
 			return (
 				<GlassCard className="text-center">
@@ -134,11 +166,14 @@ export function CheckInView() {
 				</GlassCard>
 			);
 		}
+		
+		// New wristband - no session found
 		if (!session) {
 			return (
 				<GlassCard className="text-center">
-					<AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-					<span className="text-muted-foreground text-sm">Sin sesión activa</span>
+					<AlertCircle className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+					<span className="text-blue-400 font-medium text-sm">📋 Nueva Pulsera</span>
+					<span className="text-muted-foreground text-xs block mt-1">⏱️ Sin tiempo</span>
 				</GlassCard>
 			);
 		}
@@ -183,6 +218,7 @@ export function CheckInView() {
 					<ScanInput
 						value={barcodeId}
 						onChange={setBarcodeId}
+						onSubmit={handleBarcodeSearch}
 						placeholder="Código de pulsera"
 					/>
 				</div>
@@ -193,7 +229,20 @@ export function CheckInView() {
 				{/* Products Grid */}
 				<div className="flex-1 overflow-y-auto px-4 space-y-6">
 					{/* Required Products */}
-					{requiredProducts.length > 0 && (
+					{session && requiredProducts.length > 0 && (
+						<div className="space-y-3">
+							<div className="flex items-center justify-between">
+								<h3 className="font-semibold text-foreground">
+									Productos Obligatorios
+								</h3>
+								<StatusBadge status="playing" size="sm" showIcon={false} />
+							</div>
+							<div className="text-center py-4 text-muted-foreground text-sm">
+								✅ Ya incluidos en la sesión actual
+							</div>
+						</div>
+					)}
+					{!session && getAvailableRequiredProducts().length > 0 && (
 						<div className="space-y-3">
 							<div className="flex items-center justify-between">
 								<h3 className="font-semibold text-foreground">
@@ -202,13 +251,7 @@ export function CheckInView() {
 								<StatusBadge status="waiting" size="sm" showIcon={false} />
 							</div>
 							<div className="grid grid-cols-2 gap-3">
-								{requiredProducts
-									.filter((product: Product) => {
-										const cartItem = cart.find(
-											(item) => item.product.id === product.id,
-										);
-										return !cartItem;
-									})
+								{getAvailableRequiredProducts()
 									.slice(0, 4)
 									.map((product: Product) => (
 										<ProductButton
@@ -222,17 +265,11 @@ export function CheckInView() {
 					)}
 
 					{/* Optional Products */}
-					{optionalProducts.length > 0 && (
+					{getAvailableOptionalProducts().length > 0 && (
 						<div className="space-y-3">
 							<h3 className="font-semibold text-foreground">Productos Opcionales</h3>
 							<div className="grid grid-cols-2 gap-3">
-								{optionalProducts
-									.filter((product: Product) => {
-										const cartItem = cart.find(
-											(item) => item.product.id === product.id,
-										);
-										return !cartItem;
-									})
+								{getAvailableOptionalProducts()
 									.slice(0, 4)
 									.map((product: Product) => (
 										<ProductButton
@@ -356,9 +393,9 @@ function ProductButton({ product, onClick }: { product: Product; onClick: () => 
 					<div className="text-lg font-bold text-primary">
 						{formatPrice(product.price)}
 					</div>
-					{isTimeProduct(product) && (
+					{isTimeProduct(product) && product.timeValueSeconds && (
 						<span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
-							{formatTimeValue(product.timeValueSeconds!)}
+							{formatTimeValue(product.timeValueSeconds)}
 						</span>
 					)}
 				</div>
