@@ -1,120 +1,100 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
-import type { Server as SocketIOServer } from "socket.io";
+import { PrismaClient, Transaction } from '@prisma/client';
+import { playerSessionService } from '../../playerSessions/services/playerSessionService';
+import { emitSessionEvent, emitTransactionEvent } from '../../playerSessions/services/socketService';
+import type { SessionWithRemaining } from '../../playerSessions/services/playerSessionService';
+
+const prisma = new PrismaClient();
+
+export interface CheckinRequest {
+  barcodeId: string;
+  products: { id: string; quantity: number }[];
+}
+
+export interface CheckinResult {
+  playerSession: SessionWithRemaining;
+  transactions: Transaction[];
+  totalSecondsAdded: number;
+}
 
 export class CheckinService {
-	constructor(
-		private prisma: PrismaClient,
-		private io: SocketIOServer,
-	) {}
+  async processCheckin(request: CheckinRequest): Promise<CheckinResult> {
+    const { barcodeId, products } = request;
 
-	async processCheckin(
-		wristbandCode: string,
-		products: { id: string; quantity: number }[],
-		transactionNumber?: string,
-	) {
-		if (!wristbandCode || !products || products.length === 0) {
-			throw new Error("wristbandCode and products are required");
-		}
+    // 1. Buscar/crear PlayerSession por barcodeId
+    const session = await playerSessionService.getOrCreateSession(barcodeId);
 
-		// Find or create wristband
-		let wristband = await this.prisma.wristband.findUnique({
-			where: { qrCode: wristbandCode },
-		});
+    let totalSecondsToAdd = 0;
+    const transactions: Transaction[] = [];
 
-		if (!wristband) {
-			wristband = await this.prisma.wristband.create({
-				data: { qrCode: wristbandCode },
-			});
-			this.io.emit("wristband:created", wristband);
-		}
+    // 2. Procesar cada producto
+    for (const item of products) {
+      const product = await prisma.product.findUnique({ where: { id: item.id } });
+      
+      if (!product || product.isDeleted) {
+        throw new Error(`Product not found: ${item.id}`);
+      }
 
-		// Create transactions for each product
-		const transactions = [];
-		let totalPrice = 0;
+      // 3. Crear transacción
+      const transaction = await prisma.transaction.create({
+        data: {
+          playerSessionId: session.id,
+          productId: item.id,
+          quantity: item.quantity,
+          totalPrice: product.price * item.quantity,
+        },
+      });
+      
+      transactions.push(transaction);
 
-		for (const product of products) {
-			const productData = await this.prisma.product.findUnique({
-				where: { id: product.id },
-			});
+      // 4. Si es producto de tiempo, acumular segundos
+      if (product.timeValueSeconds !== null) {
+        totalSecondsToAdd += product.timeValueSeconds * item.quantity;
+      }
+    }
 
-			if (!productData || productData.isDeleted) {
-				throw new Error(`Product with id ${product.id} not found or deleted`);
-			}
+    // 5. Agregar tiempo si hay productos de tiempo
+    if (totalSecondsToAdd > 0) {
+      await playerSessionService.addTime(barcodeId, totalSecondsToAdd);
+    }
 
-			const itemTotalPrice = productData.price * product.quantity;
-			totalPrice += itemTotalPrice;
+    // 6. Emitir eventos Socket.IO
+    emitSessionEvent('session:updated', { 
+      barcodeId, 
+      session: await playerSessionService.getStatus(barcodeId),
+      timeAdded: totalSecondsToAdd 
+    });
 
-			const transaction = await this.prisma.transaction.create({
-				data: {
-					wristbandId: wristband.id,
-					productId: product.id,
-					quantity: product.quantity,
-					totalPrice: itemTotalPrice,
-				},
-				include: {
-					wristband: true,
-					product: true,
-				},
-			});
+    // Emitir evento de transacción por cada una creada
+    transactions.forEach(tx => {
+      emitTransactionEvent('transaction:created', { transaction: tx });
+    });
 
-			transactions.push(transaction);
-			this.io.emit("transaction:created", transaction);
-		}
+    return {
+      playerSession: await playerSessionService.getStatus(barcodeId),
+      transactions,
+      totalSecondsAdded: totalSecondsToAdd,
+    };
+  }
 
-		// Check if there's an active session for this wristband
-		const activeSession = await this.prisma.session.findFirst({
-			where: {
-				wristbandId: wristband.id,
-				status: { in: ["IDLE", "ACTIVE", "PAUSED"] },
-			},
-			orderBy: { createdAt: "desc" },
-		});
+  async getCheckinHistory(barcodeId: string, limit = 10) {
+    const session = await prisma.playerSession.findUnique({ 
+      where: { barcodeId } 
+    });
+    
+    if (!session) {
+      return [];
+    }
 
-		let session = activeSession;
-
-		// If no active session, create a new one
-		if (!session) {
-			// Calculate total minutes from products (assuming each product gives certain minutes)
-			// This logic might need adjustment based on business rules
-			const totalMinutes = products.reduce((acc, product) => {
-				// For now, let's assume each product gives 10 minutes per unit
-				// This should be configurable based on product type
-				return acc + product.quantity * 10;
-			}, 0);
-
-			session = await this.prisma.session.create({
-				data: {
-					wristbandId: wristband.id,
-					purchasedMinutes: totalMinutes,
-					status: "IDLE",
-				},
-				include: {
-					wristband: true,
-					events: true,
-				},
-			});
-
-			this.io.emit("session:created", session);
-		}
-
-		// Create event for checkin
-		await this.prisma.event.create({
-			data: {
-				sessionId: session.id,
-				type: "TRANSACTION_CREATED",
-				data: {
-					transactionNumber,
-					products,
-					totalPrice,
-				} as Prisma.InputJsonValue,
-			},
-		});
-
-		return {
-			wristband,
-			session,
-			transactions,
-			totalPrice,
-		};
-	}
+    return prisma.transaction.findMany({
+      where: { playerSessionId: session.id },
+      include: { 
+        product: true,
+        playerSession: true 
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
 }
+
+export const checkinService = new CheckinService();

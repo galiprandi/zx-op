@@ -1,9 +1,35 @@
-export * from "./api.ts";
-export * from "./enums.ts";
-export * from "./event.ts";
-export * from "./product.ts";
-export * from "./session.ts";
-export * from "./socket.ts";
-export * from "./transaction.ts";
-export * from "./user.ts";
-export * from "./wristband.ts";
+// Core types
+export * from './playerSession';
+export * from './sessionLog';
+export * from './product';
+export * from './transaction';
+
+// Re-export commonly used type combinations
+export type {
+  PlayerSession,
+  PlayerSessionStatus,
+  SessionWithComputedFields,
+  SessionPlayRequest,
+  SessionPauseRequest
+} from './playerSession';
+
+export type {
+  Product,
+  CreateProductRequest,
+  UpdateProductRequest,
+  ProductCategory
+} from './product';
+
+export type {
+  Transaction,
+  TransactionWithRelations,
+  CreateTransactionRequest,
+  TransactionStats
+} from './transaction';
+
+export type {
+  LogAction,
+  SessionLog,
+  SessionLogWithSession,
+  SessionLogData
+} from './sessionLog';

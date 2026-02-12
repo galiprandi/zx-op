@@ -7,215 +7,362 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Play, Pause, AlertCircle, Users, Clock, TrendingUp } from "lucide-react";
 import { useSocket } from "@/hooks/useSocket";
+import { useActiveSessions } from "@/hooks/usePlayerSession";
+import { getSessionColor, getSessionProgress } from "@/api/playerSession";
+
+interface ActiveSession {
+	id: string;
+	barcodeId: string;
+	remainingSeconds: number;
+	remainingMinutes: number;
+	totalAllowedSeconds: number;
+	accumulatedSeconds: number;
+	lastStartAt: string | null;
+	isActive: boolean;
+	expiresAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
 
 export function MonitorView() {
 	useSocket(); // Initialize socket connection for real-time updates
 
-	// Mock data - replace with real API call
-	const activeSessions = [
-		{
-			id: "1",
-			wristbandCode: "WX001",
-			remainingMinutes: 12,
-			remainingSeconds: 45,
-			status: "ACTIVE",
-		},
-		{
-			id: "2",
-			wristbandCode: "WX002",
-			remainingMinutes: 8,
-			remainingSeconds: 30,
-			status: "ACTIVE",
-		},
-		{
-			id: "3",
-			wristbandCode: "WX003",
-			remainingMinutes: 3,
-			remainingSeconds: 15,
-			status: "ACTIVE",
-		},
-		{
-			id: "4",
-			wristbandCode: "WX004",
-			remainingMinutes: -2,
-			remainingSeconds: 30,
-			status: "ACTIVE",
-		},
-		{
-			id: "5",
-			wristbandCode: "WX005",
-			remainingMinutes: 15,
-			remainingSeconds: 0,
-			status: "PAUSED",
-		},
-	];
+	// Get real-time active sessions data
+	const {
+		activePlayingSessions,
+		pausedSessions,
+		expiringSoonSessions,
+		expiredSessions,
+		totalActive,
+		totalPlaying,
+		totalPaused,
+		totalExpiringSoon,
+		occupancyRate,
+		isLoading,
+		error,
+		refreshSessions
+	} = useActiveSessions();
 
-	const getTimeColor = (minutes: number) => {
-		if (minutes > 5) return "text-green-500";
-		if (minutes >= 0) return "text-yellow-500";
-		return "text-red-500";
+	// Helper functions for UI
+	const getTimeColor = (remainingSeconds: number) => {
+		const color = getSessionColor(remainingSeconds);
+		switch (color) {
+			case 'green': return 'text-green-500';
+			case 'yellow': return 'text-yellow-500';
+			case 'red': return 'text-red-500';
+			default: return 'text-gray-500';
+		}
 	};
 
-	const getProgressColor = (minutes: number) => {
-		if (minutes > 5) return "bg-green-500";
-		if (minutes >= 0) return "bg-yellow-500";
-		return "bg-red-500";
+	const formatTimeDisplay = (seconds: number) => {
+		const minutes = Math.floor(seconds / 60);
+		const secs = seconds % 60;
+		return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 	};
 
-	const getProgressValue = (minutes: number, totalMinutes: number = 30) => {
-		const percentage = Math.max(
-			0,
-			Math.min(100, (minutes / totalMinutes) * 100),
+	const getProgressValue = (session: ActiveSession) => {
+		return getSessionProgress(session);
+	};
+
+	// Loading state
+	if (isLoading) {
+		return (
+			<MonitorLayout>
+				<div className="flex items-center justify-center min-h-[60vh]">
+					<div className="text-center">
+						<div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+						<p className="text-xl text-gray-600">Cargando monitor...</p>
+					</div>
+				</div>
+			</MonitorLayout>
 		);
-		return percentage;
-	};
+	}
+
+	// Error state
+	if (error) {
+		return (
+			<MonitorLayout>
+				<div className="flex items-center justify-center min-h-[60vh]">
+					<div className="text-center">
+						<AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+						<p className="text-xl text-red-600 font-medium">Error de conexión</p>
+						<p className="text-gray-600 mt-2">No se pueden cargar las sesiones activas</p>
+						<button 
+							onClick={refreshSessions}
+							className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+						>
+							Reintentar
+						</button>
+					</div>
+				</div>
+			</MonitorLayout>
+		);
+	}
 
 	return (
 		<MonitorLayout>
 			<div className="space-y-6">
+				{/* Header */}
 				<div className="text-center">
-					<h2 className="text-2xl font-bold mb-2">Monitor Público</h2>
+					<h2 className="text-3xl font-bold mb-2">Monitor Público</h2>
 					<p className="text-muted-foreground">
 						Visualización en tiempo real de sesiones activas
 					</p>
+					<div className="flex items-center justify-center gap-2 mt-4">
+						<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+						<span className="text-sm text-gray-600">
+							Actualización en tiempo real cada 3 segundos
+						</span>
+					</div>
 				</div>
 
 				{/* Stats Overview */}
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 					<Card>
 						<CardHeader className="pb-2">
-							<CardTitle className="text-lg">En Juego</CardTitle>
+							<CardTitle className="text-lg flex items-center gap-2">
+								<Play className="w-5 h-5 text-green-600" />
+								En Juego
+							</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<div className="text-3xl font-bold text-green-500">
-								{activeSessions.filter((s) => s.status === "ACTIVE").length}
+								{totalPlaying}
 							</div>
+							<p className="text-xs text-gray-600 mt-1">
+								Sesiones activas
+							</p>
 						</CardContent>
 					</Card>
+
 					<Card>
 						<CardHeader className="pb-2">
-							<CardTitle className="text-lg">Pausados</CardTitle>
+							<CardTitle className="text-lg flex items-center gap-2">
+								<Pause className="w-5 h-5 text-yellow-600" />
+								Pausados
+							</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<div className="text-3xl font-bold text-yellow-500">
-								{activeSessions.filter((s) => s.status === "PAUSED").length}
+								{totalPaused}
 							</div>
+							<p className="text-xs text-gray-600 mt-1">
+								Sesiones en pausa
+							</p>
 						</CardContent>
 					</Card>
+
 					<Card>
 						<CardHeader className="pb-2">
-							<CardTitle className="text-lg">Ocupación</CardTitle>
+							<CardTitle className="text-lg flex items-center gap-2">
+								<Clock className="w-5 h-5 text-orange-600" />
+								Expirando
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className="text-3xl font-bold text-orange-500">
+								{totalExpiringSoon}
+							</div>
+							<p className="text-xs text-gray-600 mt-1">
+								Menos de 5 min
+							</p>
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardHeader className="pb-2">
+							<CardTitle className="text-lg flex items-center gap-2">
+								<TrendingUp className="w-5 h-5 text-blue-600" />
+								Ocupación
+							</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<div className="text-3xl font-bold text-blue-500">
-								{Math.round(
-									(activeSessions.filter((s) => s.status === "ACTIVE").length /
-										20) *
-										100,
-								)}
-								%
+								{Math.round(occupancyRate)}%
 							</div>
+							<p className="text-xs text-gray-600 mt-1">
+								{totalActive} sesiones totales
+							</p>
 						</CardContent>
 					</Card>
 				</div>
 
-				{/* Active Sessions */}
+				{/* Active Sessions Grid */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					{/* In the Air */}
+					{/* In the Air - Active Playing Sessions */}
 					<Card>
 						<CardHeader>
-							<CardTitle className="text-green-500">En el Aire</CardTitle>
+							<CardTitle className="text-green-500 flex items-center gap-2">
+								<Users className="w-5 h-5" />
+								En el Aire
+							</CardTitle>
 							<CardDescription>
 								Sesiones activas consumiendo tiempo
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							{activeSessions
-								.filter((s) => s.status === "ACTIVE")
-								.map((session) => (
+							{activePlayingSessions.length === 0 ? (
+								<div className="text-center py-8">
+									<Play className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+									<p className="text-gray-600">No hay sesiones en juego</p>
+								</div>
+							) : (
+								activePlayingSessions.map((session) => (
 									<div key={session.id} className="space-y-2">
 										<div className="flex justify-between items-center">
-											<span className="font-mono text-lg">
-												{session.wristbandCode}
-											</span>
-											<span
-												className={`font-mono text-lg font-bold ${getTimeColor(session.remainingMinutes)}`}
-											>
-												{String(session.remainingMinutes).padStart(2, "0")}:
-												{String(session.remainingSeconds).padStart(2, "0")}
-											</span>
-										</div>
-										<Progress
-											value={getProgressValue(session.remainingMinutes)}
-											className="h-2"
-										/>
-									</div>
-								))}
-						</CardContent>
-					</Card>
-
-					{/* Preparing for Landing */}
-					<Card>
-						<CardHeader>
-							<CardTitle className="text-yellow-500">
-								Preparando Aterrizaje
-							</CardTitle>
-							<CardDescription>
-								Sesiones con tiempo bajo o pausadas
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{activeSessions
-								.filter((s) => s.status === "PAUSED" || s.remainingMinutes <= 5)
-								.map((session) => (
-									<div key={session.id} className="space-y-2">
-										<div className="flex justify-between items-center">
-											<span className="font-mono text-lg">
-												{session.wristbandCode}
+											<span className="font-mono text-lg font-medium">
+												{session.barcodeId}
 											</span>
 											<div className="flex items-center gap-2">
-												{session.status === "PAUSED" && (
-													<span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-														PAUSADO
-													</span>
-												)}
+												<Play className="w-4 h-4 text-green-600" />
 												<span
-													className={`font-mono text-lg font-bold ${getTimeColor(session.remainingMinutes)}`}
+													className={`font-mono text-lg font-bold ${getTimeColor(session.remainingSeconds)}`}
 												>
-													{String(session.remainingMinutes).padStart(2, "0")}:
-													{String(session.remainingSeconds).padStart(2, "0")}
+													{formatTimeDisplay(session.remainingSeconds)}
 												</span>
 											</div>
 										</div>
 										<Progress
-											value={getProgressValue(session.remainingMinutes)}
+											value={getProgressValue(session)}
 											className="h-2"
 										/>
+										<div className="flex justify-between text-xs text-gray-500">
+											<span>Progreso: {Math.round(getProgressValue(session))}%</span>
+											<span>{session.remainingMinutes} min restantes</span>
+										</div>
 									</div>
-								))}
+								))
+							)}
+						</CardContent>
+					</Card>
+
+					{/* Preparing for Landing - Paused or Expiring */}
+					<Card>
+						<CardHeader>
+							<CardTitle className="text-yellow-500 flex items-center gap-2">
+								<Clock className="w-5 h-5" />
+								Preparando Aterrizaje
+							</CardTitle>
+							<CardDescription>
+								Sesiones pausadas o con tiempo bajo
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{[...pausedSessions, ...expiringSoonSessions].length === 0 ? (
+								<div className="text-center py-8">
+									<Pause className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+									<p className="text-gray-600">No hay sesiones pausadas o expirando</p>
+								</div>
+							) : (
+								[...pausedSessions, ...expiringSoonSessions].map((session) => (
+									<div key={session.id} className="space-y-2">
+										<div className="flex justify-between items-center">
+											<span className="font-mono text-lg font-medium">
+												{session.barcodeId}
+											</span>
+											<div className="flex items-center gap-2">
+												{!session.isActive && (
+													<span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded flex items-center gap-1">
+														<Pause className="w-3 h-3" />
+														PAUSADO
+													</span>
+												)}
+												{session.remainingSeconds <= 300 && session.isActive && (
+													<span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+														EXPIRANDO
+													</span>
+												)}
+												<span
+													className={`font-mono text-lg font-bold ${getTimeColor(session.remainingSeconds)}`}
+												>
+													{formatTimeDisplay(session.remainingSeconds)}
+												</span>
+											</div>
+										</div>
+										<Progress
+											value={getProgressValue(session)}
+											className="h-2"
+										/>
+										<div className="flex justify-between text-xs text-gray-500">
+											<span>Progreso: {Math.round(getProgressValue(session))}%</span>
+											<span>{session.remainingMinutes} min restantes</span>
+										</div>
+									</div>
+								))
+							)}
 						</CardContent>
 					</Card>
 				</div>
 
+				{/* Expired Sessions */}
+				{expiredSessions.length > 0 && (
+					<Card className="border-red-200">
+						<CardHeader>
+							<CardTitle className="text-red-500 flex items-center gap-2">
+								<AlertCircle className="w-5 h-5" />
+								Tiempo Agotado
+							</CardTitle>
+							<CardDescription>
+								Sesiones que necesitan más tiempo
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{expiredSessions.map((session) => (
+								<div key={session.id} className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+									<span className="font-mono text-lg font-medium text-red-700">
+										{session.barcodeId}
+									</span>
+									<div className="flex items-center gap-2">
+										<AlertCircle className="w-4 h-4 text-red-600" />
+										<span className="font-mono text-lg font-bold text-red-600">
+											00:00
+										</span>
+									</div>
+								</div>
+							))}
+						</CardContent>
+					</Card>
+				)}
+
 				{/* Color Legend */}
 				<Card>
 					<CardHeader>
-						<CardTitle>Leyenda de Colores</CardTitle>
+						<CardTitle className="flex items-center gap-2">
+							<Users className="w-5 h-5" />
+							Leyenda de Estados
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="flex justify-center gap-8">
-							<div className="flex items-center gap-2">
-								<div className="w-4 h-4 bg-green-500 rounded"></div>
-								<span>Verde: +5 minutos</span>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+							<div className="flex items-center gap-3">
+								<div className="w-4 h-4 bg-green-500 rounded-full"></div>
+								<div>
+									<div className="font-medium">Verde</div>
+									<div className="text-sm text-gray-600">+5 minutos</div>
+								</div>
 							</div>
-							<div className="flex items-center gap-2">
-								<div className="w-4 h-4 bg-yellow-500 rounded"></div>
-								<span>Amarillo: -5 minutos</span>
+							<div className="flex items-center gap-3">
+								<div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
+								<div>
+									<div className="font-medium">Amarillo</div>
+									<div className="text-sm text-gray-600">1-5 minutos</div>
+								</div>
 							</div>
-							<div className="flex items-center gap-2">
-								<div className="w-4 h-4 bg-red-500 rounded"></div>
-								<span>Rojo: Tiempo excedido</span>
+							<div className="flex items-center gap-3">
+								<div className="w-4 h-4 bg-orange-500 rounded-full"></div>
+								<div>
+									<div className="font-medium">Naranja</div>
+									<div className="text-sm text-gray-600">Expirando</div>
+								</div>
+							</div>
+							<div className="flex items-center gap-3">
+								<div className="w-4 h-4 bg-red-500 rounded-full"></div>
+								<div>
+									<div className="font-medium">Rojo</div>
+									<div className="text-sm text-gray-600">Tiempo agotado</div>
+								</div>
 							</div>
 						</div>
 					</CardContent>

@@ -1,78 +1,113 @@
-import { PrismaClient } from '../prisma/generated';
-import { Server as SocketIOServer } from 'socket.io';
+/**
+ * Module Registry - Central point for all API modules
+ * 
+ * This file registers all modules and their routes for the Fastify server.
+ * It replaces the old architecture with the new PlayerSession-based system.
+ */
 
-// Services
-import { WristbandService } from './wristbands/services/wristbandService';
-import { ProductService } from './products/services/productService';
-import { SessionService } from './sessions/services/sessionService';
-import { TransactionService } from './transactions/services/transactionService';
-import { EventService } from './events/services/eventService';
-import { CheckinService } from './checkin/services/checkinService';
+import { FastifyInstance } from 'fastify';
 
-// Controllers
-import { WristbandController } from './wristbands/controllers/wristbandController';
-import { ProductController } from './products/controllers/productController';
-import { SessionController } from './sessions/controllers/sessionController';
-import { TransactionController } from './transactions/controllers/transactionController';
-import { EventController } from './events/controllers/eventController';
-import { CheckinController } from './checkin/controllers/checkinController';
-
-// Routes
-import { wristbandRoutes } from './wristbands/routes/wristbandRoutes';
-import { productRoutes } from './products/routes/productRoutes';
-import { sessionRoutes } from './sessions/routes/sessionRoutes';
-import { transactionRoutes } from './transactions/routes/transactionRoutes';
-import { eventRoutes } from './events/routes/eventRoutes';
+// Import new modules
+import { playerSessionRoutes } from './playerSessions/routes/playerSessionRoutes';
 import { checkinRoutes } from './checkin/routes/checkinRoutes';
+import { productRoutes } from './products/routes/productRoutes';
+import { transactionRoutes } from './transactions/routes/transactionRoutes';
+import { initializeSocketIO } from './playerSessions/services/socketService';
 
-export class ModuleRegistry {
-  private prisma: PrismaClient;
-  private io: SocketIOServer;
+/**
+ * Register all module routes with the Fastify server
+ * and initialize Socket.IO for real-time events
+ */
+export async function registerModules(app: FastifyInstance) {
+  console.log('🔧 Registering API modules...');
 
-  // Services
-  public wristbandService: WristbandService;
-  public productService: ProductService;
-  public sessionService: SessionService;
-  public transactionService: TransactionService;
-  public eventService: EventService;
-  public checkinService: CheckinService;
+  // Initialize Socket.IO first (needed for real-time events)
+  initializeSocketIO(app.server);
 
-  // Controllers
-  public wristbandController: WristbandController;
-  public productController: ProductController;
-  public sessionController: SessionController;
-  public transactionController: TransactionController;
-  public eventController: EventController;
-  public checkinController: CheckinController;
+  // Register module routes
+  await app.register(playerSessionRoutes);
+  console.log('✅ PlayerSessions module registered');
 
-  constructor(prisma: PrismaClient, io: SocketIOServer) {
-    this.prisma = prisma;
-    this.io = io;
+  await app.register(checkinRoutes);
+  console.log('✅ Checkin module registered');
 
-    // Initialize services
-    this.wristbandService = new WristbandService(prisma, io);
-    this.productService = new ProductService(prisma, io);
-    this.sessionService = new SessionService(prisma, io);
-    this.transactionService = new TransactionService(prisma, io);
-    this.eventService = new EventService(prisma, io);
-    this.checkinService = new CheckinService(prisma, io);
+  await app.register(productRoutes);
+  console.log('✅ Products module registered');
 
-    // Initialize controllers
-    this.wristbandController = new WristbandController(this.wristbandService);
-    this.productController = new ProductController(this.productService);
-    this.sessionController = new SessionController(this.sessionService);
-    this.transactionController = new TransactionController(this.transactionService);
-    this.eventController = new EventController(this.eventService);
-    this.checkinController = new CheckinController(this.checkinService);
-  }
+  await app.register(transactionRoutes);
+  console.log('✅ Transactions module registered');
 
-  async registerRoutes(fastify: any) {
-    // Register all routes
-    await wristbandRoutes(fastify, this.wristbandController);
-    await productRoutes(fastify, this.productController);
-    await sessionRoutes(fastify, this.sessionController);
-    await transactionRoutes(fastify, this.transactionController);
-    await eventRoutes(fastify, this.eventController);
-    await checkinRoutes(fastify, this.checkinController);
-  }
+  console.log('🚀 All modules registered successfully');
 }
+
+/**
+ * Module information for debugging and monitoring
+ */
+export const moduleInfo = {
+  modules: [
+    {
+      name: 'playerSessions',
+      description: 'Core time tracking and session management',
+      routes: [
+        'POST /api/sessions/play',
+        'POST /api/sessions/pause',
+        'GET /api/sessions/status/:barcodeId',
+        'GET /api/sessions/active'
+      ],
+      dependencies: ['socketIO']
+    },
+    {
+      name: 'checkin',
+      description: 'Check-in processing and transaction creation',
+      routes: [
+        'POST /api/checkin',
+        'GET /api/checkin/history/:barcodeId'
+      ],
+      dependencies: ['playerSessions', 'socketIO']
+    },
+    {
+      name: 'products',
+      description: 'Product management with time value support',
+      routes: [
+        'GET /api/products',
+        'GET /api/products/:id',
+        'POST /api/products',
+        'PUT /api/products/:id',
+        'DELETE /api/products/:id',
+        'GET /api/products/category/:category',
+        'GET /api/products/time'
+      ],
+      dependencies: ['socketIO']
+    },
+    {
+      name: 'transactions',
+      description: 'Transaction management and analytics',
+      routes: [
+        'GET /api/transactions',
+        'GET /api/transactions/:id',
+        'GET /api/transactions/player/:playerSessionId',
+        'GET /api/transactions/barcode/:barcodeId',
+        'POST /api/transactions',
+        'GET /api/transactions/daterange',
+        'GET /api/transactions/stats'
+      ],
+      dependencies: ['socketIO']
+    }
+  ],
+  removedModules: [
+    {
+      name: 'sessions',
+      reason: 'Replaced by playerSessions with new time tracking model'
+    },
+    {
+      name: 'wristbands',
+      reason: 'Absorbed into PlayerSession model via barcodeId'
+    },
+    {
+      name: 'events',
+      reason: 'Replaced by SessionLog within PlayerSession'
+    }
+  ]
+};
+
+export default registerModules;

@@ -1,7 +1,10 @@
 import { FastifyInstance } from 'fastify';
-import { CheckinController } from '../controllers/checkinController';
+import { checkinController } from '../controllers/checkinController';
 
-export async function checkinRoutes(fastify: FastifyInstance, controller: CheckinController) {
-  // Process checkin
-  fastify.post('/api/checkin', controller.processCheckin.bind(controller));
+export async function checkinRoutes(fastify: FastifyInstance) {
+  // Process checkin - create transactions and add time
+  fastify.post('/api/checkin', checkinController.processCheckin);
+  
+  // Get checkin history for a specific barcode
+  fastify.get('/api/checkin/history/:barcodeId', checkinController.getHistory);
 }

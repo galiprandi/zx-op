@@ -31,13 +31,14 @@ This system manages the flow of passengers in a massive inflatable attraction (*
 ## 5. Technical Stack & Requirements
 
 * **Architecture:** Local Web Solution (PWA recommended for mobile devices).
-* **Stack:** Node.js (Express), React (Tailwind CSS), SQLite.
+* **Stack:** Node.js (Express/Fastify), React (Tailwind CSS), **PostgreSQL**.
 * **Real-Time Sync:** Use WebSockets (Socket.io) to ensure the Parents' Monitor and Staff Dashboard are synchronized without manual refreshes.
 * **Resilience:** The system must handle automatic reconnections if mobile devices lose signal within the Mesh network.
-* **Local Persistence:** SQLite is the single source of truth. The system must recover all active "Flight" states upon server restart.
+* **Local Persistence:** PostgreSQL is the single source of truth. The system must recover all active "Flight" states upon server restart.
 
 ## 6. Required Views
 
-1. **Check-in Terminal (Mobile/Tablet):** Fast credit loading and wristband scanning.
-2. **Boarding/In-Flight Dashboard (Staff Mobile):** Binary interface (Green/Red) and "Landing List" (IDs to be removed from the inflatable).
+1. **Check-in Terminal (Mobile/Tablet):** Fast credit loading and barcode wristband scanning; add products (time and extras); accumulates time on existing player session.
+2. **Boarding/In-Flight Dashboard (Staff Mobile):** Play/Pause control via barcode scan with confirmation modal; shows remaining time and landing list.
 3. **Public Monitor (Smart TV):** Visual display of IDs and countdown timers using color coding (Green > Yellow > Red).
+4. **Products Admin (Staff):** CRUD for products, including `time_value_seconds` for time packages and required/optional flags.

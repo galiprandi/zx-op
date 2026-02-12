@@ -1,92 +1,64 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  wristbands Wristband[]
+model PlayerSession {
+  id                  String        @id @default(cuid())
+  barcodeId           String        @unique
+  totalAllowedSeconds Int           @default(0)
+  accumulatedSeconds  Int           @default(0)
+  lastStartAt         DateTime?
+  isActive            Boolean       @default(false)
+  expiresAt           DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  logs                SessionLog[]
+  transactions        Transaction[]
 }
 
-model Wristband {
-  id           String     @id @default(cuid())
-  qrCode       String     @unique
-  userId       String?
-  user         User?      @relation(fields: [userId], references: [id])
-  sessions     Session[]
-  transactions Transaction[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-}
-
-model Session {
-  id               String    @id @default(cuid())
-  wristbandId      String
-  wristband        Wristband @relation(fields: [wristbandId], references: [id])
-  status           SessionStatus @default(IDLE)
-  purchasedMinutes Int       @default(0)
-  startTime        DateTime?
-  endTime          DateTime?
-  lastPauseTime    DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  events           Event[]
+model SessionLog {
+  id              String        @id @default(cuid())
+  playerSession   PlayerSession @relation(fields: [playerSessionId], references: [id], onDelete: Cascade)
+  playerSessionId String
+  action          LogAction
+  data            Json?
+  createdAt       DateTime      @default(now())
 }
 
 model Product {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-  price       Float
-  category    String
-  required    Boolean @default(false)
-  isDeleted   Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  transactions Transaction[]
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  price            Float
+  category         String
+  required         Boolean @default(false)
+  timeValueSeconds Int?
+  isDeleted        Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  transactions     Transaction[]
 }
 
 model Transaction {
-  id         String      @id @default(cuid())
-  wristbandId String
-  wristband   Wristband  @relation(fields: [wristbandId], references: [id])
-  productId  String
-  product     Product    @relation(fields: [productId], references: [id])
-  quantity   Int         @default(1)
-  totalPrice Float
-  createdAt  DateTime    @default(now())
+  id              String        @id @default(cuid())
+  playerSession   PlayerSession @relation(fields: [playerSessionId], references: [id], onDelete: Cascade)
+  playerSessionId String
+  product         Product       @relation(fields: [productId], references: [id])
+  productId       String
+  quantity        Int           @default(1)
+  totalPrice      Float
+  createdAt       DateTime      @default(now())
 }
 
-model Event {
-  id        String     @id @default(cuid())
-  sessionId String
-  session   Session    @relation(fields: [sessionId], references: [id])
-  type      EventType
-  data      Json?
-  createdAt DateTime   @default(now())
-}
-
-enum SessionStatus {
-  IDLE
-  ACTIVE
-  PAUSED
-  ENDED
-}
-
-enum EventType {
-  SESSION_CREATED
-  SESSION_STARTED
-  SESSION_PAUSED
-  SESSION_RESUMED
-  SESSION_ENDED
-  TRANSACTION_CREATED
-  WRISTBAND_SCANNED
+enum LogAction {
+  CHECKIN
+  PLAY
+  PAUSE
+  TIME_ADDED
+  AUTO_EXPIRE
 }

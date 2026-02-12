@@ -1,45 +1,57 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Trash2, X } from "lucide-react";
+import { Check, Clock, Trash2, X, Play, Pause, AlertCircle } from "lucide-react";
 import { useState } from "react";
-import { createCheckin, type CheckinPayload } from "@/api/checkin";
-import type { Product } from "@/api/products";
+import { createCheckin, type CheckinResponse, type CheckinPayload } from "@/api/checkin";
+import { formatPrice, formatTimeValue, isTimeProduct, type Product } from "@/api/products";
 import { MobileLayout } from "@/components/MobileLayout";
 import { ProductTouchable } from "@/components/ProductTouchable";
 import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useProducts } from "@/hooks/useProducts";
 import { useSocket } from "@/hooks/useSocket";
+import { usePlayerSession } from "@/hooks/usePlayerSession";
 
 interface CartItem {
 	product: Product;
 	quantity: number;
 }
 
+interface SimpleProduct {
+	id: string;
+	name: string;
+	price: number;
+}
+
 export function CheckInView() {
 	useSocket(); // Initialize socket connection for real-time updates
 
-	const [wristbandCode, setWristbandCode] = useState("");
-	const [transactionNumber, setTransactionNumber] = useState("");
+	const [barcodeId, setBarcodeId] = useState("");
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [showConfirmation, setShowConfirmation] = useState(false);
+	const [lastCheckinData, setLastCheckinData] = useState<CheckinResponse | null>(null);
 
 	const queryClient = useQueryClient();
 	const {
 		requiredProducts,
 		optionalProducts,
-		
+		calculateTotalPrice: calculateCartTotalPrice,
+		calculateTotalTime: calculateCartTotalTime,
 	} = useProducts();
+
+	// Get current session status for the scanned barcode
+	const { session, isLoading: sessionLoading } = usePlayerSession(barcodeId);
 
 	const checkinMutation = useMutation({
 		mutationFn: (data: CheckinPayload) => createCheckin(data),
-		onSuccess: () => {
+		onSuccess: (data: CheckinResponse) => {
+			setLastCheckinData(data);
 			setShowConfirmation(true);
 			setTimeout(() => {
 				setShowConfirmation(false);
 				resetForm();
-			}, 3000);
+			}, 4000);
 			queryClient.invalidateQueries({ queryKey: ["products"] });
+			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
 		},
 		onError: (error) => {
 			console.error("Error creating checkin:", error);
@@ -47,12 +59,10 @@ export function CheckInView() {
 		},
 	});
 
-	
-
 	const resetForm = () => {
-		setWristbandCode("");
-		setTransactionNumber("");
+		setBarcodeId("");
 		setCart([]);
+		setLastCheckinData(null);
 	};
 
 	const addToCart = (product: Product) => {
@@ -90,10 +100,11 @@ export function CheckInView() {
 	};
 
 	const getTotalPrice = () => {
-		return cart.reduce(
-			(total, item) => total + item.product.price * item.quantity,
-			0,
-		);
+		return calculateCartTotalPrice(cart.map(item => ({ id: item.product.id, quantity: item.quantity })));
+	};
+
+	const getTotalTime = () => {
+		return calculateCartTotalTime(cart.map(item => ({ id: item.product.id, quantity: item.quantity })));
 	};
 
 	const getTotalItems = () => {
@@ -101,28 +112,87 @@ export function CheckInView() {
 	};
 
 	const handleCheckin = () => {
-		if (!wristbandCode || cart.length === 0) {
+		if (!barcodeId || cart.length === 0) {
 			alert("Por favor ingrese el código de pulsera y agregue productos");
 			return;
 		}
 
-		const checkinData: CheckinPayload = {
-			wristbandCode,
+		const checkinData = {
+			barcodeId,
 			products: cart.map((item) => ({
 				id: item.product.id,
 				quantity: item.quantity,
 			})),
-			transactionNumber: transactionNumber || undefined,
 		};
 
 		checkinMutation.mutate(checkinData);
 	};
 
-	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat("es-CL", {
-			style: "currency",
-			currency: "CLP",
-		}).format(price);
+	// Convert Product to SimpleProduct for ProductTouchable
+	const toSimpleProduct = (product: Product): SimpleProduct => ({
+		id: product.id,
+		name: product.name,
+		price: product.price,
+	});
+
+	// Calculate session status display
+	const getSessionStatusDisplay = () => {
+		if (!barcodeId) return null;
+		if (sessionLoading) {
+			return (
+				<div className="flex items-center justify-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
+					<div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
+					<span className="text-blue-700 text-sm">Cargando estado...</span>
+				</div>
+			);
+		}
+		if (!session) {
+			return (
+				<div className="flex items-center p-3 bg-gray-50 border border-gray-200 rounded-lg">
+					<AlertCircle className="w-4 h-4 text-gray-500 mr-2" />
+					<span className="text-gray-700 text-sm">Sin sesión activa</span>
+				</div>
+			);
+		}
+
+		const hasTimeInCart = cart.some(item => isTimeProduct(item.product));
+
+		return (
+			<div className={`p-3 border rounded-lg ${
+				session.isActive ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+			}`}>
+				<div className="flex items-center justify-between mb-2">
+					<div className="flex items-center">
+						{session.isActive ? (
+							<Play className="w-4 h-4 text-green-600 mr-2" />
+						) : (
+							<Pause className="w-4 h-4 text-yellow-600 mr-2" />
+						)}
+						<span className={`font-semibold text-sm ${
+							session.isActive ? 'text-green-700' : 'text-yellow-700'
+						}`}>
+							{session.isActive ? 'En Juego' : 'Pausado'}
+						</span>
+					</div>
+					<div className="text-right">
+						<div className={`font-bold text-lg ${
+							session.remainingSeconds > 300 ? 'text-green-600' : 
+							session.remainingSeconds > 60 ? 'text-yellow-600' : 'text-red-600'
+						}`}>
+							{formatTimeValue(session.remainingSeconds)}
+						</div>
+						<div className="text-xs text-gray-500">
+							{session.remainingMinutes} min restantes
+						</div>
+					</div>
+				</div>
+				{hasTimeInCart && (
+					<div className="text-xs text-blue-600 mt-2">
+						⚠️ Agregar tiempo extenderá la sesión actual
+					</div>
+				)}
+			</div>
+		);
 	};
 
 	return (
@@ -134,7 +204,7 @@ export function CheckInView() {
 						size="lg"
 						className="flex-1 h-16 text-lg font-bold bg-blue-600 hover:bg-blue-700"
 						disabled={
-							!wristbandCode || cart.length === 0 || checkinMutation.isPending
+							!barcodeId || cart.length === 0 || checkinMutation.isPending
 						}
 						onClick={handleCheckin}
 					>
@@ -144,6 +214,11 @@ export function CheckInView() {
 							<>
 								Check-in
 								<span className="ml-2">{formatPrice(getTotalPrice())}</span>
+								{getTotalTime() > 0 && (
+									<span className="ml-1 text-xs bg-blue-700 px-2 py-1 rounded">
+										+{formatTimeValue(getTotalTime())}
+									</span>
+								)}
 							</>
 						)}
 					</Button>
@@ -161,15 +236,18 @@ export function CheckInView() {
 			}
 		>
 			<div className="p-4 space-y-4">
-				{/* Wristband Input */}
+				{/* Barcode Input */}
 				<div className="relative mb-6">
 					<QRScanner
-						value={wristbandCode}
-						onChange={setWristbandCode}
+						value={barcodeId}
+						onChange={setBarcodeId}
 						placeholder="Código de pulsera"
 						className="text-lg pr-16 h-14"
 					/>
 				</div>
+
+				{/* Session Status Display */}
+				{getSessionStatusDisplay()}
 
 				{/* Products Grid */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -190,14 +268,14 @@ export function CheckInView() {
 										const cartItem = cart.find(
 											(item) => item.product.id === product.id,
 										);
-										return !cartItem; // Solo mostrar productos que no están en el carrito
+										return !cartItem;
 									})
-									.slice(0, 4) // Máximo 4 productos
+									.slice(0, 4)
 									.map((product: Product) => (
 										<ProductTouchable
 											key={product.id}
-											product={product as unknown as Product}
-											onClick={addToCart as unknown as (product: Product) => void}
+											product={toSimpleProduct(product)}
+											onClick={() => addToCart(product)}
 										/>
 									))}
 							</div>
@@ -214,14 +292,14 @@ export function CheckInView() {
 										const cartItem = cart.find(
 											(item) => item.product.id === product.id,
 										);
-										return !cartItem; // Solo mostrar productos que no están en el carrito
+										return !cartItem;
 									})
-									.slice(0, 4) // Máximo 4 productos
+									.slice(0, 4)
 									.map((product: Product) => (
 										<ProductTouchable
 											key={product.id}
-											product={product as unknown as Product}
-											onClick={addToCart as unknown as (product: Product) => void}
+											product={toSimpleProduct(product)}
+											onClick={() => addToCart(product)}
 										/>
 									))}
 							</div>
@@ -248,8 +326,13 @@ export function CheckInView() {
 										<div className="font-medium text-xs">
 											{item.product.name}
 										</div>
-										<div className="text-xs text-gray-500">
-											{formatPrice(item.product.price)} c/u
+										<div className="flex items-center gap-2 text-xs text-gray-500">
+											<span>{formatPrice(item.product.price)} c/u</span>
+											{isTimeProduct(item.product) && (
+												<span className="text-blue-600">
+													+{formatTimeValue(item.product.timeValueSeconds!)}
+												</span>
+											)}
 										</div>
 									</div>
 									<div className="flex items-center gap-1">
@@ -292,28 +375,23 @@ export function CheckInView() {
 							))}
 							<div className="flex justify-between items-center p-2 border-t">
 								<span className="font-bold text-sm">TOTAL:</span>
-								<span className="font-bold text-lg text-green-600">
-									{formatPrice(getTotalPrice())}
-								</span>
+								<div className="text-right">
+									<div className="font-bold text-lg text-green-600">
+										{formatPrice(getTotalPrice())}
+									</div>
+									{getTotalTime() > 0 && (
+										<div className="text-xs text-blue-600">
+											+{formatTimeValue(getTotalTime())} de tiempo
+										</div>
+									)}
+								</div>
 							</div>
 						</div>
 					</div>
 				)}
 
-				{/* Transaction */}
-				<div className="space-y-2">
-					<h3 className="font-semibold px-2">No. Transacción (Opcional)</h3>
-					<Input
-						id="transaction"
-						placeholder="Referencia de pago"
-						value={transactionNumber}
-						onChange={(e) => setTransactionNumber(e.target.value)}
-						className="text-sm h-10"
-					/>
-				</div>
-
 				{/* Confirmation Modal */}
-				{showConfirmation && (
+				{showConfirmation && lastCheckinData && (
 					<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
 						<div className="w-full max-w-sm bg-white rounded-lg shadow-lg p-6 animate-fadeIn">
 							<div className="text-center">
@@ -324,11 +402,17 @@ export function CheckInView() {
 									¡Check-in Exitoso!
 								</h3>
 								<div className="text-sm text-gray-600 space-y-2">
-									<div className="font-medium">Pulsera: {wristbandCode}</div>
+									<div className="font-medium">Código: {barcodeId}</div>
 									<div className="font-medium">Items: {getTotalItems()}</div>
 									<div className="font-bold text-lg text-green-600">
 										Total: {formatPrice(getTotalPrice())}
 									</div>
+									{lastCheckinData.totalSecondsAdded > 0 && (
+										<div className="flex items-center justify-center text-blue-600 font-medium">
+											<Clock className="w-4 h-4 mr-1" />
+											Tiempo agregado: {formatTimeValue(lastCheckinData.totalSecondsAdded)}
+										</div>
+									)}
 								</div>
 							</div>
 						</div>

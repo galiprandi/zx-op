@@ -29,54 +29,26 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["products"] });
 		});
 
-		// Eventos de pulseras
-		socket.on("wristband:created", () => {
-			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
+		// Eventos de sesiones (nuevo modelo PlayerSession)
+		socket.on("session:play", () => {
+			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
+			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 		});
 
-		socket.on("wristband:updated", () => {
-			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
-		});
-
-		// Eventos de sesiones
-		socket.on("session:created", () => {
-			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
-			queryClient.invalidateQueries({ queryKey: ["sessions"] });
+		socket.on("session:pause", () => {
+			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
+			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 		});
 
 		socket.on("session:updated", () => {
-			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
-			queryClient.invalidateQueries({ queryKey: ["sessions"] });
-		});
-
-		socket.on("session:started", () => {
-			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
-			queryClient.invalidateQueries({ queryKey: ["sessions"] });
-			queryClient.invalidateQueries({ queryKey: ["session"] });
-		});
-
-		socket.on("session:paused", () => {
-			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
-			queryClient.invalidateQueries({ queryKey: ["sessions"] });
-			queryClient.invalidateQueries({ queryKey: ["session"] });
-		});
-
-		socket.on("session:ended", () => {
-			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
-			queryClient.invalidateQueries({ queryKey: ["sessions"] });
-			queryClient.invalidateQueries({ queryKey: ["session"] });
+			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
+			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 		});
 
 		// Eventos de transacciones
 		socket.on("transaction:created", () => {
-			queryClient.invalidateQueries({ queryKey: ["wristbands"] });
 			queryClient.invalidateQueries({ queryKey: ["transactions"] });
-		});
-
-		// Eventos de eventos del sistema
-		socket.on("event:created", () => {
-			queryClient.invalidateQueries({ queryKey: ["events"] });
-			queryClient.invalidateQueries({ queryKey: ["sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["checkinHistory"] });
 		});
 
 		// Cleanup

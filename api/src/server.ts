@@ -1,88 +1,179 @@
-import { config } from 'dotenv';
-config({ path: '../.env' });
-import cors from '@fastify/cors';
-import websocket from '@fastify/websocket';
-import { PrismaClient } from '../prisma/generated';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import 'dotenv/config';
 import fastify from 'fastify';
-import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import { ModuleRegistry } from './modules';
+import cors from '@fastify/cors';
+import { PrismaClient, LogAction, Prisma, PlayerSession,  Transaction } from '@prisma/client';
+import { initializeSocketIO, emitSessionEvent } from './modules/playerSessions/services/socketService';
 
-const server = fastify({
-	logger: {
-		transport: {
-			target: 'pino-pretty',
-			options: {
-				colorize: true,
-				translateTime: 'SYS:standard',
-				ignore: 'pid,hostname'
-			}
-		}
-	},
-});
-
-// Register CORS plugin (wildcard-only as requested)
-await server.register(cors, {
-	origin: '*',
-	credentials: false,
-	methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-	allowedHeaders: ['Content-Type', 'Authorization'],
-});
-
-await server.register(websocket);
-
-// Prisma client setup
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-
-// Socket.IO setup
-const httpServer = createServer(server.server);
-const io = new SocketIOServer(httpServer, {
-	cors: {
-		origin: '*',
-		methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-		credentials: false,
-		allowedHeaders: ['Content-Type', 'Authorization'],
-	},
-});
-
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-	console.log('Client connected:', socket.id);
-
-	socket.on('disconnect', () => {
-		console.log('Client disconnected:', socket.id);
-	});
-});
-
-// Health check
-server.get('/health', async () => {
-	return { status: 'ok', timestamp: new Date().toISOString() };
-});
-
-// Initialize modules and register routes
-const moduleRegistry = new ModuleRegistry(prisma, io);
-await moduleRegistry.registerRoutes(server);
-
-// Start server
-const start = async () => {
-	try {
-		const port = parseInt(process.env.PORT || '3000');
-		const socketPort = parseInt(process.env.SOCKET_PORT || '4000');
-		const host = process.env.HOST || '0.0.0.0';
-
-		await server.listen({ port, host });
-		httpServer.listen(socketPort); // Socket.IO on configurable port
-
-		console.log(`🚀 Server ready at http://${host}:${port}`);
-		console.log(`🔌 Socket.IO ready at http://${host}:${socketPort}`);
-	} catch (err) {
-		server.log.error(err);
-		process.exit(1);
-	}
+// Type for session with computed fields
+type SessionWithRemaining = PlayerSession & {
+  remainingSeconds: number;
+  remainingMinutes: number;
 };
 
-start();
+const prisma = new PrismaClient();
+const app = fastify({ logger: true });
+
+const computeRemainingSeconds = (session: { totalAllowedSeconds: number; accumulatedSeconds: number; isActive: boolean; lastStartAt: Date | null }) => {
+  const now = new Date();
+  const running = session.isActive && session.lastStartAt ? Math.floor((now.getTime() - session.lastStartAt.getTime()) / 1000) : 0;
+  const consumed = session.accumulatedSeconds + running;
+  return Math.max(0, session.totalAllowedSeconds - consumed);
+};
+
+const calcExpiry = (session: { totalAllowedSeconds: number; accumulatedSeconds: number; isActive: boolean; lastStartAt: Date | null }) => {
+  const remaining = computeRemainingSeconds(session);
+  const now = new Date();
+  return remaining > 0 ? new Date(now.getTime() + remaining * 1000) : now;
+};
+
+async function logAction(playerSessionId: string, action: LogAction, data?: Prisma.InputJsonValue) {
+  await prisma.sessionLog.create({ data: { playerSessionId, action, data } });
+}
+
+async function main() {
+  await app.register(cors, { origin: '*' });
+
+  // Initialize Socket.IO to broadcast session/product events
+  initializeSocketIO(app.server);
+
+  // Play session
+  app.post('/api/sessions/play', async (req, reply) => {
+    const { barcodeId } = req.body as { barcodeId: string };
+    let session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    if (!session) {
+      session = await prisma.playerSession.create({ data: { barcodeId } });
+      await logAction(session.id, LogAction.CHECKIN, { created: true });
+    }
+    const remaining = computeRemainingSeconds(session);
+    if (remaining <= 0) return reply.status(400).send({ error: 'No remaining time' });
+    if (session.isActive) return session;
+    const updated = await prisma.playerSession.update({ where: { id: session.id }, data: { isActive: true, lastStartAt: new Date() } });
+    await logAction(updated.id, LogAction.PLAY);
+    emitSessionEvent('session:play', { barcodeId, session: updated });
+    return updated;
+  });
+
+  // Pause session
+  app.post('/api/sessions/pause', async (req) => {
+    const { barcodeId } = req.body as { barcodeId: string };
+    const session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    if (!session) throw new Error('Session not found');
+    const now = new Date();
+    const extra = session.isActive && session.lastStartAt ? Math.floor((now.getTime() - session.lastStartAt.getTime()) / 1000) : 0;
+    const updated = await prisma.playerSession.update({
+      where: { id: session.id },
+      data: { isActive: false, lastStartAt: null, accumulatedSeconds: { increment: extra } },
+    });
+    await logAction(updated.id, LogAction.PAUSE, { extra });
+    emitSessionEvent('session:pause', { barcodeId, session: updated });
+    return updated;
+  });
+
+  // Status
+  app.get('/api/sessions/status/:barcodeId', async (req) => {
+    const { barcodeId } = req.params as { barcodeId: string };
+    const session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    if (!session) return { error: 'Session not found' };
+    let remainingSeconds = computeRemainingSeconds(session);
+    let current = session;
+    if (session.isActive && remainingSeconds <= 0) {
+      current = await prisma.playerSession.update({ where: { id: session.id }, data: { isActive: false, lastStartAt: null, accumulatedSeconds: session.accumulatedSeconds + remainingSeconds } });
+      await logAction(current.id, LogAction.AUTO_EXPIRE);
+      remainingSeconds = 0;
+    }
+    return { ...current, remainingSeconds, remainingMinutes: Math.floor(remainingSeconds / 60) };
+  });
+
+  // Active list
+  app.get('/api/sessions/active', async () => {
+    const sessions = await prisma.playerSession.findMany();
+    return sessions
+      .map((s: PlayerSession) => {
+        const remainingSeconds = computeRemainingSeconds(s);
+        return { ...s, remainingSeconds, remainingMinutes: Math.floor(remainingSeconds / 60) };
+      })
+      .filter((s: SessionWithRemaining) => s.remainingSeconds > 0);
+  });
+
+  // Checkin
+  app.post('/api/checkin', async (req) => {
+    const { barcodeId, products } = req.body as { barcodeId: string; products: { id: string; quantity: number }[] };
+    let session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    if (!session) session = await prisma.playerSession.create({ data: { barcodeId } });
+
+    let totalSecondsToAdd = 0;
+    const txs: Transaction[] = [];
+    for (const item of products) {
+      const product = await prisma.product.findUnique({ where: { id: item.id } });
+      if (!product || product.isDeleted) throw new Error('Product not found');
+      const t = (product as { timeValueSeconds?: number }).timeValueSeconds ?? 0;
+      totalSecondsToAdd += t * item.quantity;
+      const tx = await prisma.transaction.create({
+        data: {
+          playerSessionId: session.id,
+          productId: item.id,
+          quantity: item.quantity,
+          totalPrice: product.price * item.quantity,
+        },
+      });
+      txs.push(tx);
+    }
+
+    if (totalSecondsToAdd > 0) {
+      session = await prisma.playerSession.update({
+        where: { id: session.id },
+        data: { totalAllowedSeconds: { increment: totalSecondsToAdd } },
+      });
+      const expiresAt = calcExpiry(session);
+      session = await prisma.playerSession.update({ where: { id: session.id }, data: { expiresAt } });
+      await logAction(session.id, LogAction.TIME_ADDED, { totalSecondsToAdd });
+    }
+
+    await logAction(session.id, LogAction.CHECKIN, { products });
+    return { playerSession: session, transactions: txs };
+  });
+
+  // Products
+  app.get('/api/products', () => prisma.product.findMany({ where: { isDeleted: false } }));
+  app.post('/api/products', async (req) => {
+    const { name, description, price, category, required, timeValueSeconds } = req.body as {
+      name: string;
+      description?: string;
+      price: number;
+      category: string;
+      required?: boolean;
+      timeValueSeconds?: number;
+    };
+    return prisma.product.create({ data: { name, description, price, category, required: !!required, timeValueSeconds: timeValueSeconds ?? null } });
+  });
+  app.put('/api/products/:id', async (req) => {
+    const { id } = req.params as { id: string };
+    const { name, description, price, category, required, timeValueSeconds } = req.body as {
+      name: string;
+      description?: string;
+      price: number;
+      category: string;
+      required?: boolean;
+      timeValueSeconds?: number;
+    };
+    return prisma.product.update({ where: { id }, data: { name, description, price, category, required: !!required, timeValueSeconds: timeValueSeconds ?? null } });
+  });
+  app.delete('/api/products/:id', async (req) => {
+    const { id } = req.params as { id: string };
+    return prisma.product.update({ where: { id }, data: { isDeleted: true } });
+  });
+
+  // Transactions
+  app.get('/api/transactions', () => prisma.transaction.findMany({ include: { playerSession: true, product: true }, orderBy: { createdAt: 'desc' } }));
+
+  const port = Number(process.env.PORT || 3000);
+  const host = process.env.HOST || '0.0.0.0';
+  
+  await app.listen({ port, host });
+  console.log(`API ready on http://${host}:${port}`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

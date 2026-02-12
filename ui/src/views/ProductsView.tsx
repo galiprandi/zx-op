@@ -8,6 +8,8 @@ import {
 	Tag,
 	Trash2,
 	X,
+	Clock,
+	Timer,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,42 +23,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSocket } from "@/hooks/useSocket";
-
-// Real API functions
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-
-const api = {
-	getProducts: async () => {
-		const response = await fetch(`${API_BASE}/api/products`);
-		if (!response.ok) throw new Error("Failed to fetch products");
-		return response.json();
-	},
-	createProduct: async (data: ProductFormData) => {
-		const response = await fetch(`${API_BASE}/api/products`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(data),
-		});
-		if (!response.ok) throw new Error("Failed to create product");
-		return response.json();
-	},
-	updateProduct: async (id: string, data: ProductFormData) => {
-		const response = await fetch(`${API_BASE}/api/products/${id}`, {
-			method: "PUT",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(data),
-		});
-		if (!response.ok) throw new Error("Failed to update product");
-		return response.json();
-	},
-	deleteProduct: async (id: string) => {
-		const response = await fetch(`${API_BASE}/api/products/${id}`, {
-			method: "DELETE",
-		});
-		if (!response.ok) throw new Error("Failed to delete product");
-		return response.json();
-	},
-};
+import {
+	getProducts,
+	createProduct,
+	updateProduct,
+	deleteProduct,
+	formatPrice,
+	formatTimeValue,
+	isTimeProduct,
+	type Product,
+	type CreateProductRequest,
+	type UpdateProductRequest,
+} from "@/api/products";
 
 interface ProductFormData {
 	name: string;
@@ -64,6 +42,7 @@ interface ProductFormData {
 	price: number;
 	category: string;
 	required: boolean;
+	timeValueSeconds?: number;
 }
 
 export function ProductsView() {
@@ -78,6 +57,7 @@ export function ProductsView() {
 		price: 0,
 		category: "Tiempo",
 		required: false,
+		timeValueSeconds: undefined,
 	});
 
 	const queryClient = useQueryClient();
@@ -85,16 +65,15 @@ export function ProductsView() {
 	const {
 		data: products = [],
 		isLoading,
-		error,
 	} = useQuery({
 		queryKey: ["products"],
-		queryFn: api.getProducts,
+		queryFn: getProducts,
 		retry: 3,
 		retryDelay: 1000,
 	});
 
 	const createMutation = useMutation({
-		mutationFn: api.createProduct,
+		mutationFn: (data: CreateProductRequest) => createProduct(data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["products"] });
 			setIsCreateModalOpen(false);
@@ -102,12 +81,13 @@ export function ProductsView() {
 		},
 		onError: (error) => {
 			console.error("Error creating product:", error);
+			alert("Error al crear producto. Por favor intenta nuevamente.");
 		},
 	});
 
 	const updateMutation = useMutation({
-		mutationFn: ({ id, data }: { id: string; data: ProductFormData }) =>
-			api.updateProduct(id, data),
+		mutationFn: ({ id, data }: { id: string; data: UpdateProductRequest }) =>
+			updateProduct(id, data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["products"] });
 			setIsCreateModalOpen(false);
@@ -116,13 +96,18 @@ export function ProductsView() {
 		},
 		onError: (error) => {
 			console.error("Error updating product:", error);
+			alert("Error al actualizar producto. Por favor intenta nuevamente.");
 		},
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: api.deleteProduct,
+		mutationFn: deleteProduct,
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["products"] });
+		},
+		onError: (error) => {
+			console.error("Error deleting product:", error);
+			alert("Error al eliminar producto. Por favor intenta nuevamente.");
 		},
 	});
 
@@ -139,42 +124,86 @@ export function ProductsView() {
 			price: 0,
 			category: "Tiempo",
 			required: false,
+			timeValueSeconds: undefined,
 		});
 	};
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 
+		// Validate form
+		if (!formData.name.trim()) {
+			alert("El nombre del producto es requerido");
+			return;
+		}
+
+		if (formData.price < 0) {
+			alert("El precio debe ser un valor positivo");
+			return;
+		}
+
+		if (formData.timeValueSeconds !== undefined && formData.timeValueSeconds < 0) {
+			alert("El valor de tiempo debe ser un valor positivo");
+			return;
+		}
+
+		const submitData = {
+			name: formData.name.trim(),
+			description: formData.description.trim(),
+			price: formData.price,
+			category: formData.category,
+			required: formData.required,
+			...(formData.timeValueSeconds !== undefined && { timeValueSeconds: formData.timeValueSeconds }),
+		};
+
 		if (editingProduct) {
-			updateMutation.mutate({ id: editingProduct, data: formData });
+			updateMutation.mutate({ id: editingProduct, data: submitData });
 		} else {
-			createMutation.mutate(formData);
+			createMutation.mutate(submitData);
 		}
 	};
 
-	const handleEdit = (product: any) => {
+	const handleEdit = (product: Product) => {
 		setEditingProduct(product.id);
 		setFormData({
 			name: product.name,
-			description: product.description,
+			description: product.description || "",
 			price: product.price,
 			category: product.category,
-			required: product.required || false,
+			required: product.required,
+			timeValueSeconds: product.timeValueSeconds || undefined,
 		});
 		setIsCreateModalOpen(true);
 	};
 
-	const handleDelete = (id: string) => {
-		if (confirm("¿Estás seguro de eliminar este producto?")) {
+	const handleDelete = (id: string, productName: string) => {
+		if (confirm(`¿Estás seguro de eliminar "${productName}"? Esta acción no se puede deshacer.`)) {
 			deleteMutation.mutate(id);
 		}
 	};
 
-	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat("es-CL", {
-			style: "currency",
-			currency: "CLP",
-		}).format(price);
+	const getProductCardIcon = (product: Product) => {
+		if (isTimeProduct(product)) {
+			return <Timer className="w-4 h-4 text-white" />;
+		}
+		return <Package className="w-4 h-4 text-white" />;
+	};
+
+	const getProductCardGradient = (product: Product) => {
+		if (isTimeProduct(product)) {
+			return "from-blue-500 to-cyan-600";
+		}
+		return "from-purple-500 to-pink-600";
+	};
+
+	const getTimeBadge = (product: Product) => {
+		if (!isTimeProduct(product)) return null;
+		
+		const timeValue = product.timeValueSeconds!;
+		if (timeValue >= 3600) {
+			return `${Math.floor(timeValue / 3600)}h`;
+		}
+		return `${Math.floor(timeValue / 60)}m`;
 	};
 
 	return (
@@ -220,8 +249,8 @@ export function ProductsView() {
 						<CardHeader className="pb-3">
 							<div className="flex items-start justify-between">
 								<div className="flex items-center gap-2">
-									<div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-										<Package className="w-4 h-4 text-white" />
+									<div className={`w-8 h-8 bg-gradient-to-br ${getProductCardGradient(product)} rounded-lg flex items-center justify-center`}>
+										{getProductCardIcon(product)}
 									</div>
 									<div>
 										<CardTitle className="text-lg">{product.name}</CardTitle>
@@ -231,6 +260,12 @@ export function ProductsView() {
 											{product.required && (
 												<span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
 													Obligatorio
+												</span>
+											)}
+											{isTimeProduct(product) && (
+												<span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full flex items-center gap-1">
+													<Clock className="w-3 h-3" />
+													Tiempo
 												</span>
 											)}
 										</div>
@@ -245,11 +280,26 @@ export function ProductsView() {
 								</CardDescription>
 							)}
 
+							{/* Time Value Display */}
+							{isTimeProduct(product) && (
+								<div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
+									<Clock className="w-4 h-4 text-blue-600" />
+									<span className="text-sm font-medium text-blue-700">
+										{formatTimeValue(product.timeValueSeconds!)}
+									</span>
+								</div>
+							)}
+
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2">
 									<span className="text-xl font-bold text-green-500">
 										{formatPrice(product.price)}
 									</span>
+									{getTimeBadge(product) && (
+										<span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+											{getTimeBadge(product)}
+										</span>
+									)}
 								</div>
 
 								<div className="flex gap-2">
@@ -264,7 +314,7 @@ export function ProductsView() {
 									<Button
 										variant="outline"
 										size="sm"
-										onClick={() => handleDelete(product.id)}
+										onClick={() => handleDelete(product.id, product.name)}
 										className="h-8 w-8 p-0 text-destructive hover:text-destructive"
 									>
 										<Trash2 className="w-3 h-3" />
@@ -325,7 +375,7 @@ export function ProductsView() {
 						<CardContent>
 							<form onSubmit={handleSubmit} className="space-y-4">
 								<div className="space-y-2">
-									<Label htmlFor="name">Nombre</Label>
+									<Label htmlFor="name">Nombre *</Label>
 									<Input
 										id="name"
 										value={formData.name}
@@ -338,7 +388,7 @@ export function ProductsView() {
 								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="category">Categoría</Label>
+									<Label htmlFor="category">Categoría *</Label>
 									<select
 										id="category"
 										value={formData.category}
@@ -357,7 +407,7 @@ export function ProductsView() {
 								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="price">Precio (CLP)</Label>
+									<Label htmlFor="price">Precio (CLP) *</Label>
 									<Input
 										id="price"
 										type="number"
@@ -372,6 +422,28 @@ export function ProductsView() {
 										min="0"
 										required
 									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="timeValueSeconds">
+										Valor de Tiempo (segundos)
+									</Label>
+									<Input
+										id="timeValueSeconds"
+										type="number"
+										value={formData.timeValueSeconds || ""}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												timeValueSeconds: e.target.value ? Number(e.target.value) : undefined,
+											})
+										}
+										placeholder="Ej: 1800 para 30 minutos"
+										min="0"
+									/>
+									<p className="text-xs text-muted-foreground">
+										Opcional. Define cuánto tiempo agrega este producto al check-in.
+									</p>
 								</div>
 
 								<div className="space-y-2">
