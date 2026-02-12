@@ -27,11 +27,11 @@ export function ScanInput({
 
   const handleScan = () => {
     if (disabled || isScanning) return;
-    
-    // For now, just trigger manual input mode
-    // In a real implementation, this would open the camera scanner
+
+    // Trigger submit using current input while showing quick spinner feedback
     setIsScanning(true);
-    setTimeout(() => setIsScanning(false), 1000);
+    onSubmit?.();
+    setTimeout(() => setIsScanning(false), 400);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

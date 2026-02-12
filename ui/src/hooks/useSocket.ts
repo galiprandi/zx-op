@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { io } from "socket.io-client";
-
+const { VITE_API_BASE_URL, VITE_API_BASE_PORT } = import.meta.env;
 export function useSocket() {
 	const queryClient = useQueryClient();
 
 	useEffect(() => {
 		// Conectar al servidor de Socket.IO
-		const socket = io("http://" + window.location.hostname + ":" + (import.meta.env.VITE_API_SOCKET_PORT || '4000'), {
+		const socket = io(`${VITE_API_BASE_URL}:${VITE_API_BASE_PORT}`, {
 			transports: ["polling", "websocket"],
 			timeout: 10000,
 			reconnection: true,

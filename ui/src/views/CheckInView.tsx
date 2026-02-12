@@ -5,7 +5,7 @@ import { createCheckin, type CheckinResponse, type CheckinPayload } from "@/api/
 import { formatPrice, formatTimeValue, isTimeProduct, type Product } from "@/api/products";
 import { MobileShell } from "@/components/MobileShell";
 import { ActionButton } from "@/components/ActionButton";
-import { ScanInput } from "@/components/ScanInput";
+import { QRScanner } from "@/components/QRScanner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { GlassCard } from "@/components/GlassCard";
 import { useProducts } from "@/hooks/useProducts";
@@ -136,14 +136,22 @@ export function CheckInView() {
 		return cart.reduce((total, item) => total + item.quantity, 0);
 	};
 
+	const hasRequiredProducts = () => {
+		return true; // Restriction disabled pending stakeholder review
+	};
+
+	const isMissingRequired = !hasRequiredProducts();
+
 	const handleCheckin = () => {
-		if (!activeBarcode || cart.length === 0) {
+		const effectiveBarcode = (activeBarcode || barcodeId).trim();
+		if (!effectiveBarcode || cart.length === 0) {
 			alert("Por favor ingrese el código de pulsera y agregue productos");
 			return;
 		}
+		setActiveBarcode(effectiveBarcode);
 
 		const checkinData = {
-			barcodeId: activeBarcode,
+			barcodeId: effectiveBarcode,
 			products: cart.map((item) => ({
 				id: item.product.id,
 				quantity: item.quantity,
@@ -215,7 +223,7 @@ export function CheckInView() {
 			<div className="flex flex-col h-full space-y-4">
 				{/* Scan Input */}
 				<div className="px-4">
-					<ScanInput
+					<QRScanner
 						value={barcodeId}
 						onChange={setBarcodeId}
 						onSubmit={handleBarcodeSearch}
@@ -282,9 +290,38 @@ export function CheckInView() {
 						</div>
 					)}
 
+					
+				</div>
+
+				{/* Footer Button */}
+				<div className="px-4 pb-4">
+					<ActionButton
+						type="checkin"
+						onClick={handleCheckin}
+						disabled={
+							!(activeBarcode || barcodeId).trim() ||
+							cart.length === 0 ||
+							isMissingRequired ||
+							checkinMutation.isPending
+						}
+						loading={checkinMutation.isPending}
+					>
+						COBRAR {formatPrice(getTotalPrice())}
+						{getTotalTime() > 0 && (
+							<span className="ml-2 text-sm bg-primary/20 px-2 py-1 rounded">
+								+{formatTimeValue(getTotalTime())}
+							</span>
+						)}
+					</ActionButton>
+					{isMissingRequired && (
+						<div className="mt-2 text-xs text-yellow-400">
+							Debes incluir los productos obligatorios
+						</div>
+					)}
+
 					{/* Cart Summary */}
 					{cart.length > 0 && (
-						<div className="space-y-3">
+						<div className="space-y-3 pt-4">
 							<div className="flex items-center justify-between">
 								<h3 className="font-semibold text-foreground">Carrito</h3>
 								<span className="text-sm text-muted-foreground font-medium">
@@ -320,28 +357,11 @@ export function CheckInView() {
 					)}
 				</div>
 
-				{/* Footer Button */}
-				<div className="px-4 pb-4">
-					<ActionButton
-						type="checkin"
-						onClick={handleCheckin}
-						disabled={
-							!barcodeId || cart.length === 0 || checkinMutation.isPending
-						}
-						loading={checkinMutation.isPending}
-					>
-						COBRAR {formatPrice(getTotalPrice())}
-						{getTotalTime() > 0 && (
-							<span className="ml-2 text-sm bg-primary/20 px-2 py-1 rounded">
-								+{formatTimeValue(getTotalTime())}
-							</span>
-						)}
-					</ActionButton>
-				</div>
+				
 
 				{/* Success Overlay */}
 				{showConfirmation && lastCheckinData && (
-					<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+					<div className="fixed inset-0 bg-white flex items-center justify-center p-4 z-50">
 						<GlassCard className="w-full max-w-sm text-center animate-fadeIn">
 							<div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
 								<Check className="w-8 h-8 text-green-400" />
@@ -365,6 +385,8 @@ export function CheckInView() {
 						</GlassCard>
 					</div>
 				)}
+
+
 			</div>
 		</MobileShell>
 	);
@@ -399,13 +421,6 @@ function ProductButton({ product, onClick }: { product: Product; onClick: () => 
 						</span>
 					)}
 				</div>
-				{product.required && (
-					<div className="absolute top-2 right-2">
-						<span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">
-							Requerido
-						</span>
-					</div>
-				)}
 			</div>
 		</button>
 	);

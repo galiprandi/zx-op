@@ -10,8 +10,8 @@ export type SessionWithRemaining = PlayerSession & {
 
 export class PlayerSessionService {
   private computeRemainingSeconds(session: {
-    totalAllowedSeconds: number;
-    accumulatedSeconds: number;
+    totalAllowedSeconds: number | null | undefined;
+    accumulatedSeconds: number | null | undefined;
     isActive: boolean;
     lastStartAt: Date | null;
   }): number {
@@ -19,8 +19,11 @@ export class PlayerSessionService {
     const running = session.isActive && session.lastStartAt 
       ? Math.floor((now.getTime() - session.lastStartAt.getTime()) / 1000) 
       : 0;
-    const consumed = session.accumulatedSeconds + running;
-    return Math.max(0, session.totalAllowedSeconds - consumed);
+    const totalAllowed = session.totalAllowedSeconds ?? 0;
+    const consumedBase = session.accumulatedSeconds ?? 0;
+    const consumed = consumedBase + running;
+    const remaining = totalAllowed - consumed;
+    return Math.max(0, Number.isFinite(remaining) ? remaining : 0);
   }
 
   private calcExpiry(session: {
@@ -41,7 +44,9 @@ export class PlayerSessionService {
   }
 
   async getOrCreateSession(barcodeId: string): Promise<PlayerSession> {
-    let session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    let session = await prisma.playerSession.findFirst({
+      where: { barcodeId: { equals: barcodeId, mode: 'insensitive' } },
+    });
     
     if (!session) {
       session = await prisma.playerSession.create({ data: { barcodeId } });
@@ -110,7 +115,9 @@ export class PlayerSessionService {
   }
 
   async getStatus(barcodeId: string): Promise<SessionWithRemaining> {
-    const session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    const session = await prisma.playerSession.findFirst({
+      where: { barcodeId: { equals: barcodeId, mode: 'insensitive' } },
+    });
     
     if (!session) {
       throw new Error('Session not found');

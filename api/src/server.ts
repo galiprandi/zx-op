@@ -13,11 +13,14 @@ type SessionWithRemaining = PlayerSession & {
 const prisma = new PrismaClient();
 const app = fastify({ logger: true });
 
-const computeRemainingSeconds = (session: { totalAllowedSeconds: number; accumulatedSeconds: number; isActive: boolean; lastStartAt: Date | null }) => {
+const computeRemainingSeconds = (session: { totalAllowedSeconds: number | null | undefined; accumulatedSeconds: number | null | undefined; isActive: boolean; lastStartAt: Date | null }) => {
   const now = new Date();
   const running = session.isActive && session.lastStartAt ? Math.floor((now.getTime() - session.lastStartAt.getTime()) / 1000) : 0;
-  const consumed = session.accumulatedSeconds + running;
-  return Math.max(0, session.totalAllowedSeconds - consumed);
+  const totalAllowed = session.totalAllowedSeconds ?? 0;
+  const consumedBase = session.accumulatedSeconds ?? 0;
+  const consumed = consumedBase + running;
+  const remaining = totalAllowed - consumed;
+  return Math.max(0, Number.isFinite(remaining) ? remaining : 0);
 };
 
 const calcExpiry = (session: { totalAllowedSeconds: number; accumulatedSeconds: number; isActive: boolean; lastStartAt: Date | null }) => {
@@ -39,7 +42,7 @@ async function main() {
   // Play session
   app.post('/api/sessions/play', async (req, reply) => {
     const { barcodeId } = req.body as { barcodeId: string };
-    let session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    let session = await prisma.playerSession.findFirst({ where: { barcodeId: { equals: barcodeId, mode: 'insensitive' } } });
     if (!session) {
       session = await prisma.playerSession.create({ data: { barcodeId } });
       await logAction(session.id, LogAction.CHECKIN, { created: true });
@@ -56,7 +59,7 @@ async function main() {
   // Pause session
   app.post('/api/sessions/pause', async (req) => {
     const { barcodeId } = req.body as { barcodeId: string };
-    const session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    const session = await prisma.playerSession.findFirst({ where: { barcodeId: { equals: barcodeId, mode: 'insensitive' } } });
     if (!session) throw new Error('Session not found');
     const now = new Date();
     const extra = session.isActive && session.lastStartAt ? Math.floor((now.getTime() - session.lastStartAt.getTime()) / 1000) : 0;
@@ -70,10 +73,10 @@ async function main() {
   });
 
   // Status
-  app.get('/api/sessions/status/:barcodeId', async (req) => {
+  app.get('/api/sessions/status/:barcodeId', async (req, reply) => {
     const { barcodeId } = req.params as { barcodeId: string };
-    const session = await prisma.playerSession.findUnique({ where: { barcodeId } });
-    if (!session) return { error: 'Session not found' };
+    const session = await prisma.playerSession.findFirst({ where: { barcodeId: { equals: barcodeId, mode: 'insensitive' } } });
+    if (!session) return reply.status(404).send({ error: 'Session not found' });
     let remainingSeconds = computeRemainingSeconds(session);
     let current = session;
     if (session.isActive && remainingSeconds <= 0) {
@@ -98,7 +101,7 @@ async function main() {
   // Checkin
   app.post('/api/checkin', async (req) => {
     const { barcodeId, products } = req.body as { barcodeId: string; products: { id: string; quantity: number }[] };
-    let session = await prisma.playerSession.findUnique({ where: { barcodeId } });
+    let session = await prisma.playerSession.findFirst({ where: { barcodeId: { equals: barcodeId, mode: 'insensitive' } } });
     if (!session) session = await prisma.playerSession.create({ data: { barcodeId } });
 
     let totalSecondsToAdd = 0;

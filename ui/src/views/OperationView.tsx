@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Scan, AlertCircle } from "lucide-react";
 import { MobileShell } from "@/components/MobileShell";
-import { ScanInput } from "@/components/ScanInput";
+import { QRScanner } from "@/components/QRScanner";
 import { ActionButton } from "@/components/ActionButton";
 import { BigTimer } from "@/components/BigTimer";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -99,7 +99,7 @@ export function OperationView() {
 			<div className="flex flex-col h-full space-y-6">
 				{/* Scan Input */}
 				<div className="px-4">
-					<ScanInput
+					<QRScanner
 						value={inputValue}
 						onChange={setInputValue}
 						onSubmit={() => handleScannerSubmit(inputValue)}
