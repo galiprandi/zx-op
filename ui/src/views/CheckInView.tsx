@@ -121,15 +121,7 @@ export function CheckInView() {
 	};
 
 	const getAvailableOptionalProducts = () => {
-		return optionalProducts.filter((product) => {
-			// For existing sessions, allow adding more time products even if they're already in cart
-			if (session && isTimeProduct(product)) {
-				return true; // Always show time products for existing sessions
-			}
-			// For non-time products or new sessions, check if already in cart
-			const cartItem = cart.find((item) => item.product.id === product.id);
-			return !cartItem;
-		});
+		return optionalProducts;
 	};
 
 	const getTotalItems = () => {

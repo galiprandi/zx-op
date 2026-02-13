@@ -28,15 +28,14 @@ export function MonitorView() {
 		expiredSessions,
 		totalPlaying,
 		totalPaused,
-		isLoading,
 		error,
 		refreshSessions
 	} = useActiveSessions();
 
 	// Get dashboard stats
-	const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
+	const { data: dashboardStats } = useDashboardStats();
 
-	const { data: systemSettings, isLoading: loadingSettings } = useQuery<SystemSettings>({
+	const { data: systemSettings } = useQuery<SystemSettings>({
 		queryKey: ["systemSettings"],
 		queryFn: getSystemSettings,
 		staleTime: 1000 * 60,
@@ -74,20 +73,6 @@ export function MonitorView() {
 
 	// Calculate waiting count from dashboard stats or fallback
 	const waitingCount = dashboardStats?.waitingCount ?? 0;
-
-	// Loading state
-	if (isLoading || statsLoading || loadingSettings) {
-		return (
-			<DesktopShell>
-				<div className="flex items-center justify-center min-h-[60vh]">
-					<div className="text-center">
-						<div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-						<p className="text-xl text-muted-foreground">Cargando monitor...</p>
-					</div>
-				</div>
-			</DesktopShell>
-		);
-	}
 
 	// Error state
 	if (error) {
@@ -231,7 +216,7 @@ export function MonitorView() {
 						<div className="mb-4">
 							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
 								<Users className="w-5 h-5 text-green-400" />
-								En el Aire
+								En Juego
 							</h3>
 							<p className="text-sm text-muted-foreground">
 								Sesiones activas consumiendo tiempo
@@ -262,7 +247,7 @@ export function MonitorView() {
 						<div className="mb-4">
 							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
 								<Clock className="w-5 h-5 text-yellow-400" />
-								Preparando Aterrizaje
+								En Pausa
 							</h3>
 							<p className="text-sm text-muted-foreground">
 								Sesiones pausadas o con tiempo bajo

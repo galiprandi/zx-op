@@ -43,15 +43,11 @@ export default defineConfig({
 	server: {
 		port: 8080,
 		host: true, // Permitir acceso desde cualquier dispositivo en la red local
-		https: {
-			// Generar certificados automáticamente si no existen
-			key: './certs/key.pem',
-			cert: './certs/cert.pem'
-		},
 		proxy: {
 			'/api': {
-				target: 'http://localhost:3000',
+				target: 'http://192.168.100.113:3000',
 				changeOrigin: true,
+				secure: false,
 			},
 		},
 	},

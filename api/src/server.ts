@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import fs from 'fs';
 import fastify from 'fastify';
 import cors from '@fastify/cors';
 import { PrismaClient, LogAction, Prisma, PlayerSession,  Transaction } from '@prisma/client';
@@ -11,7 +12,13 @@ type SessionWithRemaining = PlayerSession & {
 };
 
 const prisma = new PrismaClient();
-const app = fastify({ logger: true });
+const app = fastify({
+  logger: true,
+  https: {
+    key: fs.readFileSync('../ui/certs/key.pem'),
+    cert: fs.readFileSync('../ui/certs/cert.pem')
+  }
+});
 
 const computeRemainingSeconds = (session: { totalAllowedSeconds: number | null | undefined; accumulatedSeconds: number | null | undefined; isActive: boolean; lastStartAt: Date | null }) => {
   const now = new Date();
@@ -190,6 +197,59 @@ async function main() {
     });
 
     return updated;
+  });
+
+  // Dashboard stats
+  app.get('/api/dashboard/stats', async () => {
+    // Today revenue
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        createdAt: {
+          gte: today
+        }
+      },
+      include: {
+        product: true
+      }
+    });
+    const todayRevenue = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
+
+    // Top products
+    const productSales = new Map<string, { productId: string; name: string; category: string; totalQuantity: number }>();
+    transactions.forEach(t => {
+      const key = t.productId;
+      if (!productSales.has(key)) {
+        productSales.set(key, {
+          productId: key,
+          name: t.product.name,
+          category: t.product.category,
+          totalQuantity: 0
+        });
+      }
+      productSales.get(key)!.totalQuantity += t.quantity;
+    });
+    const topProducts = Array.from(productSales.values())
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      .slice(0, 4);
+
+    // Waiting count (checked in but not active)
+    const waitingSessions = await prisma.playerSession.findMany({
+      where: {
+        totalAllowedSeconds: {
+          gt: 0
+        },
+        isActive: false
+      }
+    });
+    const waitingCount = waitingSessions.length;
+
+    return {
+      todayRevenue,
+      topProducts,
+      waitingCount
+    };
   });
 
   const port = Number(process.env.PORT || 3000);
