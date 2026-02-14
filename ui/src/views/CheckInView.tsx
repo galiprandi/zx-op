@@ -9,6 +9,8 @@ import { ActionButton } from "@/components/ActionButton";
 import { QRScanner } from "@/components/QRScanner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { GlassCard } from "@/components/GlassCard";
+import { CartSheet } from "@/components/CartSheet";
+import { ChevronDown, ShoppingCart } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useSocket } from "@/hooks/useSocket";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
@@ -26,6 +28,7 @@ export function CheckInView() {
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [showConfirmation, setShowConfirmation] = useState(false);
 	const [lastCheckinData, setLastCheckinData] = useState<CheckinResponse | null>(null);
+	const [isCartOpen, setIsCartOpen] = useState(false);
 
 	const queryClient = useQueryClient();
 	const {
@@ -202,9 +205,9 @@ export function CheckInView() {
 		
 		if (sessionLoading) {
 			return (
-				<GlassCard className="text-center">
-					<div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-					<span className="text-muted-foreground text-sm">Cargando estado...</span>
+				<GlassCard className="text-center py-3">
+					<div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-1" />
+					<span className="text-muted-foreground text-xs">Cargando estado...</span>
 				</GlassCard>
 			);
 		}
@@ -212,9 +215,9 @@ export function CheckInView() {
 		// New wristband - no session found
 		if (!session) {
 			return (
-				<GlassCard className="text-center">
-					<AlertCircle className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-					<span className="text-blue-400 font-medium text-sm">📋 Nueva Pulsera</span>
+				<GlassCard className="text-center py-3">
+					<AlertCircle className="w-6 h-6 text-blue-400 mx-auto mb-1" />
+					<span className="text-blue-400 font-medium text-xs">📋 Nueva Pulsera</span>
 					<span className="text-muted-foreground text-xs block mt-1">⏱️ Sin tiempo</span>
 				</GlassCard>
 			);
@@ -257,6 +260,23 @@ export function CheckInView() {
 			title="Check-in"
 			footer={
 				<div className="space-y-3">
+					{/* Cart Summary - Opción 1: Collapsible */}
+					{cart.length > 0 && (
+						<div className="flex items-center justify-between p-3 bg-card/30 rounded-lg border border-border/20">
+							<button
+								type="button"
+								onClick={() => setIsCartOpen(true)}
+								className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+							>
+								<ShoppingCart className="w-4 h-4" />
+								<span>{getTotalItems()} items</span>
+								<span>-</span>
+								<span className="font-medium text-foreground">{formatPrice(getTotalPrice())}</span>
+								<ChevronDown className="w-4 h-4" />
+							</button>
+						</div>
+					)}
+					
 					<ActionButton
 						type="checkin"
 						onClick={handleCheckin}
@@ -278,43 +298,6 @@ export function CheckInView() {
 					{isMissingRequired && (
 						<div className="text-xs text-yellow-400">
 							Debes incluir los productos obligatorios
-						</div>
-					)}
-
-					{/* Cart Summary */}
-					{cart.length > 0 && (
-						<div className="space-y-3">
-							<div className="flex items-center justify-between">
-								<h3 className="font-semibold text-foreground">Carrito</h3>
-								<span className="text-sm text-muted-foreground font-medium">
-									{getTotalItems()} items
-								</span>
-							</div>
-							<div className="space-y-2">
-								{cart.map((item) => (
-									<CartItemRow
-										key={item.product.id}
-										item={item}
-										onUpdateQuantity={updateQuantity}
-										onRemove={removeFromCart}
-									/>
-								))}
-								<div className="border-t border-border/20 pt-3">
-									<div className="flex justify-between items-center">
-										<span className="font-bold text-foreground">TOTAL:</span>
-										<div className="text-right">
-											<div className="font-bold text-lg text-green-400">
-												{formatPrice(getTotalPrice())}
-											</div>
-											{getTotalTime() > 0 && (
-												<div className="text-xs text-blue-400">
-													+{formatTimeValue(getTotalTime())} de tiempo
-												</div>
-											)}
-										</div>
-									</div>
-								</div>
-							</div>
 						</div>
 					)}
 				</div>
@@ -422,6 +405,16 @@ export function CheckInView() {
 					</GlassCard>
 				</div>
 			)}
+
+			{/* Cart Sheet - Opción 1 */}
+			<CartSheet
+				isOpen={isCartOpen}
+				onClose={() => setIsCartOpen(false)}
+				items={cart}
+				onUpdateQuantity={updateQuantity}
+				totalPrice={getTotalPrice()}
+				totalTime={getTotalTime()}
+			/>
 		</MobileShell>
 	);
 }
@@ -504,64 +497,3 @@ function ProductListItem({ product, onClick, quantity }: { product: Product; onC
 	);
 }
 
-// Cart Item Row Component
-function CartItemRow({ 
-	item, 
-	onUpdateQuantity, 
-	onRemove 
-}: { 
-	item: CartItem; 
-	onUpdateQuantity: (id: string, quantity: number) => void;
-	onRemove: (id: string) => void;
-}) {
-	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat("es-CL", {
-			style: "currency",
-			currency: "CLP",
-		}).format(price);
-	};
-
-	return (
-		<div className="flex items-center justify-between p-3 bg-card/30 rounded-lg border border-border/20">
-			<div className="flex-1">
-				<div className="font-medium text-sm text-foreground">
-					{item.product.name}
-				</div>
-				<div className="flex items-center gap-2 text-xs text-muted-foreground">
-					<span>{formatPrice(item.product.price)} c/u</span>
-					{isTimeProduct(item.product) && (
-						<span className="text-blue-400">
-							+{formatTimeValue(item.product.timeValueSeconds!)}
-						</span>
-					)}
-				</div>
-			</div>
-			<div className="flex items-center gap-2">
-				<button
-					type="button"
-					onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
-					className="w-6 h-6 rounded border border-border/20 bg-card/50 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm"
-				>
-					-
-				</button>
-				<span className="w-6 text-center text-sm font-medium text-foreground">
-					{item.quantity}
-				</span>
-				<button
-					type="button"
-					onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
-					className="w-6 h-6 rounded border border-border/20 bg-card/50 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm"
-				>
-					+
-				</button>
-				<button
-					type="button"
-					onClick={() => onRemove(item.product.id)}
-					className="w-6 h-6 rounded border border-border/20 bg-card/50 text-destructive hover:text-destructive flex items-center justify-center text-xs"
-				>
-					×
-				</button>
-			</div>
-		</div>
-	);
-}
