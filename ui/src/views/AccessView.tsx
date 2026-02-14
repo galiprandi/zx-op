@@ -5,7 +5,7 @@ import type { FC } from "react";
 import type { QRCodeProps } from "react-qr-code";
 
 const quickLinks = [
-  { label: "Operación", path: "/" },
+  { label: "Operación", path: "/operation" },
   { label: "Check-in", path: "/checkin" },
 ];
 

@@ -191,9 +191,6 @@ export function MonitorView() {
 				{/* Header */}
 				<div className="text-center">
 					<h2 className="text-3xl font-bold mb-2">Centro de Control</h2>
-					<p className="text-muted-foreground">
-						Monitoreo en tiempo real de la atracción
-					</p>
 				</div>
 
 				{/* Stats Overview (right-to-left priority: Esperando, En Juego, En Pausa) */}
