@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 interface MobileShellProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ export function MobileShell({
   showStatusDot = true,
   footer 
 }: MobileShellProps) {
+  usePageTitle(); // Actualiza el título dinámicamente según la ruta
   return (
     <div className={cn(
       "min-h-screen bg-background text-foreground flex flex-col",
