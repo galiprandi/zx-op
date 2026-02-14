@@ -80,6 +80,13 @@ export function QRScanner({
 			const scanner = new Html5Qrcode("qr-scanner");
 			scannerRef.current = scanner;
 
+			// Check if BarcodeDetector API is supported
+			if ('BarcodeDetector' in window) {
+				console.log("✅ Native BarcodeDetector API is supported");
+			} else {
+				console.log("❌ Native BarcodeDetector API not supported, using ZXing");
+			}
+
 			await scanner.start(
 				{ facingMode: "environment" },
 				{
