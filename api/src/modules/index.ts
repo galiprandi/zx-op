@@ -13,6 +13,7 @@ import { checkinRoutes } from './checkin/routes/checkinRoutes';
 import { productRoutes } from './products/routes/productRoutes';
 import { transactionRoutes } from './transactions/routes/transactionRoutes';
 import { dashboardRoutes } from './dashboard/routes/dashboardRoutes';
+import { systemRoutes } from './system/routes/systemRoutes';
 import { initializeSocketIO } from './playerSessions/services/socketService';
 
 /**
@@ -40,6 +41,9 @@ export async function registerModules(app: FastifyInstance) {
 
   await app.register(dashboardRoutes);
   app.log.info('Dashboard module registered');
+
+  await app.register(systemRoutes);
+  app.log.info('System module registered');
 
   app.log.info('All modules registered successfully');
 }
@@ -90,10 +94,7 @@ export const moduleInfo = {
         'GET /api/transactions',
         'GET /api/transactions/:id',
         'GET /api/transactions/player/:playerSessionId',
-        'GET /api/transactions/barcode/:barcodeId',
-        'POST /api/transactions',
-        'GET /api/transactions/daterange',
-        'GET /api/transactions/stats'
+        'GET /api/transactions/barcode/:barcodeId'
       ],
       dependencies: ['socketIO']
     },
@@ -104,6 +105,15 @@ export const moduleInfo = {
         'GET /api/dashboard/stats'
       ],
       dependencies: ['transactions', 'playerSessions']
+    },
+    {
+      name: 'system',
+      description: 'System configuration and settings',
+      routes: [
+        'GET /api/system/settings',
+        'PUT /api/system/settings'
+      ],
+      dependencies: []
     }
   ],
   removedModules: [
