@@ -208,7 +208,7 @@ export function MonitorView() {
 								Esperando
 							</h3>
 							<p className="text-sm text-muted-foreground">
-								Con check-in, aún no han entrado
+								Tiempo de espera trascurrido
 							</p>
 						</div>
 						<div className="space-y-3 max-h-96 overflow-y-auto">
@@ -238,7 +238,7 @@ export function MonitorView() {
 								En Juego
 							</h3>
 							<p className="text-sm text-muted-foreground">
-								Sesiones activas consumiendo tiempo
+								Tiempo de juego restante
 							</p>
 						</div>
 						<div className="space-y-3 max-h-96 overflow-y-auto">
@@ -268,7 +268,7 @@ export function MonitorView() {
 								En Pausa
 							</h3>
 							<p className="text-sm text-muted-foreground">
-								Sesiones pausadas o con tiempo bajo
+								Tiempo de pausa transcurrido
 							</p>
 						</div>
 						<div className="space-y-3 max-h-96 overflow-y-auto">
