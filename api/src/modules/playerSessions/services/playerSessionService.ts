@@ -1,11 +1,13 @@
 import { PrismaClient, LogAction, PlayerSession, Prisma } from '@prisma/client';
 import { emitSessionEvent } from './socketService';
+import { SessionStatus } from '../../../types/sessionStatus';
 
 const prisma = new PrismaClient();
 
 export type SessionWithRemaining = PlayerSession & {
   remainingSeconds: number;
   remainingMinutes: number;
+  status: SessionStatus;
 };
 
 export class PlayerSessionService {
@@ -24,6 +26,36 @@ export class PlayerSessionService {
     const consumed = consumedBase + running;
     const remaining = totalAllowed - consumed;
     return Math.max(0, Number.isFinite(remaining) ? remaining : 0);
+  }
+
+  private computeSessionStatus(session: {
+    isActive: boolean;
+    lastStartAt: Date | null;
+    accumulatedSeconds: number | null | undefined;
+    remainingSeconds: number;
+  }): SessionStatus {
+    // Waiting: never started sessions
+    if (!session.isActive && 
+        session.lastStartAt === null && 
+        (session.accumulatedSeconds ?? 0) === 0 && 
+        session.remainingSeconds > 0) {
+      return SessionStatus.WAITING;
+    }
+    
+    // Playing: currently active sessions
+    if (session.isActive && session.remainingSeconds > 0) {
+      return SessionStatus.PLAYING;
+    }
+    
+    // Paused: inactive sessions with evidence of prior play
+    if (!session.isActive && 
+        session.remainingSeconds > 0 && 
+        (session.lastStartAt !== null || (session.accumulatedSeconds ?? 0) > 0)) {
+      return SessionStatus.PAUSED;
+    }
+    
+    // Default to paused for edge cases
+    return SessionStatus.PAUSED;
   }
 
   private calcExpiry(session: {
@@ -140,10 +172,18 @@ export class PlayerSessionService {
       remainingSeconds = 0;
     }
     
+    const status = this.computeSessionStatus({
+      isActive: current.isActive,
+      lastStartAt: current.lastStartAt,
+      accumulatedSeconds: current.accumulatedSeconds,
+      remainingSeconds
+    });
+    
     return { 
       ...current, 
       remainingSeconds, 
-      remainingMinutes: Math.floor(remainingSeconds / 60) 
+      remainingMinutes: Math.floor(remainingSeconds / 60),
+      status
     };
   }
 
@@ -175,10 +215,17 @@ export class PlayerSessionService {
     return sessions
       .map((session) => {
         const remainingSeconds = this.computeRemainingSeconds(session);
+        const status = this.computeSessionStatus({
+          isActive: session.isActive,
+          lastStartAt: session.lastStartAt,
+          accumulatedSeconds: session.accumulatedSeconds,
+          remainingSeconds
+        });
         return { 
           ...session, 
           remainingSeconds, 
-          remainingMinutes: Math.floor(remainingSeconds / 60) 
+          remainingMinutes: Math.floor(remainingSeconds / 60),
+          status
         };
       })
       .filter((session) => session.remainingSeconds > 0);

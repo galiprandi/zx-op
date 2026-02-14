@@ -1,3 +1,5 @@
+import { SessionStatus } from './sessionStatus';
+
 export interface PlayerSession {
   id: string;
   barcodeId: string;
@@ -13,11 +15,10 @@ export interface PlayerSession {
 export interface PlayerSessionStatus extends PlayerSession {
   remainingSeconds: number;
   remainingMinutes: number;
+  status: SessionStatus;
 }
 
-export interface SessionWithComputedFields extends PlayerSession {
-  remainingSeconds: number;
-  remainingMinutes: number;
+export interface SessionWithComputedFields extends PlayerSessionStatus {
   isExpired: boolean;
   timeProgress: number; // percentage 0-100
 }

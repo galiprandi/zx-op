@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { SessionStatus } from "../types/sessionStatus";
+
+// Session Status enum
+export const SessionStatusSchema = z.nativeEnum(SessionStatus);
 
 // Base PlayerSession schema
 export const PlayerSessionSchema = z.object({
@@ -17,6 +21,7 @@ export const PlayerSessionSchema = z.object({
 export const PlayerSessionStatusSchema = PlayerSessionSchema.extend({
   remainingSeconds: z.number().int().nonnegative(),
   remainingMinutes: z.number().int().nonnegative(),
+  status: SessionStatusSchema,
 });
 
 // PlayerSession with additional computed fields for UI
