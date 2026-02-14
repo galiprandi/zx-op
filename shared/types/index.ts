@@ -1,5 +1,6 @@
 // Core types
 export * from './playerSession';
+export * from './sessionStatus';
 export * from './sessionLog';
 export * from './product';
 export * from './transaction';
