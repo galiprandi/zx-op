@@ -7,6 +7,7 @@ import { BigTimer } from "@/components/BigTimer";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { GlassCard } from "@/components/GlassCard";
+import { TimeFormatter, type TimerState } from "@/components/TimeFormatter";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
 
 export function OperationView() {
@@ -25,6 +26,13 @@ export function OperationView() {
 		playMutation,
 		pauseMutation
 	} = usePlayerSession(barcodeId);
+
+	// Determine timer state based on session status
+	const getTimerState = (): TimerState => {
+		if (!session) return "stop";
+		if (session.isActive && session.remainingSeconds > 0) return "desc";
+		return "stop";
+	};
 
 	// Handle QR scanner submit
 	const handleScannerSubmit = (value: string) => {
@@ -123,11 +131,18 @@ export function OperationView() {
 						) : session ? (
 							<div className="text-center space-y-6">
 								{/* Timer Display */}
-								<BigTimer 
+								<TimeFormatter 
 									seconds={session.remainingSeconds} 
-									size="md"
-									showMinutes={false}
-								/>
+									state={getTimerState()}
+								>
+									{({ raw }) => (
+										<BigTimer 
+											seconds={raw} 
+											size="md"
+											showMinutes={false}
+										/>
+									)}
+								</TimeFormatter>
 								
 								{/* Status Badge */}
 								<StatusBadge 

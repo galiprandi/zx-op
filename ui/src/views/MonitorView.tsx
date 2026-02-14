@@ -6,6 +6,7 @@ import { DesktopShell } from "@/components/DesktopShell";
 import { StatCard } from "@/components/StatCard";
 import { AnimatedSessionRow } from "@/components/AnimatedSessionRow";
 import { GlassCard } from "@/components/GlassCard";
+import { MonitorTime } from "@/components/MonitorTime";
 import { useSocket } from "@/hooks/useSocket";
 import { useActiveSessions } from "@/hooks/usePlayerSession";
 import { useDashboardStats, usePerformanceMetrics } from "@/hooks/useDashboardStats";
@@ -68,26 +69,21 @@ export function MonitorView() {
 		},
 	});
 
+	// Debug logging for session conflicts
+	useEffect(() => {
+		const activeIds = new Set(activePlayingSessions.map(s => s.id));
+		const pausedIds = new Set(pausedSessions.map(s => s.id));
+		const conflicts = [...activeIds].filter(id => pausedIds.has(id));
+		
+		if (conflicts.length > 0) {
+			console.warn("⚠️ Session conflicts detected:", conflicts);
+			console.log("Active sessions:", activePlayingSessions.map(s => ({ id: s.id, barcodeId: s.barcodeId, isActive: s.isActive })));
+			console.log("Paused sessions:", pausedSessions.map(s => ({ id: s.id, barcodeId: s.barcodeId, isActive: s.isActive })));
+		}
+	}, [activePlayingSessions, pausedSessions]);
+
 	const maxOccupancy = systemSettings?.maxOccupancy ?? 0;
 	const occupancyPercentage = maxOccupancy > 0 ? (totalPlaying / maxOccupancy) * 100 : 0;
-
-	const formatSecondsShort = (seconds: number | null | undefined) => {
-		if (seconds === null || seconds === undefined) return "--";
-		const s = Math.max(0, Math.floor(seconds));
-		const h = Math.floor(s / 3600);
-		const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
-		const ss = (s % 60).toString().padStart(2, "0");
-		return `${h}:${m}:${ss}`;
-	};
-
-	const formatDuration = (seconds: number | null | undefined) => {
-		if (seconds === null || seconds === undefined) return "--";
-		const s = Math.max(0, Math.floor(seconds));
-		const h = Math.floor(s / 3600);
-		const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
-		const ss = (s % 60).toString().padStart(2, "0");
-		return `${h}:${m}:${ss}`;
-	};
 
 	
 	const sortedActive = useMemo(() => {
@@ -102,13 +98,50 @@ export function MonitorView() {
 		});
 	}, [waitingSessions, nowTs]);
 
+	// Remove any sessions that appear in both active and paused lists (data inconsistency fix)
+	const activeSessionIds = new Set(activePlayingSessions.map(s => s.id));
+	const pausedSessionsClean = pausedSessions.filter(session => !activeSessionIds.has(session.id));
+	const pausedSessionIdsClean = new Set(pausedSessionsClean.map(s => s.id));
+	const expiringSoonNotPaused = expiringSoonSessions.filter(session => !pausedSessionIdsClean.has(session.id));
+
+	// Additional fix: Remove sessions with same barcodeId from paused lists (barcode conflicts)
+	const activeBarcodes = new Set(activePlayingSessions.map(s => s.barcodeId));
+	const pausedSessionsFinal = pausedSessionsClean.filter(session => !activeBarcodes.has(session.barcodeId));
+	const expiringSoonFinal = expiringSoonNotPaused.filter(session => !activeBarcodes.has(session.barcodeId));
+
 	const pausedWithElapsed = useMemo(() => {
-		return pausedSessions.map((s) => {
+		return pausedSessionsFinal.map((s) => {
 			const updatedAtMs = s.updatedAt ? new Date(s.updatedAt).getTime() : nowTs;
 			const elapsedSec = Math.max(0, Math.floor((nowTs - updatedAtMs) / 1000));
 			return { ...s, pausedElapsed: elapsedSec };
 		});
-	}, [pausedSessions, nowTs]);
+	}, [pausedSessionsFinal, nowTs]);
+
+	// Debug logging for cleaned arrays
+	useEffect(() => {
+		console.log("🔧 Cleaned paused sessions:", pausedSessionsClean.map(s => ({ id: s.id, barcodeId: s.barcodeId })));
+		console.log("🔧 Expiring soon not paused:", expiringSoonNotPaused.map(s => ({ id: s.id, barcodeId: s.barcodeId })));
+		console.log("🔧 Final paused sessions (barcode filtered):", pausedSessionsFinal.map(s => ({ id: s.id, barcodeId: s.barcodeId })));
+		console.log("🔧 Final expiring sessions (barcode filtered):", expiringSoonFinal.map(s => ({ id: s.id, barcodeId: s.barcodeId })));
+		console.log("🔧 Final combined array for 'En Pausa':", [...pausedSessionsFinal, ...expiringSoonFinal].map(s => ({ id: s.id, barcodeId: s.barcodeId })));
+		console.log("🔧 Active sessions for 'En Juego':", activePlayingSessions.map(s => ({ id: s.id, barcodeId: s.barcodeId })));
+		
+		// Check for barcodeId conflicts (same barcode in both lists but different session IDs)
+		const activeBarcodes = new Set(activePlayingSessions.map(s => s.barcodeId));
+		const pausedBarcodes = new Set([...pausedSessionsFinal, ...expiringSoonFinal].map(s => s.barcodeId));
+		const barcodeConflicts = [...activeBarcodes].filter(barcode => pausedBarcodes.has(barcode));
+		
+		if (barcodeConflicts.length > 0) {
+			console.warn("🚨 Barcode conflicts STILL detected after filtering:", barcodeConflicts);
+			barcodeConflicts.forEach(barcode => {
+				const activeSession = activePlayingSessions.find(s => s.barcodeId === barcode);
+				const pausedSession = [...pausedSessionsFinal, ...expiringSoonFinal].find(s => s.barcodeId === barcode);
+				console.log(`Barcode ${barcode}: Active=${activeSession?.id}, Paused=${pausedSession?.id}`);
+			});
+		} else {
+			console.log("✅ No barcode conflicts detected - filtering successful!");
+		}
+	}, [pausedSessionsFinal, expiringSoonFinal, activePlayingSessions, pausedSessionsClean, expiringSoonNotPaused]);
 
 	const handleSave = () => {
 		if (localMax === "") return;
@@ -236,7 +269,7 @@ export function MonitorView() {
 									<AnimatedSessionRow
 										key={session.id}
 										barcodeId={session.barcodeId}
-										rightText={formatSecondsShort(session.waitingElapsed)}
+										rightText={<MonitorTime seconds={session.waitingElapsed} state="asc" />}
 										tone="yellow"
 										className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 									/>
@@ -267,7 +300,7 @@ export function MonitorView() {
 									<AnimatedSessionRow
 										key={session.id}
 										barcodeId={session.barcodeId}
-										rightText={formatSecondsShort(session.remainingSeconds)}
+										rightText={<MonitorTime seconds={session.remainingSeconds} state="desc" />}
 										tone={session.remainingSeconds <= 60 ? "red" : session.remainingSeconds <= 300 ? "orange" : "green"}
 										className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 									/>
@@ -284,11 +317,11 @@ export function MonitorView() {
 								En Pausa
 							</h3>
 							<p className="text-sm text-muted-foreground">
-								Tiempo de pausa transcurrido
+								Tiempo de pausa transcurrido · Sesiones por expirar
 							</p>
 						</div>
 						<div className="space-y-3 max-h-96 overflow-y-auto">
-							{[...pausedSessions, ...expiringSoonSessions].length === 0 ? (
+							{[...pausedSessionsFinal, ...expiringSoonFinal].length === 0 ? (
 								<div className="text-center py-8">
 									<Pause className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
 									<p className="text-muted-foreground">No hay sesiones pausadas o expirando</p>
@@ -299,16 +332,16 @@ export function MonitorView() {
 										<AnimatedSessionRow
 											key={`${session.id}-paused`}
 											barcodeId={session.barcodeId}
-											rightText={formatSecondsShort(session.pausedElapsed)}
+											rightText={<MonitorTime seconds={session.pausedElapsed} state="asc" />}
 											tone="orange"
 											className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 										/>
 									))}
-									{expiringSoonSessions.slice(0, 10).map((session, index) => (
+									{expiringSoonFinal.slice(0, 10).map((session, index) => (
 										<AnimatedSessionRow
 											key={`${session.id}-expiring`}
 											barcodeId={session.barcodeId}
-											rightText={formatSecondsShort(session.remainingSeconds)}
+											rightText={<MonitorTime seconds={session.remainingSeconds} state="desc" />}
 											tone={session.remainingSeconds <= 60 ? "red" : session.remainingSeconds <= 300 ? "orange" : "green"}
 											className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 										/>
@@ -341,7 +374,7 @@ export function MonitorView() {
 												Tiempo espera promedio
 											</span>
 											<span className="text-base">
-												{formatDuration(performanceMetrics.averageWaitTime)}
+												<MonitorTime seconds={performanceMetrics.averageWaitTime} state="stop" />
 											</span>
 										</div>
 										<div className="flex items-center justify-between">
@@ -349,7 +382,7 @@ export function MonitorView() {
 												Tiempo juego promedio
 											</span>
 											<span className="text-base">
-												{formatDuration(performanceMetrics.averagePlayTime)}
+												<MonitorTime seconds={performanceMetrics.averagePlayTime} state="stop" />
 											</span>
 										</div>
 										<div className="flex items-center justify-between">
@@ -381,7 +414,7 @@ export function MonitorView() {
 												Tiempo total de juego acumulado
 											</span>
 											<span className="text-base">
-												{formatDuration(performanceMetrics.totalPlayTimeConsumed)}
+												<MonitorTime seconds={performanceMetrics.totalPlayTimeConsumed} state="stop" />
 											</span>
 										</div>
 									</>

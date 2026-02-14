@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
+import { ReactNode } from "react";
 
 interface AnimatedSessionRowProps {
   barcodeId: string;
-  rightText: string;
+  rightText: string | ReactNode;
   className?: string;
   tone?: "green" | "yellow" | "orange" | "red" | "muted";
 }
