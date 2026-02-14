@@ -1,4 +1,4 @@
-import { Play, Pause, AlertCircle, Users, Settings, DollarSign } from "lucide-react";
+import { Play, Pause, AlertCircle, Users, Settings, DollarSign, BarChart3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { RevealValue } from "@/components/RevealValue";
 import { useSocket } from "@/hooks/useSocket";
 import { useActiveSessions } from "@/hooks/usePlayerSession";
-import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { useDashboardStats, usePerformanceMetrics } from "@/hooks/useDashboardStats";
 import { getSystemSettings, updateSystemSettings, type SystemSettings } from "@/api/system";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -38,6 +38,9 @@ export function MonitorView() {
 	// Get dashboard stats
 	const { data: dashboardStats } = useDashboardStats();
 
+	// Get performance metrics
+	const { data: performanceMetrics } = usePerformanceMetrics();
+
 	const { data: systemSettings } = useQuery<SystemSettings>({
 		queryKey: ["systemSettings"],
 		queryFn: getSystemSettings,
@@ -45,7 +48,7 @@ export function MonitorView() {
 	});
 
 	useEffect(() => {
-		const id = setInterval(() => setNowTs(Date.now()), 1000);
+		const id = setInterval(() => setNowTs(Date.now()), 60000); // Update every 1 minute
 		return () => clearInterval(id);
 	}, []);
 
@@ -76,6 +79,14 @@ export function MonitorView() {
 		const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
 		const ss = (s % 60).toString().padStart(2, "0");
 		return `${h}:${m}:${ss}`;
+	};
+
+	const formatTime = (seconds: number) => {
+		if (seconds < 60) return `${seconds}s`;
+		if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+		const h = Math.floor(seconds / 3600);
+		const m = Math.floor((seconds % 3600) / 60);
+		return `${h}h ${m}m`;
 	};
 
 	const sortedActive = useMemo(() => {
@@ -304,8 +315,73 @@ export function MonitorView() {
 				{/* Secondary Metrics */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 					<GlassCard>
-						<div className="h-full min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
-							{/* Espacio reservado */}
+						<div className="flex items-center justify-between mb-4">
+							<div>
+								<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+									<BarChart3 className="w-5 h-5 text-blue-400" />
+									Métricas de Rendimiento
+								</h3>
+								<p className="text-sm text-muted-foreground">Estadísticas operativas del día · Se actualiza cada 1 min</p>
+							</div>
+						</div>
+
+						<div className="mt-4">
+							<div className="space-y-2">
+								{performanceMetrics ? (
+									<>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-foreground">
+												Tiempo espera promedio
+											</span>
+											<span className="text-sm text-muted-foreground">
+												{formatTime(performanceMetrics.averageWaitTime)}
+											</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-foreground">
+												Tiempo juego promedio
+											</span>
+											<span className="text-sm text-muted-foreground">
+												{formatTime(performanceMetrics.averagePlayTime)}
+											</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-foreground">
+												Juegos completados hoy
+											</span>
+											<span className="text-sm text-muted-foreground">
+												{performanceMetrics.totalCompletedSessions}
+											</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-foreground">
+												Ocupación promedio del día
+											</span>
+											<span className="text-sm text-muted-foreground">
+												{performanceMetrics.dailyOccupancyRate}%
+											</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-foreground">
+												Máximo de jugadores simultáneos
+											</span>
+											<span className="text-sm text-muted-foreground">
+												{performanceMetrics.peakOccupancy}
+											</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-foreground">
+												Tiempo total de juego acumulado
+											</span>
+											<span className="text-sm text-muted-foreground">
+												{formatTime(performanceMetrics.totalPlayTimeConsumed)}
+											</span>
+										</div>
+									</>
+								) : (
+									<p className="text-muted-foreground text-sm">Cargando métricas...</p>
+								)}
+							</div>
 						</div>
 					</GlassCard>
 
@@ -321,7 +397,7 @@ export function MonitorView() {
 							<RevealValue
 								value={dashboardStats?.todayRevenue || 0}
 								format="currency"
-								size="lg"
+								size="md"
 							/>
 						</div>
 

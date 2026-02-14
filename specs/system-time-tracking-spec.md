@@ -142,3 +142,78 @@ Based on the MonitorView implementation, the official visual design for session 
 * **Real-time Updates**: All state changes reflect immediately via Socket.IO
 * **Separation Logic**: Waiting sessions never appear in paused bucket (per specification)
 * **Progress Indicators**: Only playing sessions show progress bars; waiting sessions show elapsed wait time
+
+## 5. Performance Metrics API
+
+### Endpoint: GET /api/dashboard/performance
+
+Returns operational performance metrics for the current day.
+
+#### Response Schema
+
+```typescript
+interface PerformanceMetrics {
+  averageWaitTime: number;        // Average time from check-in to first activation (seconds)
+  averagePlayTime: number;        // Average play duration per completed session (seconds)
+  totalCompletedSessions: number;  // Total sessions finished today
+  dailyOccupancyRate: number;      // Average utilization percentage (0-100)
+  totalPlayTimeConsumed: number;   // Total play time consumed today (seconds)
+  peakOccupancy: number;           // Maximum concurrent sessions today
+  averageSessionDuration: number;  // Average session duration (seconds)
+}
+```
+
+#### Metric Definitions
+
+**Average Wait Time**
+- Calculation: `(first_activation_time - check_in_time) average across all sessions`
+- Purpose: Identify bottlenecks in boarding process
+- Target: < 5 minutes optimal
+
+**Average Play Time**
+- Calculation: `total_play_time / completed_sessions`
+- Purpose: Understand typical session length
+- Usage: Helps with capacity planning
+
+**Daily Occupancy Rate**
+- Calculation: `(total_occupied_minutes / (available_minutes * max_capacity)) * 100`
+- Purpose: Measure facility utilization efficiency
+- Target: 60-80% optimal range
+
+**Peak Occupancy**
+- Calculation: Maximum number of concurrent sessions today
+- Purpose: Understand demand patterns
+- Usage: Staff scheduling and capacity planning
+
+**Total Completed Sessions**
+- Calculation: Count of sessions finished today
+- Purpose: Daily throughput measurement
+- Usage: Performance tracking and reporting
+
+#### Implementation Details
+
+* **Time Range**: All calculations use current day (midnight to current time)
+* **Session States**: Completed = expired or finished with accumulated time
+* **Real-time**: Metrics update with each session state change
+* **Error Handling**: Returns 0 for metrics with no data
+* **Performance**: Optimized queries with proper database indexes
+
+#### UI Integration
+
+Performance metrics display in a dedicated card on MonitorView:
+
+```typescript
+// Key metrics to display
+- Tiempo promedio de espera: formatTime(averageWaitTime)
+- Tiempo promedio de juego: formatTime(averagePlayTime)  
+- Sesiones completadas: totalCompletedSessions
+- Tasa de ocupación: dailyOccupancyRate%
+- Pico máximo: peakOccupancy jugadores
+```
+
+#### Future Enhancements
+
+1. **Historical Trends**: Add time range selection (week, month)
+2. **Comparative Analysis**: Day-over-day and week-over-week comparisons
+3. **Alerts**: Automatic notifications for metrics outside optimal ranges
+4. **Export**: CSV/PDF reports for management review

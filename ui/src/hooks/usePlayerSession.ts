@@ -90,7 +90,7 @@ export function useActiveSessions() {
 		queryKey: ["activeSessions"],
 		queryFn: getAllActiveSessions,
 		retry: 1,
-		refetchInterval: 3000, // Auto-refresh every 3 seconds for monitor
+		refetchInterval: 60000, // Auto-refresh every 1 minute
 	});
 
 	// Computed properties

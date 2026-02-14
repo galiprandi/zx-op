@@ -102,7 +102,8 @@ export const moduleInfo = {
       name: 'dashboard',
       description: 'Dashboard statistics and monitoring',
       routes: [
-        'GET /api/dashboard/stats'
+        'GET /api/dashboard/stats',
+        'GET /api/dashboard/performance'
       ],
       dependencies: ['transactions', 'playerSessions']
     },
