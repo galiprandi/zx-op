@@ -1,5 +1,5 @@
 import { API } from "./api";
-import type { TransactionWithRelations, TransactionStats } from "@shared/types";
+import type { TransactionWithRelations } from "@shared/types";
 
 export const getTransactions = async (limit = 50): Promise<TransactionWithRelations[]> => {
 	const { data } = await API.get<TransactionWithRelations[]>(`/api/transactions?limit=${limit}`);
@@ -18,34 +18,6 @@ export const getTransactionsByPlayerSession = async (playerSessionId: string, li
 
 export const getTransactionsByBarcodeId = async (barcodeId: string, limit = 20): Promise<TransactionWithRelations[]> => {
 	const { data } = await API.get<TransactionWithRelations[]>(`/api/transactions/barcode/${barcodeId}?limit=${limit}`);
-	return data;
-};
-
-export const createTransaction = async (payload: {
-	playerSessionId: string;
-	productId: string;
-	quantity: number;
-	totalPrice: number;
-}): Promise<TransactionWithRelations> => {
-	const { data } = await API.post<TransactionWithRelations>("/api/transactions", payload);
-	return data;
-};
-
-export const getTransactionsByDateRange = async (startDate: Date, endDate: Date): Promise<TransactionWithRelations[]> => {
-	const { data } = await API.get<TransactionWithRelations[]>(
-		`/api/transactions/daterange?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
-	);
-	return data;
-};
-
-export const getTransactionStats = async (startDate?: Date, endDate?: Date): Promise<TransactionStats> => {
-	const params = new URLSearchParams();
-	if (startDate && endDate) {
-		params.append('startDate', startDate.toISOString());
-		params.append('endDate', endDate.toISOString());
-	}
-	
-	const { data } = await API.get<TransactionStats>(`/api/transactions/stats?${params}`);
 	return data;
 };
 

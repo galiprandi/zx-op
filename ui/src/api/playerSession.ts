@@ -1,10 +1,11 @@
 import { AxiosError } from "axios";
 import { API } from "./api";
-import type { PlayerSession, PlayerSessionStatus } from "@shared/types";
+import type { PlayerSession, PlayerSessionStatus, SessionStatus } from "@shared/types";
 
 export interface SessionStatusResponse extends PlayerSessionStatus {
   remainingSeconds: number;
   remainingMinutes: number;
+  status: SessionStatus;
 }
 
 export interface ActiveSessionResponse {
@@ -19,6 +20,7 @@ export interface ActiveSessionResponse {
   updatedAt: string;
   remainingSeconds: number;
   remainingMinutes: number;
+  status: SessionStatus;
 }
 
 export const getSessionStatus = async (barcodeId: string): Promise<SessionStatusResponse> => {
