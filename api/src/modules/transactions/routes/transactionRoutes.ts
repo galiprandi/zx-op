@@ -13,13 +13,4 @@ export async function transactionRoutes(fastify: FastifyInstance) {
   
   // Get transactions by barcode ID
   fastify.get('/api/transactions/barcode/:barcodeId', transactionController.getTransactionsByBarcodeId);
-  
-  // Create new transaction
-  fastify.post('/api/transactions', transactionController.createTransaction);
-  
-  // Get transactions by date range
-  fastify.get('/api/transactions/daterange', transactionController.getTransactionsByDateRange);
-  
-  // Get transaction statistics
-  fastify.get('/api/transactions/stats', transactionController.getTransactionStats);
 }
