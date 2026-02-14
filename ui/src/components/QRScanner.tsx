@@ -1,4 +1,4 @@
-import { Keyboard, Scan, X } from "lucide-react";
+import { Scan, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +32,6 @@ export function QRScanner({
 }: QRScannerProps) {
 	const [isScanning, setIsScanning] = useState(false);
 	const [showScanner, setShowScanner] = useState(false);
-	const [isManualMode, setIsManualMode] = useState(false);
 	const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 	const scannerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -52,7 +51,6 @@ export function QRScanner({
 		if (disabled) return;
 
 		setShowScanner(true);
-		setIsManualMode(false);
 
 		// Enhanced camera support detection for local development
 		// Allow camera access in development environments (localhost, 127.0.0.x, local IPs)
@@ -71,8 +69,7 @@ export function QRScanner({
 			!isLocalDevelopment &&
 			(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
 		) {
-			console.log("Camera not supported, switching to manual mode");
-			setIsManualMode(true);
+			console.log("Camera not supported");
 			return;
 		}
 
@@ -101,10 +98,9 @@ export function QRScanner({
 			);
 		} catch (error: unknown) {
 			console.log(
-				"Camera access failed, switching to manual mode:",
+				"Camera access failed:",
 				error instanceof Error ? error.message : String(error),
 			);
-			setIsManualMode(true);
 		}
 	};
 
@@ -126,15 +122,6 @@ export function QRScanner({
 		startScanner();
 	};
 
-	const handleManualInput = () => {
-		setIsManualMode(true);
-		setShowScanner(false);
-	};
-
-	const handleBackToScanner = () => {
-		setIsManualMode(false);
-		startScanner();
-	};
 
 	return (
 		<div className="relative">
@@ -146,7 +133,7 @@ export function QRScanner({
 					onKeyDown={(e) => { if (e.key === 'Enter') onSubmit?.(); }}
 					placeholder={placeholder}
 					disabled={disabled}
-					className={`text-lg pr-16 h-14 ${className}`}
+					className={`text-lg pr-16 h-14 text-center ${className}`}
 				/>
 				<Button
 					type="button"
@@ -167,8 +154,8 @@ export function QRScanner({
 			{/* Scanner Modal */}
 			{showScanner && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-					<div className="w-full max-w-sm rounded-2xl bg-white shadow-xl border border-gray-100">
-						<div className="flex items-center justify-between px-4 py-3 border-b">
+					<div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100">
+						<div className="flex items-center justify-between px-4 py-1 border-b">
 							<p className="text-sm font-semibold text-gray-900">
 								Escanear código
 							</p>
@@ -177,79 +164,16 @@ export function QRScanner({
 								variant="ghost"
 								size="sm"
 								onClick={stopScanner}
-								className="h-8 w-8 p-0"
+								className="h-6 w-6 p-0"
 							>
-								<X className="w-4 h-4" />
+								<X className="w-5 h-5" />
 							</Button>
 						</div>
-						<div className="px-4 py-4 space-y-4">
-							{!isManualMode ? (
-								<>
-									<div
-										ref={scannerContainerRef}
-										id="qr-scanner"
-										className="w-full aspect-[4/3] rounded-xl bg-black overflow-hidden border border-gray-200"
-									/>
-									<div className="flex gap-2 text-sm">
-										<Button
-											type="button"
-											variant="outline"
-											onClick={handleManualInput}
-											className="flex-1"
-										>
-											<Keyboard className="w-4 h-4 mr-2" />
-											Ingresar manualmente
-										</Button>
-										<Button
-											type="button"
-											variant="secondary"
-											onClick={stopScanner}
-											className="flex-1"
-										>
-											Cancelar
-										</Button>
-									</div>
-								</>
-							) : (
-								<div className="space-y-3">
-									<div>
-										<label
-											htmlFor="manual-input"
-											className="block text-sm font-medium mb-2"
-										>
-											Ingresar código manualmente
-										</label>
-										<Input
-											id="manual-input"
-											value={value}
-											onChange={(e) => onChange(e.target.value)}
-											onKeyDown={(e) => { if (e.key === 'Enter') onSubmit?.(); }}
-											placeholder={placeholder}
-											autoFocus
-											className="text-lg"
-										/>
-									</div>
-									<div className="flex gap-2 text-sm">
-										<Button
-											type="button"
-											variant="outline"
-											onClick={handleBackToScanner}
-											className="flex-1"
-										>
-											<Scan className="w-4 h-4 mr-2" />
-											Volver al escáner
-										</Button>
-										<Button
-											type="button"
-											onClick={stopScanner}
-											className="flex-1 bg-blue-600 text-white"
-										>
-											Aceptar
-										</Button>
-									</div>
-								</div>
-							)}
-						</div>
+						<div
+							ref={scannerContainerRef}
+							id="qr-scanner"
+							className="w-full aspect-[4/3] bg-black overflow-hidden border-2 border-white rounded-lg"
+						/>
 					</div>
 				</div>
 			)}

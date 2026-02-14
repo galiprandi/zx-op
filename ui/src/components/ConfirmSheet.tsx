@@ -43,8 +43,8 @@ export function ConfirmSheet({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <GlassCard className="w-full max-w-sm animate-slideIn">
+    <div className="fixed top-0 left-0 right-0 bottom-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm animate-fadeIn min-h-screen" style={{top: '0', left: '0', right: '0', bottom: '0', height: '100vh', minHeight: '100vh'}}>
+      <GlassCard className="w-full max-w-sm animate-slideIn bg-white border-border/50 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", config.color)}>
@@ -76,30 +76,30 @@ export function ConfirmSheet({
           {config.description}
         </p>
 
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="flex-1 h-12"
-            disabled={loading}
-          >
-            Cancelar
-          </Button>
+        <div className="space-y-3">
           <Button
             type="button"
             onClick={onConfirm}
-            className={cn("flex-1 h-12 text-white", config.color)}
+            className={cn("w-full h-14 text-white text-lg font-semibold", config.color)}
             disabled={loading}
           >
             {loading ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <Icon className="w-4 h-4 mr-2" />
+                <Icon className="w-5 h-5 mr-2" />
                 {config.confirmText}
               </>
             )}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            className="w-full h-12 text-muted-foreground hover:text-foreground"
+            disabled={loading}
+          >
+            Cancelar
           </Button>
         </div>
       </GlassCard>
