@@ -140,14 +140,20 @@ export function QRScanner({
 					onKeyDown={(e) => { if (e.key === 'Enter') onSubmit?.(); }}
 					placeholder={placeholder}
 					disabled={disabled}
-					className={`text-lg pr-16 h-14 text-center ${className}`}
+					className={`text-lg pr-16 h-14 text-center ${disabled ? 'bg-muted/50' : ''} ${className}`}
 				/>
+				{/* Loading indicator when disabled */}
+				{disabled && (
+					<div className="absolute right-2 top-1/2 -translate-y-1/2">
+						<div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+					</div>
+				)}
 				<Button
 					type="button"
 					variant="ghost"
 					size="sm"
 					onClick={handleScanClick}
-					disabled={disabled || isScanning}
+					disabled={isScanning}
 					className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 p-0"
 				>
 					{isScanning ? (

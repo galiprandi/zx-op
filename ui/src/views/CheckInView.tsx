@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, AlertCircle, Clock } from "lucide-react";
+import { Check, Clock } from "lucide-react";
 import { useState } from "react";
 import { createCheckin, type CheckinResponse, type CheckinPayload } from "@/api/checkin";
 import { formatPrice, formatTimeValue, isTimeProduct, type Product } from "@/api/products";
@@ -39,7 +39,7 @@ export function CheckInView() {
 	} = useProducts();
 
 	// Get current session status only when we actively search
-	const { session, isLoading: sessionLoading } = usePlayerSession(activeBarcode);
+	const { session } = usePlayerSession(activeBarcode);
 
 	const checkinMutation = useMutation({
 		mutationFn: (data: CheckinPayload) => createCheckin(data),
@@ -203,24 +203,9 @@ export function CheckInView() {
 		// Don't show anything if no active barcode search
 		if (!activeBarcode) return null;
 		
-		if (sessionLoading) {
-			return (
-				<GlassCard className="text-center py-3">
-					<div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-1" />
-					<span className="text-muted-foreground text-xs">Cargando estado...</span>
-				</GlassCard>
-			);
-		}
-		
 		// New wristband - no session found
 		if (!session) {
-			return (
-				<GlassCard className="text-center py-3">
-					<AlertCircle className="w-6 h-6 text-blue-400 mx-auto mb-1" />
-					<span className="text-blue-400 font-medium text-xs">📋 Nueva Pulsera</span>
-					<span className="text-muted-foreground text-xs block mt-1">⏱️ Sin tiempo</span>
-				</GlassCard>
-			);
+			return null;
 		}
 
 		const hasTimeInCart = cart.some(item => isTimeProduct(item.product));
@@ -309,7 +294,8 @@ export function CheckInView() {
 					value={barcodeId}
 					onChange={setBarcodeId}
 					onSubmit={handleBarcodeSearch}
-					placeholder="Código de pulsera"
+					placeholder={checkinMutation.isPending ? "Procesando..." : "Código de pulsera"}
+					disabled={checkinMutation.isPending}
 				/>
 
 				{/* Session Status Display */}
@@ -360,8 +346,8 @@ export function CheckInView() {
 					{/* Optional Products */}
 					{getAvailableOptionalProducts().length > 0 && (
 						<div className="space-y-3">
-							<h3 className="font-semibold text-foreground">Productos Opcionales</h3>
-							<div className="max-h-96 overflow-y-auto space-y-2">
+							<h3 className="font-semibold text-foreground sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10">Otros productos</h3>
+							<div className="max-h-64 overflow-y-auto space-y-2 pr-1">
 								{getAvailableOptionalProducts().map((product: Product) => {
 									const cartItem = cart.find(item => item.product.id === product.id);
 									return (
@@ -422,9 +408,9 @@ export function CheckInView() {
 // Product Button Component
 function ProductButton({ product, onClick, quantity }: { product: Product; onClick: () => void; quantity?: number }) {
 	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat("es-CL", {
+		return new Intl.NumberFormat("es-AR", {
 			style: "currency",
-			currency: "CLP",
+			currency: "ARS",
 		}).format(price);
 	};
 
@@ -432,28 +418,35 @@ function ProductButton({ product, onClick, quantity }: { product: Product; onCli
 		<button
 			type="button"
 			onClick={onClick}
-			className="relative overflow-hidden border border-border/20 rounded-xl bg-card/50 p-4 hover:bg-card hover:border-primary/30 transition-all duration-200 text-left transform hover:scale-[1.02] active:scale-[0.98] min-h-[80px]"
+			className="relative overflow-hidden border border-border/20 rounded-xl bg-gradient-to-br from-slate-800/5 to-slate-900/8 backdrop-blur-sm p-4 hover:from-slate-800/10 hover:to-slate-900/12 hover:border-primary/30 transition-all duration-200 text-left transform hover:scale-[1.02] active:scale-[0.98] min-h-[88px] w-full"
 		>
-			<div className="relative">
-				<div className="font-semibold text-sm text-foreground mb-2 line-clamp-2 leading-tight">
+			<div className="flex flex-col h-full justify-between space-y-2">
+				{/* Nombre del producto */}
+				<div className="font-semibold text-sm text-foreground line-clamp-2 leading-tight pr-8">
 					{product.name}
 				</div>
-				<div className="flex items-center justify-between">
-					<div className="text-lg font-bold text-primary">
-						{formatPrice(product.price)}
-					</div>
+				
+				{/* Tiempo y precio */}
+				<div className="space-y-1">
 					{isTimeProduct(product) && product.timeValueSeconds && (
-						<span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
-							{formatTimeValue(product.timeValueSeconds)}
-						</span>
+						<div className="flex items-center gap-2">
+							<span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md font-medium">
+								({formatTimeValue(product.timeValueSeconds).replace('min', 'minutos')})
+							</span>
+						</div>
 					)}
+					<span className="text-lg font-bold text-primary">
+						{formatPrice(product.price)}
+					</span>
 				</div>
-				{quantity && quantity > 0 && (
-					<div className="absolute top-2 right-2 bg-primary/20 text-primary text-xs px-2 py-1 rounded-full font-medium">
-						{quantity}
-					</div>
-				)}
 			</div>
+			
+			{/* Badge de cantidad */}
+			{quantity && quantity > 0 && (
+				<div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium min-w-[20px] text-center">
+					{quantity}
+				</div>
+			)}
 		</button>
 	);
 }
