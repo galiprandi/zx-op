@@ -2,6 +2,7 @@ import { BarChart3, Menu, Package, QrCode, Settings, Target, X } from "lucide-re
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 interface DesktopShellProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface DesktopShellProps {
 export function DesktopShell({ children, className }: DesktopShellProps) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  usePageTitle(); // Actualiza el título dinámicamente según la ruta
 
   const navItems = [
     { path: "/checkin", label: "Check-in", icon: Package },
