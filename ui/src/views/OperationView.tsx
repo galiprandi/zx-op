@@ -125,7 +125,7 @@ export function OperationView() {
 								{/* Timer Display */}
 								<BigTimer 
 									seconds={session.remainingSeconds} 
-									size="lg"
+									size="md"
 									showMinutes={false}
 								/>
 								
