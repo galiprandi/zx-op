@@ -329,24 +329,23 @@ export function MonitorView() {
 							<div className="space-y-2">
 								{dashboardStats?.topProducts?.length ? (
 									dashboardStats.topProducts.map((product) => (
-										<div key={product.productId} className="flex items-center justify-between bg-card/30 rounded">
-											<div className="flex w-full justify-between">
-												<div className="flex flex-1 justify-between pr- pr-16">
-													<div className="font-medium text-foreground text-sm">
-														{product.name}
-													</div>
-													<div className="text-xs text-muted-foreground">
-														{product.category}
-													</div>
-												</div>
-											</div>
-											<div className="flex items-center gap-2">
-											<span className="text-sm font-bold text-primary">
-												{product.totalQuantity} 
+										<div
+											key={product.productId}
+											className="flex items-center justify-between"
+										>
+											<span className="text-sm font-medium text-foreground truncate">
+												{product.name}
 											</span>
-											<span className="text-sm font-bold text-primary">
-												$ {product.totalRevenue} 
-											</span>
+											<div className="flex items-center gap-4">
+												<span className="text-sm text-muted-foreground">
+													{product.totalQuantity} un
+												</span>
+												<span className="text-sm font-bold text-green-400 whitespace-nowrap">
+													{new Intl.NumberFormat("es-CL", {
+														style: "currency",
+														currency: "CLP",
+													}).format(product.totalRevenue)}
+												</span>
 											</div>
 										</div>
 									))
