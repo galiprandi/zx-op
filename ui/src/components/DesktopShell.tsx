@@ -23,7 +23,7 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
   return (
     <div className={cn("min-h-screen bg-background text-foreground flex", className)}>
       {/* Sidebar Navigation */}
-      <aside className="hidden md:flex md:w-64 lg:w-72 bg-card/50 backdrop-blur border-r border-border/20 flex-col">
+      <aside className="hidden md:flex md:w-48 lg:w-56 bg-card/50 backdrop-blur border-r border-border/20 flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-border/20">
           <div className="flex items-center gap-3">

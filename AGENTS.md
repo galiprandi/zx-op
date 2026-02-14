@@ -36,6 +36,12 @@ This system manages the flow of passengers in a massive inflatable attraction (*
 * **Resilience:** The system must handle automatic reconnections if mobile devices lose signal within the Mesh network.
 * **Local Persistence:** PostgreSQL is the single source of truth. The system must recover all active "Flight" states upon server restart.
 
+## 5.1. **CRITICAL: Query Invalidation Rule**
+
+* **Backend-Driven Updates Only:** All query invalidations and cache updates must be driven **exclusively** by the backend through Socket.io events when data persists. 
+* **No Frontend Manual Invalidation:** The frontend must **NEVER** manually invalidate queries or trigger cache updates. All real-time synchronization must happen through backend-emitted socket events.
+* **Socket Event Flow:** Backend persists data → Backend emits socket events → Frontend socket listeners invalidate appropriate queries → UI updates automatically.
+
 ## 6. Required Views
 
 1. **Check-in Terminal (Mobile/Tablet):** Fast credit loading and barcode wristband scanning; add products (time and extras); accumulates time on existing player session.

@@ -33,22 +33,26 @@ export function useSocket() {
 		socket.on("session:play", () => {
 			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
 		socket.on("session:pause", () => {
 			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
 		socket.on("session:updated", () => {
 			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
 		// Eventos de transacciones
 		socket.on("transaction:created", () => {
 			queryClient.invalidateQueries({ queryKey: ["transactions"] });
 			queryClient.invalidateQueries({ queryKey: ["checkinHistory"] });
+			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
 		// Eventos de carrito

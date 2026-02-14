@@ -1,6 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Clock } from "lucide-react";
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useState, useCallback, useMemo } from "react";
 import { createCheckin, type CheckinResponse, type CheckinPayload } from "@/api/checkin";
 import { formatPrice, formatTimeValue, isTimeProduct, type Product } from "@/api/products";
 import { notifyCartUpdate, type CartItem as ApiCartItem } from "@/api/cart";
@@ -10,6 +9,7 @@ import { QRScanner } from "@/components/QRScanner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { GlassCard } from "@/components/GlassCard";
 import { CartSheet } from "@/components/CartSheet";
+import { Modal } from "@/components/Modal";
 import { ChevronDown, ShoppingCart } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useSocket } from "@/hooks/useSocket";
@@ -30,7 +30,6 @@ export function CheckInView() {
 	const [lastCheckinData, setLastCheckinData] = useState<CheckinResponse | null>(null);
 	const [isCartOpen, setIsCartOpen] = useState(false);
 
-	const queryClient = useQueryClient();
 	const {
 		requiredProducts,
 		optionalProducts,
@@ -46,12 +45,11 @@ export function CheckInView() {
 		onSuccess: (data: CheckinResponse) => {
 			setLastCheckinData(data);
 			setShowConfirmation(true);
+			
 			setTimeout(() => {
 				setShowConfirmation(false);
 				resetForm();
 			}, 3000);
-			queryClient.invalidateQueries({ queryKey: ["products"] });
-			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
 		},
 		onError: (error) => {
 			console.error("Error creating checkin:", error);
@@ -60,31 +58,46 @@ export function CheckInView() {
 	});
 
 	const resetForm = () => {
+		// Capture barcode before clearing state
+		const effectiveBarcode = (activeBarcode || barcodeId).trim();
+		
 		setBarcodeId("");
 		setActiveBarcode("");
 		setCart([]);
 		setLastCheckinData(null);
 
 		// Emit cart clear via socket
-		const effectiveBarcode = (activeBarcode || barcodeId).trim();
 		if (effectiveBarcode) {
 			notifyCartUpdate(effectiveBarcode, []).catch(console.error);
 		}
 	};
 
 	const handleBarcodeSearch = () => {
-		if (barcodeId.trim()) {
-			setActiveBarcode(barcodeId.trim());
+		const trimmedBarcode = barcodeId.trim();
+		if (!trimmedBarcode) {
+			alert("Por favor ingrese un código de pulsera válido");
+			return;
 		}
+		setActiveBarcode(trimmedBarcode);
 	};
 
 	const addToCart = (product: Product) => {
+		if (!product || !product.id) {
+			console.error("Invalid product");
+			return;
+		}
+		
 		setCart((prevCart) => {
 			const existingItem = prevCart.find(
 				(item) => item.product.id === product.id,
 			);
 			let newCart;
 			if (existingItem) {
+				// Prevent adding too many units
+				if (existingItem.quantity >= 99) {
+					alert("No se pueden agregar más de 99 unidades del mismo producto");
+					return prevCart;
+				}
 				newCart = prevCart.map((item) =>
 					item.product.id === product.id
 						? { ...item, quantity: item.quantity + 1 }
@@ -150,42 +163,47 @@ export function CheckInView() {
 		}
 	};
 
-	const getTotalPrice = () => {
+	const getTotalPrice = useCallback(() => {
 		return calculateCartTotalPrice(cart.map(item => ({ id: item.product.id, quantity: item.quantity })));
-	};
+	}, [cart, calculateCartTotalPrice]);
 
-	const getTotalTime = () => {
+	const getTotalTime = useCallback(() => {
 		return calculateCartTotalTime(cart.map(item => ({ id: item.product.id, quantity: item.quantity })));
-	};
+	}, [cart, calculateCartTotalTime]);
 
 	// Filter products for display based on session state
-	const getAvailableRequiredProducts = () => {
-		// If session exists, don't show required products (they should already have them)
-		if (session) return [];
+	const getAvailableRequiredProducts = useMemo(() => {
+		// Always return required products - users can add more units anytime
 		return requiredProducts;
-	};
+	}, [requiredProducts]);
 
-	const getAvailableOptionalProducts = () => {
+	const getAvailableOptionalProducts = useMemo(() => {
 		return optionalProducts;
-	};
+	}, [optionalProducts]);
 
-	const getTotalItems = () => {
+	const getTotalItems = useCallback(() => {
 		return cart.reduce((total, item) => total + item.quantity, 0);
-	};
+	}, [cart]);
 
 	const hasRequiredProducts = () => {
-		return true; // Restriction disabled pending stakeholder review
+		// TODO: Implement required products validation when business rules are defined
+		return true;
 	};
 
 	const isMissingRequired = !hasRequiredProducts();
 
 	const handleCheckin = () => {
 		const effectiveBarcode = (activeBarcode || barcodeId).trim();
+		
 		if (!effectiveBarcode || cart.length === 0) {
 			alert("Por favor ingrese el código de pulsera y agregue productos");
 			return;
 		}
-		setActiveBarcode(effectiveBarcode);
+		
+		// Ensure active barcode is set
+		if (!activeBarcode) {
+			setActiveBarcode(effectiveBarcode);
+		}
 
 		const checkinData = {
 			barcodeId: effectiveBarcode,
@@ -208,34 +226,25 @@ export function CheckInView() {
 			return null;
 		}
 
-		const hasTimeInCart = cart.some(item => isTimeProduct(item.product));
-
 		return (
-			<GlassCard>
-				<div className="flex items-center justify-between mb-2">
-					<div className="flex items-center">
-						<StatusBadge 
-							status={session.isActive ? "playing" : "paused"} 
-							size="sm"
-						/>
-					</div>
-					<div className="text-right">
-						<div className={`font-bold text-lg ${
+			<GlassCard className="px-2 py-1">
+				<div className="flex items-center justify-between">
+					<StatusBadge 
+						status={session.isActive ? "playing" : "paused"} 
+						size="sm"
+					/>
+					<div className="flex items-center gap-2">
+						<div className={`font-bold text-xs ${
 							session.remainingSeconds > 300 ? 'text-green-400' : 
 							session.remainingSeconds > 60 ? 'text-yellow-400' : 'text-red-400'
 						}`}>
 							{formatTimeValue(session.remainingSeconds)}
 						</div>
-						<div className="text-xs text-muted-foreground">
-							{Math.floor(session.remainingSeconds / 60)} min restantes
+						<div className="text-[8px] text-muted-foreground">
+							({Math.floor(session.remainingSeconds / 60)}min)
 						</div>
 					</div>
 				</div>
-				{hasTimeInCart && (
-					<div className="text-xs text-blue-400 mt-2">
-						⚠️ Agregar tiempo extenderá la sesión actual
-					</div>
-				)}
 			</GlassCard>
 		);
 	};
@@ -303,32 +312,21 @@ export function CheckInView() {
 
 				{/* Products Grid */}
 				<div className="space-y-6">
-					{/* Required Products */}
-					{session && requiredProducts.length > 0 && (
+										{/* Required Products */}
+					{getAvailableRequiredProducts.length > 0 && (
 						<div className="space-y-3">
 							<div className="flex items-center justify-between">
 								<h3 className="font-semibold text-foreground">
 									Productos Obligatorios
 								</h3>
-								<StatusBadge status="playing" size="sm" showIcon={false} />
+								{session ? (
+									<StatusBadge status={session.isActive ? "playing" : "paused"} size="sm" showIcon={false} />
+								) : (
+									<StatusBadge status="waiting" size="sm" showIcon={false} />
+								)}
 							</div>
-							<div className="text-center py-4 text-muted-foreground text-sm">
-								✅ Ya incluidos en la sesión actual
-							</div>
-						</div>
-					)}
-					{!session && getAvailableRequiredProducts().length > 0 && (
-						<div className="space-y-3">
-							<div className="flex items-center justify-between">
-								<h3 className="font-semibold text-foreground">
-									Productos Obligatorios
-								</h3>
-								<StatusBadge status="waiting" size="sm" showIcon={false} />
-							</div>
-							<div className="grid grid-cols-2 gap-3">
-								{getAvailableRequiredProducts()
-									.slice(0, 4)
-									.map((product: Product) => {
+														<div className="grid grid-cols-2 gap-3">
+								{getAvailableRequiredProducts.slice(0, 4).map((product: Product) => {
 										const cartItem = cart.find(item => item.product.id === product.id);
 										return (
 											<ProductButton
@@ -344,11 +342,11 @@ export function CheckInView() {
 					)}
 
 					{/* Optional Products */}
-					{getAvailableOptionalProducts().length > 0 && (
+					{getAvailableOptionalProducts.length > 0 && (
 						<div className="space-y-3">
 							<h3 className="font-semibold text-foreground sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10">Otros productos</h3>
 							<div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-								{getAvailableOptionalProducts().map((product: Product) => {
+								{getAvailableOptionalProducts.map((product: Product) => {
 									const cartItem = cart.find(item => item.product.id === product.id);
 									return (
 										<ProductListItem
@@ -365,32 +363,29 @@ export function CheckInView() {
 				</div>
 			</div>
 
-			{/* Success Overlay */}
-			{showConfirmation && lastCheckinData && (
-				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-					<GlassCard className="w-full max-w-sm text-center animate-fadeIn bg-white">
-						<div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-							<Check className="w-8 h-8 text-green-400" />
+			{/* Success Modal */}
+			<Modal
+				isOpen={showConfirmation && !!lastCheckinData}
+				onClose={() => setShowConfirmation(false)}
+				title="¡Check-in Exitoso!"
+				type="success"
+				autoClose={true}
+				autoCloseDelay={3000}
+				details={
+					<>
+						<div className="font-medium">Código: {barcodeId}</div>
+						<div className="font-medium">Items: {getTotalItems()}</div>
+						<div className="font-bold text-lg text-green-400">
+							Total: {formatPrice(getTotalPrice())}
 						</div>
-						<h3 className="text-xl font-bold text-green-400 mb-4">
-							¡Check-in Exitoso!
-						</h3>
-						<div className="text-sm text-muted-foreground space-y-2">
-							<div className="font-medium">Código: {barcodeId}</div>
-							<div className="font-medium">Items: {getTotalItems()}</div>
-							<div className="font-bold text-lg text-green-400">
-								Total: {formatPrice(getTotalPrice())}
+						{lastCheckinData?.totalSecondsAdded && lastCheckinData.totalSecondsAdded > 0 && (
+							<div className="text-xs text-blue-400">
+								+{formatTimeValue(lastCheckinData.totalSecondsAdded)} de tiempo añadido
 							</div>
-							{lastCheckinData.totalSecondsAdded > 0 && (
-								<div className="flex items-center justify-center text-blue-400 font-medium">
-									<Clock className="w-4 h-4 mr-1" />
-									Tiempo agregado: {formatTimeValue(lastCheckinData.totalSecondsAdded)}
-								</div>
-							)}
-						</div>
-					</GlassCard>
-				</div>
-			)}
+						)}
+					</>
+				}
+			/>
 
 			{/* Cart Sheet - Opción 1 */}
 			<CartSheet
@@ -408,9 +403,9 @@ export function CheckInView() {
 // Product Button Component
 function ProductButton({ product, onClick, quantity }: { product: Product; onClick: () => void; quantity?: number }) {
 	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat("es-AR", {
+		return new Intl.NumberFormat("es-CL", {
 			style: "currency",
-			currency: "ARS",
+			currency: "CLP",
 		}).format(price);
 	};
 
@@ -431,7 +426,7 @@ function ProductButton({ product, onClick, quantity }: { product: Product; onCli
 					{isTimeProduct(product) && product.timeValueSeconds && (
 						<div className="flex items-center gap-2">
 							<span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md font-medium">
-								({formatTimeValue(product.timeValueSeconds).replace('min', 'minutos')})
+								({formatTimeValue(product.timeValueSeconds)})
 							</span>
 						</div>
 					)}
