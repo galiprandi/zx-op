@@ -1,5 +1,5 @@
-import { Play, Pause, AlertCircle, Users, Clock, TrendingUp, Settings, DollarSign } from "lucide-react";
-import { useState } from "react";
+import { Play, Pause, AlertCircle, Users, Settings, DollarSign } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DesktopShell } from "@/components/DesktopShell";
@@ -19,15 +19,18 @@ export function MonitorView() {
 	const [isConfigOpen, setIsConfigOpen] = useState(false);
 	const [localMax, setLocalMax] = useState<number | "">("");
 	const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+	const [nowTs, setNowTs] = useState(() => Date.now());
 
 	// Get real-time active sessions data
 	const {
 		activePlayingSessions,
+		waitingSessions,
 		pausedSessions,
 		expiringSoonSessions,
 		expiredSessions,
 		totalPlaying,
 		totalPaused,
+		totalWaiting,
 		error,
 		refreshSessions
 	} = useActiveSessions();
@@ -40,6 +43,11 @@ export function MonitorView() {
 		queryFn: getSystemSettings,
 		staleTime: 1000 * 60,
 	});
+
+	useEffect(() => {
+		const id = setInterval(() => setNowTs(Date.now()), 1000);
+		return () => clearInterval(id);
+	}, []);
 
 	if (systemSettings && localMax === "") {
 		setLocalMax(systemSettings.maxOccupancy);
@@ -61,6 +69,35 @@ export function MonitorView() {
 	const maxOccupancy = systemSettings?.maxOccupancy ?? 0;
 	const occupancyPercentage = maxOccupancy > 0 ? Math.min(100, (totalPlaying / maxOccupancy) * 100) : 0;
 
+	const formatSecondsShort = (seconds: number | null | undefined) => {
+		if (seconds === null || seconds === undefined) return "--";
+		const s = Math.max(0, Math.floor(seconds));
+		const h = Math.floor(s / 3600).toString();
+		const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
+		const ss = (s % 60).toString().padStart(2, "0");
+		return `${h}:${m}:${ss}`;
+	};
+
+	const sortedActive = useMemo(() => {
+		return [...activePlayingSessions].sort((a, b) => a.remainingSeconds - b.remainingSeconds);
+	}, [activePlayingSessions]);
+
+	const waitingWithElapsed = useMemo(() => {
+		return waitingSessions.map((s) => {
+			const createdAtMs = s.createdAt ? new Date(s.createdAt).getTime() : nowTs;
+			const elapsedSec = Math.max(0, Math.floor((nowTs - createdAtMs) / 1000));
+			return { ...s, waitingElapsed: elapsedSec };
+		});
+	}, [waitingSessions, nowTs]);
+
+	const pausedWithElapsed = useMemo(() => {
+		return pausedSessions.map((s) => {
+			const updatedAtMs = s.updatedAt ? new Date(s.updatedAt).getTime() : nowTs;
+			const elapsedSec = Math.max(0, Math.floor((nowTs - updatedAtMs) / 1000));
+			return { ...s, pausedElapsed: elapsedSec };
+		});
+	}, [pausedSessions, nowTs]);
+
 	const handleSave = () => {
 		if (localMax === "") return;
 		const parsed = Number(localMax);
@@ -72,7 +109,7 @@ export function MonitorView() {
 	};
 
 	// Calculate waiting count from dashboard stats or fallback
-	const waitingCount = dashboardStats?.waitingCount ?? 0;
+	const waitingCount = totalWaiting;
 
 	// Error state
 	if (error) {
@@ -112,32 +149,10 @@ export function MonitorView() {
 					<p className="text-muted-foreground">
 						Monitoreo en tiempo real de la atracción
 					</p>
-					<div className="flex items-center justify-center gap-2 mt-4">
-						<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-						<span className="text-sm text-muted-foreground">
-							Sistema en línea · Actualización cada 3 segundos
-						</span>
-					</div>
 				</div>
 
-				{/* Stats Overview */}
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-					<StatCard
-						title="En Juego"
-						value={totalPlaying}
-						icon={Play}
-						description="Sesiones activas"
-						color="success"
-					/>
-
-					<StatCard
-						title="En Pausa"
-						value={totalPaused}
-						icon={Pause}
-						description="Sesiones pausadas"
-						color="warning"
-					/>
-
+				{/* Stats Overview (right-to-left priority: Esperando, En Juego, En Pausa) */}
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					<StatCard
 						title="Esperando"
 						value={waitingCount}
@@ -147,16 +162,153 @@ export function MonitorView() {
 					/>
 
 					<StatCard
-						title="Ocupación"
-						value={`${Math.round(occupancyPercentage)}%`}
-						icon={TrendingUp}
-						description={`En juego: ${totalPlaying} / Capacidad: ${maxOccupancy || "-"}`}
-						color={occupancyPercentage > 80 ? "danger" : occupancyPercentage > 60 ? "warning" : "success"}
+						title="En Juego"
+						value={totalPlaying}
+						icon={Play}
+						description="Sesiones activas"
+						color="success"
+						footer={
+							<div className="space-y-2">
+								<div className="flex items-center justify-between text-xs text-muted-foreground">
+									<span>Ocupación</span>
+									<span className="font-medium text-foreground">{totalPlaying} / {maxOccupancy || "-"}</span>
+								</div>
+								<div className="w-full h-2 rounded-full bg-border/40 overflow-hidden">
+									<div
+										className={`h-full transition-all duration-300 ${
+											occupancyPercentage > 80
+												? "bg-red-400"
+												: occupancyPercentage > 60
+													? "bg-yellow-400"
+													: "bg-green-400"
+										}`}
+										style={{ width: `${Math.min(100, occupancyPercentage)}%` }}
+									/>
+								</div>
+							</div>
+						}
 					/>
+
+					<StatCard
+						title="En Pausa"
+						value={totalPaused}
+						icon={Pause}
+						description="Sesiones pausadas"
+						color="warning"
+					/>
+				</div>
+
+				{/* Active Sessions Grid (Esperando, En Juego, En Pausa) */}
+				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+					{/* Waiting to Enter - Never Started */}
+					<GlassCard>
+						<div className="mb-4">
+							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+								<Users className="w-5 h-5 text-primary" />
+								Esperando
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								Con check-in, aún no han entrado
+							</p>
+						</div>
+						<div className="space-y-3 max-h-96 overflow-y-auto">
+							{waitingSessions.length === 0 ? (
+								<div className="text-center py-8">
+									<Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+									<p className="text-muted-foreground">Nadie esperando</p>
+								</div>
+							) : (
+								waitingWithElapsed.map((session) => (
+									<SessionRow
+										key={session.id}
+										barcodeId={session.barcodeId}
+										rightText={formatSecondsShort(session.waitingElapsed)}
+										tone="yellow"
+									/>
+								))
+							)}
+						</div>
+					</GlassCard>
+
+					{/* In the Air - Active Playing Sessions */}
+					<GlassCard>
+						<div className="mb-4">
+							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+								<Play className="w-5 h-5 text-green-400" />
+								En Juego
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								Sesiones activas consumiendo tiempo
+							</p>
+						</div>
+						<div className="space-y-3 max-h-96 overflow-y-auto">
+							{activePlayingSessions.length === 0 ? (
+								<div className="text-center py-8">
+									<Play className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+									<p className="text-muted-foreground">No hay sesiones en juego</p>
+								</div>
+							) : (
+								sortedActive.map((session) => (
+									<SessionRow
+										key={session.id}
+										barcodeId={session.barcodeId}
+										rightText={formatSecondsShort(session.remainingSeconds)}
+										tone={session.remainingSeconds <= 60 ? "red" : session.remainingSeconds <= 300 ? "orange" : "green"}
+									/>
+								))
+							)}
+						</div>
+					</GlassCard>
+
+					{/* Preparing for Landing - Paused or Expiring */}
+					<GlassCard>
+						<div className="mb-4">
+							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+								<Pause className="w-5 h-5 text-yellow-400" />
+								En Pausa
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								Sesiones pausadas o con tiempo bajo
+							</p>
+						</div>
+						<div className="space-y-3 max-h-96 overflow-y-auto">
+							{[...pausedSessions, ...expiringSoonSessions].length === 0 ? (
+								<div className="text-center py-8">
+									<Pause className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+									<p className="text-muted-foreground">No hay sesiones pausadas o expirando</p>
+								</div>
+							) : (
+								<>
+									{pausedWithElapsed.map((session) => (
+										<SessionRow
+											key={`${session.id}-paused`}
+											barcodeId={session.barcodeId}
+											rightText={formatSecondsShort(session.pausedElapsed)}
+											tone="orange"
+										/>
+									))}
+									{expiringSoonSessions.map((session) => (
+										<SessionRow
+											key={`${session.id}-expiring`}
+											barcodeId={session.barcodeId}
+											rightText={formatSecondsShort(session.remainingSeconds)}
+											tone={session.remainingSeconds <= 60 ? "red" : session.remainingSeconds <= 300 ? "orange" : "green"}
+										/>
+									))}
+								</>
+							)}
+						</div>
+					</GlassCard>
 				</div>
 
 				{/* Secondary Metrics */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+					<GlassCard>
+						<div className="h-full min-h-[120px] flex items-center justify-center text-muted-foreground text-sm">
+							{/* Espacio reservado */}
+						</div>
+					</GlassCard>
+
 					<GlassCard>
 						<div className="flex items-center justify-between">
 							<div>
@@ -172,22 +324,14 @@ export function MonitorView() {
 								size="lg"
 							/>
 						</div>
-					</GlassCard>
 
-					<GlassCard>
-						<div>
-							<h3 className="text-lg font-semibold text-foreground mb-3">
-								Top 4 Productos (por cantidad)
-							</h3>
+						<div className="mt-4">
 							<div className="space-y-2">
 								{dashboardStats?.topProducts?.length ? (
-									dashboardStats.topProducts.map((product, index) => (
-										<div key={product.productId} className="flex items-center justify-between p-2 bg-card/30 rounded">
-											<div className="flex items-center gap-2">
-												<span className="text-sm font-medium text-muted-foreground w-4">
-													{index + 1}
-												</span>
-												<div>
+									dashboardStats.topProducts.map((product) => (
+										<div key={product.productId} className="flex items-center justify-between bg-card/30 rounded">
+											<div className="flex w-full justify-between">
+												<div className="flex flex-1 justify-between pr- pr-16">
 													<div className="font-medium text-foreground text-sm">
 														{product.name}
 													</div>
@@ -196,80 +340,20 @@ export function MonitorView() {
 													</div>
 												</div>
 											</div>
+											<div className="flex items-center gap-2">
 											<span className="text-sm font-bold text-primary">
-												{product.totalQuantity} vendidos
+												{product.totalQuantity} 
 											</span>
+											<span className="text-sm font-bold text-primary">
+												$ {product.totalRevenue} 
+											</span>
+											</div>
 										</div>
 									))
 								) : (
 									<p className="text-muted-foreground text-sm">Sin ventas hoy</p>
 								)}
 							</div>
-						</div>
-					</GlassCard>
-				</div>
-
-				{/* Active Sessions Grid */}
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-					{/* In the Air - Active Playing Sessions */}
-					<GlassCard>
-						<div className="mb-4">
-							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-								<Users className="w-5 h-5 text-green-400" />
-								En Juego
-							</h3>
-							<p className="text-sm text-muted-foreground">
-								Sesiones activas consumiendo tiempo
-							</p>
-						</div>
-						<div className="space-y-3 max-h-96 overflow-y-auto">
-							{activePlayingSessions.length === 0 ? (
-								<div className="text-center py-8">
-									<Play className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-									<p className="text-muted-foreground">No hay sesiones en juego</p>
-								</div>
-							) : (
-								activePlayingSessions.map((session) => (
-									<SessionRow
-										key={session.id}
-										barcodeId={session.barcodeId}
-										remainingSeconds={session.remainingSeconds}
-										isActive={session.isActive}
-										progress={Math.round((session.totalAllowedSeconds - session.remainingSeconds) / session.totalAllowedSeconds * 100)}
-									/>
-								))
-							)}
-						</div>
-					</GlassCard>
-
-					{/* Preparing for Landing - Paused or Expiring */}
-					<GlassCard>
-						<div className="mb-4">
-							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-								<Clock className="w-5 h-5 text-yellow-400" />
-								En Pausa
-							</h3>
-							<p className="text-sm text-muted-foreground">
-								Sesiones pausadas o con tiempo bajo
-							</p>
-						</div>
-						<div className="space-y-3 max-h-96 overflow-y-auto">
-							{[...pausedSessions, ...expiringSoonSessions].length === 0 ? (
-								<div className="text-center py-8">
-									<Pause className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-									<p className="text-muted-foreground">No hay sesiones pausadas o expirando</p>
-								</div>
-							) : (
-								[...pausedSessions, ...expiringSoonSessions].map((session) => (
-									<SessionRow
-										key={session.id}
-										barcodeId={session.barcodeId}
-										remainingSeconds={session.remainingSeconds}
-										isActive={session.isActive}
-										progress={Math.round((session.totalAllowedSeconds - session.remainingSeconds) / session.totalAllowedSeconds * 100)}
-									/>
-								))
-							)}
 						</div>
 					</GlassCard>
 				</div>
@@ -304,42 +388,11 @@ export function MonitorView() {
 					</GlassCard>
 				)}
 
-				{/* Color Legend */}
-				<GlassCard>
-					<div className="mb-4">
-						<h3 className="text-lg font-semibold text-foreground">Leyenda de Estados</h3>
-					</div>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-						<div className="flex items-center gap-3">
-							<div className="w-4 h-4 bg-green-500 rounded-full"></div>
-							<div>
-								<div className="font-medium text-foreground">Verde</div>
-								<div className="text-sm text-muted-foreground">+5 minutos</div>
-							</div>
-						</div>
-						<div className="flex items-center gap-3">
-							<div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
-							<div>
-								<div className="font-medium text-foreground">Amarillo</div>
-								<div className="text-sm text-muted-foreground">1-5 minutos</div>
-							</div>
-						</div>
-						<div className="flex items-center gap-3">
-							<div className="w-4 h-4 bg-orange-500 rounded-full"></div>
-							<div>
-								<div className="font-medium text-foreground">Naranja</div>
-								<div className="text-sm text-muted-foreground">Expirando</div>
-							</div>
-						</div>
-						<div className="flex items-center gap-3">
-							<div className="w-4 h-4 bg-red-500 rounded-full"></div>
-							<div>
-								<div className="font-medium text-foreground">Rojo</div>
-								<div className="text-sm text-muted-foreground">Tiempo agotado</div>
-							</div>
-						</div>
-					</div>
-				</GlassCard>
+					{/* Footer status */}
+				<div className="flex items-center justify-center gap-2 mt-6 text-sm text-muted-foreground">
+					<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+					<span>Sistema en línea · Actualización cada 3 segundos</span>
+				</div>
 			</div>
 
 			{/* Configuration Modal */}

@@ -9,6 +9,7 @@ export interface DashboardStats {
     name: string;
     category: string;
     totalQuantity: number;
+    totalRevenue: number;
   }>;
   waitingCount: number;
 }
@@ -33,9 +34,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       },
     });
 
-    const todayRevenue = todayRevenueResult._sum.totalPrice || 0;
+    const todayRevenue = Number(todayRevenueResult._sum.totalPrice || 0);
 
-    // Get top 4 products by quantity sold today
+    // Get top 4 products by quantity sold today (include revenue)
     const topProductsResult = await prisma.transaction.groupBy({
       by: ['productId'],
       where: {
@@ -46,6 +47,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       },
       _sum: {
         quantity: true,
+        totalPrice: true,
       },
       orderBy: {
         _sum: {
@@ -78,6 +80,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         name: product?.name || 'Unknown',
         category: product?.category || 'Unknown',
         totalQuantity: item._sum.quantity || 0,
+        totalRevenue: Number(item._sum.totalPrice || 0),
       };
     });
 

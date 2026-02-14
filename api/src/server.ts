@@ -4,6 +4,7 @@ import fastify from 'fastify';
 import cors from '@fastify/cors';
 import { PrismaClient, LogAction, Prisma, PlayerSession,  Transaction } from '@prisma/client';
 import { initializeSocketIO, emitSessionEvent } from './modules/playerSessions/services/socketService';
+import { getDashboardStats } from './modules/dashboard/services/dashboardService';
 
 // Type for session with computed fields
 type SessionWithRemaining = PlayerSession & {
@@ -12,8 +13,23 @@ type SessionWithRemaining = PlayerSession & {
 };
 
 const prisma = new PrismaClient();
+const logger = {
+  level: process.env.LOG_LEVEL ?? 'info',
+  transport: process.env.NODE_ENV === 'production'
+    ? undefined
+    : {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'HH:MM:ss',
+          singleLine: true,
+          ignore: 'pid,hostname'
+        }
+      }
+};
+
 const app = fastify({
-  logger: true,
+  logger,
   https: {
     key: fs.readFileSync('../ui/certs/key.pem'),
     cert: fs.readFileSync('../ui/certs/cert.pem')
@@ -44,7 +60,7 @@ async function main() {
   await app.register(cors, { origin: '*' });
 
   // Initialize Socket.IO to broadcast session/product events
-  initializeSocketIO(app.server);
+  initializeSocketIO(app.server, app.log);
 
   // Play session
   app.post('/api/sessions/play', async (req, reply) => {
@@ -200,63 +216,13 @@ async function main() {
   });
 
   // Dashboard stats
-  app.get('/api/dashboard/stats', async () => {
-    // Today revenue
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        createdAt: {
-          gte: today
-        }
-      },
-      include: {
-        product: true
-      }
-    });
-    const todayRevenue = transactions.reduce((sum, t) => sum + t.totalPrice, 0);
-
-    // Top products
-    const productSales = new Map<string, { productId: string; name: string; category: string; totalQuantity: number }>();
-    transactions.forEach(t => {
-      const key = t.productId;
-      if (!productSales.has(key)) {
-        productSales.set(key, {
-          productId: key,
-          name: t.product.name,
-          category: t.product.category,
-          totalQuantity: 0
-        });
-      }
-      productSales.get(key)!.totalQuantity += t.quantity;
-    });
-    const topProducts = Array.from(productSales.values())
-      .sort((a, b) => b.totalQuantity - a.totalQuantity)
-      .slice(0, 4);
-
-    // Waiting count (checked in but not active)
-    const waitingSessions = await prisma.playerSession.findMany({
-      where: {
-        totalAllowedSeconds: {
-          gt: 0
-        },
-        isActive: false
-      }
-    });
-    const waitingCount = waitingSessions.length;
-
-    return {
-      todayRevenue,
-      topProducts,
-      waitingCount
-    };
-  });
+  app.get('/api/dashboard/stats', async () => getDashboardStats());
 
   const port = Number(process.env.PORT || 3000);
   const host = process.env.HOST || '0.0.0.0';
   
   await app.listen({ port, host });
-  console.log(`API ready on http://${host}:${port}`);
+  app.log.info(`API ready on http://${host}:${port}`);
 }
 
 main().catch((err) => {

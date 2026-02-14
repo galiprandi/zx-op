@@ -1,55 +1,42 @@
-import { Progress } from "@/components/ui/progress";
-import { StatusBadge } from "./StatusBadge";
-import { BigTimer } from "./BigTimer";
 import { cn } from "@/lib/utils";
 
 interface SessionRowProps {
   barcodeId: string;
-  remainingSeconds: number;
-  isActive: boolean;
-  progress: number;
+  rightText: string;
   className?: string;
-  showProgress?: boolean;
+  tone?: "green" | "yellow" | "orange" | "red" | "muted";
 }
+
+const formatId = (barcodeId: string) => {
+  if (!barcodeId) return "-";
+  return barcodeId.slice(-6);
+};
+
+const toneClass: Record<Required<SessionRowProps>["tone"], string> = {
+  green: "text-green-400",
+  yellow: "text-yellow-400",
+  orange: "text-orange-400",
+  red: "text-red-500",
+  muted: "text-muted-foreground",
+};
 
 export function SessionRow({ 
   barcodeId, 
-  remainingSeconds, 
-  isActive, 
-  progress, 
+  rightText,
   className,
-  showProgress = true 
+  tone = "muted",
 }: SessionRowProps) {
-  const getStatus = () => {
-    if (remainingSeconds <= 0) return "expired";
-    if (remainingSeconds <= 60) return "expiring";
-    if (!isActive) return "paused";
-    return "playing";
-  };
-
   return (
     <div className={cn(
-      "flex items-center justify-between p-3 bg-card/50 rounded-lg border border-border/20",
+      "flex justify-between px-2",
       className
     )}>
-      <div className="flex items-center gap-3">
-        <div className="font-mono text-lg font-medium text-foreground">
-          {barcodeId}
-        </div>
-        <StatusBadge status={getStatus()} size="sm" />
+      <div className="font-mono text-sm font-medium text-foreground">
+        {formatId(barcodeId)}
       </div>
-      
-      <div className="flex items-center gap-4">
-        <BigTimer 
-          seconds={remainingSeconds} 
-          size="md" 
-          showMinutes={false}
-        />
-        {showProgress && (
-          <div className="w-20">
-            <Progress value={progress} className="h-2" />
-          </div>
-        )}
+
+      <div className={cn("font-mono text-sm font-semibold text-right", toneClass[tone])}>
+        {rightText}
       </div>
     </div>
   );

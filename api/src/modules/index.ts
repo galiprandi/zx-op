@@ -20,28 +20,28 @@ import { initializeSocketIO } from './playerSessions/services/socketService';
  * and initialize Socket.IO for real-time events
  */
 export async function registerModules(app: FastifyInstance) {
-  console.log('🔧 Registering API modules...');
+  app.log.info('Registering API modules...');
 
   // Initialize Socket.IO first (needed for real-time events)
   initializeSocketIO(app.server);
 
   // Register module routes
   await app.register(playerSessionRoutes);
-  console.log('✅ PlayerSessions module registered');
+  app.log.info('PlayerSessions module registered');
 
   await app.register(checkinRoutes);
-  console.log('✅ Checkin module registered');
+  app.log.info('Checkin module registered');
 
   await app.register(productRoutes);
-  console.log('✅ Products module registered');
+  app.log.info('Products module registered');
 
   await app.register(transactionRoutes);
-  console.log('✅ Transactions module registered');
+  app.log.info('Transactions module registered');
 
   await app.register(dashboardRoutes);
-  console.log('✅ Dashboard module registered');
+  app.log.info('Dashboard module registered');
 
-  console.log('🚀 All modules registered successfully');
+  app.log.info('All modules registered successfully');
 }
 
 /**

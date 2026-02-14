@@ -9,7 +9,7 @@
     "shared"
   ],
   "scripts": {
-    "dev:all": "concurrently \"pnpm dev:api\" \"pnpm dev:ui\"",
+    "dev:all": "node scripts/update-ui-env.mjs && concurrently \"pnpm dev:api\" \"pnpm dev:ui\"",
     "dev:api": "pnpm --filter api dev",
     "dev:ui": "pnpm --filter ui dev --open",
     "build:api": "pnpm --filter api build",

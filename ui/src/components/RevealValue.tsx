@@ -22,7 +22,7 @@ export function RevealValue({
   size = "md", 
   format = "currency" 
 }: RevealValueProps) {
-  const [isRevealed, setIsRevealed] = useState(false);
+  const [isRevealed, setIsRevealed] = useState(true);
 
   const formatValue = () => {
     if (!isRevealed) return "--,--";

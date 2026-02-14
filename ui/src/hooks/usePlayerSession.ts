@@ -98,8 +98,19 @@ export function useActiveSessions() {
 		isSessionActive(session)
 	);
 
+	// Sessions that have time but have never started (waiting to enter)
+	const waitingSessions = sessions.filter(session => 
+		!session.isActive &&
+		session.remainingSeconds > 0 &&
+		session.lastStartAt === null &&
+		session.accumulatedSeconds === 0
+	);
+
+	// Paused sessions that have already been in play (exclude never-started waiting)
 	const pausedSessions = sessions.filter(session => 
-		!session.isActive && session.remainingSeconds > 0
+		!session.isActive &&
+		session.remainingSeconds > 0 &&
+		!(session.lastStartAt === null && session.accumulatedSeconds === 0)
 	);
 
 	const expiringSoonSessions = sessions.filter(session => 
@@ -114,6 +125,7 @@ export function useActiveSessions() {
 	const totalActive = sessions.length;
 	const totalPlaying = activePlayingSessions.length;
 	const totalPaused = pausedSessions.length;
+	const totalWaiting = waitingSessions.length;
 	const totalExpiringSoon = expiringSoonSessions.length;
 
 	const occupancyRate = totalActive > 0 ? (totalPlaying / totalActive) * 100 : 0;
@@ -126,12 +138,14 @@ export function useActiveSessions() {
 	return {
 		sessions,
 		activePlayingSessions,
+		waitingSessions,
 		pausedSessions,
 		expiringSoonSessions,
 		expiredSessions,
 		totalActive,
 		totalPlaying,
 		totalPaused,
+		totalWaiting,
 		totalExpiringSoon,
 		occupancyRate,
 		isLoading,

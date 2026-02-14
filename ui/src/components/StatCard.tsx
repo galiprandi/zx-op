@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { LucideIcon } from "lucide-react";
 import { GlassCard } from "./GlassCard";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ interface StatCardProps {
   description?: string;
   color?: "primary" | "success" | "warning" | "danger" | "muted";
   className?: string;
+  footer?: ReactNode;
 }
 
 const colorClasses = {
@@ -25,7 +27,8 @@ export function StatCard({
   icon: Icon, 
   description, 
   color = "primary",
-  className 
+  className,
+  footer,
 }: StatCardProps) {
   const iconColor = colorClasses[color];
 
@@ -44,6 +47,11 @@ export function StatCard({
         {description && (
           <div className="text-xs text-muted-foreground mt-2">
             {description}
+          </div>
+        )}
+        {footer && (
+          <div className="mt-3">
+            {footer}
           </div>
         )}
       </div>

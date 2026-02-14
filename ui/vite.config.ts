@@ -1,7 +1,14 @@
 import react from "@vitejs/plugin-react";
 import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const certPath = path.resolve(__dirname, "certs/cert.pem");
+const keyPath = path.resolve(__dirname, "certs/key.pem");
 
 export default defineConfig({
 	plugins: [
@@ -42,11 +49,17 @@ export default defineConfig({
 	},
 	server: {
 		port: 8080,
-		host: true, // Permitir acceso desde cualquier dispositivo en la red local
+		host: "0.0.0.0", // Permitir acceso desde cualquier dispositivo en la red local
+		strictPort: true,
+		https: {
+			key: fs.readFileSync(keyPath),
+			cert: fs.readFileSync(certPath),
+		},
 		proxy: {
-			'/api': {
-				target: 'http://192.168.100.113:3000',
+			"/api": {
+				target: "https://192.168.68.51:3000",
 				changeOrigin: true,
+				// Allow self-signed certs on the local mesh API endpoint
 				secure: false,
 			},
 		},

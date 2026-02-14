@@ -7,6 +7,7 @@ export interface DashboardStats {
     name: string;
     category: string;
     totalQuantity: number;
+    totalRevenue: number;
   }>;
   waitingCount: number;
 }

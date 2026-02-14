@@ -73,4 +73,28 @@ WHERE barcode_id = $1;
 
 4. **Redis Integration**
    * Cache active sessions keyed by `barcode_id`. On `PLAY`, write `{ "barcode_id": "123", "offset": 1200, "started_at": 1715234200 }` to Redis for quick status checks for the 5,000 concurrent GETs per second.
+
+## 4. Waiting Sessions (Never Started)
+
+**Definition:** Sessions that have purchased time but have **never been started**. They satisfy all of:
+
+* `is_active = false`
+* `last_start_at IS NULL`
+* `accumulated_seconds = 0`
+* `total_allowed_seconds - accumulated_seconds > 0` (i.e., `remaining_seconds > 0`)
+
+**Why it matters:** These IDs are shown on the monitor (and later on the TV “next to enter” view) so staff can prioritize onboarding.
+
+**Backend source:** `/api/sessions/active` already returns all sessions with computed `remaining_seconds`; the waiting subset is derived in the client using the predicate above. No separate endpoint is required today.
+
+**UI handling (Monitor):**
+
+* **Stat card:** “Esperando” displays the count of waiting sessions.
+* **List:** Shows each waiting session barcode, no progress bar (hasn’t started), ordered by current fetch order.
+* **Separation from Pausa:** Paused sessions are those with time remaining **and** evidence of prior play (`last_start_at` not null **or** `accumulated_seconds > 0`). Waiting sessions must not appear in the paused bucket.
+
+**Edge cases:**
+
+* If time is added via check-in and the session has never started, it remains in the waiting bucket until first PLAY.
+* If time expires before first play, it will drop from waiting once `remaining_seconds <= 0`.
 ```
