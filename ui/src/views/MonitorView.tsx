@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DesktopShell } from "@/components/DesktopShell";
 import { StatCard } from "@/components/StatCard";
-import { SessionRow } from "@/components/SessionRow";
+import { AnimatedSessionRow } from "@/components/AnimatedSessionRow";
 import { GlassCard } from "@/components/GlassCard";
-import { RevealValue } from "@/components/RevealValue";
 import { useSocket } from "@/hooks/useSocket";
 import { useActiveSessions } from "@/hooks/usePlayerSession";
 import { useDashboardStats, usePerformanceMetrics } from "@/hooks/useDashboardStats";
@@ -70,25 +69,27 @@ export function MonitorView() {
 	});
 
 	const maxOccupancy = systemSettings?.maxOccupancy ?? 0;
-	const occupancyPercentage = maxOccupancy > 0 ? Math.min(100, (totalPlaying / maxOccupancy) * 100) : 0;
+	const occupancyPercentage = maxOccupancy > 0 ? (totalPlaying / maxOccupancy) * 100 : 0;
 
 	const formatSecondsShort = (seconds: number | null | undefined) => {
 		if (seconds === null || seconds === undefined) return "--";
 		const s = Math.max(0, Math.floor(seconds));
-		const h = Math.floor(s / 3600).toString();
+		const h = Math.floor(s / 3600);
 		const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
 		const ss = (s % 60).toString().padStart(2, "0");
 		return `${h}:${m}:${ss}`;
 	};
 
-	const formatTime = (seconds: number) => {
-		if (seconds < 60) return `${seconds}s`;
-		if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-		const h = Math.floor(seconds / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		return `${h}h ${m}m`;
+	const formatDuration = (seconds: number | null | undefined) => {
+		if (seconds === null || seconds === undefined) return "--";
+		const s = Math.max(0, Math.floor(seconds));
+		const h = Math.floor(s / 3600);
+		const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
+		const ss = (s % 60).toString().padStart(2, "0");
+		return `${h}:${m}:${ss}`;
 	};
 
+	
 	const sortedActive = useMemo(() => {
 		return [...activePlayingSessions].sort((a, b) => a.remainingSeconds - b.remainingSeconds);
 	}, [activePlayingSessions]);
@@ -180,13 +181,15 @@ export function MonitorView() {
 						color="success"
 						footer={
 							<div className="space-y-2">
-								<div className="flex items-center justify-between text-xs text-muted-foreground">
-									<span>Ocupación</span>
-									<span className="font-medium text-foreground">{totalPlaying} / {maxOccupancy || "-"}</span>
+								<div className="flex items-center justify-between text-lg text-muted-foreground">
+									<span className="text-sm">Ocupación</span>
+									<span className="text-muted-foreground text-sm">
+												({totalPlaying}/{maxOccupancy || 0}) {Math.round(occupancyPercentage)}%
+											</span>
 								</div>
 								<div className="w-full h-2 rounded-full bg-border/40 overflow-hidden">
 									<div
-										className={`h-full transition-all duration-300 ${
+										className={`h-full transition-all duration-700 ease-out ${
 											occupancyPercentage > 80
 												? "bg-red-400"
 												: occupancyPercentage > 60
@@ -229,12 +232,13 @@ export function MonitorView() {
 									<p className="text-muted-foreground">Nadie esperando</p>
 								</div>
 							) : (
-								waitingWithElapsed.map((session) => (
-									<SessionRow
+								waitingWithElapsed.slice(0, 10).map((session, index) => (
+									<AnimatedSessionRow
 										key={session.id}
 										barcodeId={session.barcodeId}
 										rightText={formatSecondsShort(session.waitingElapsed)}
 										tone="yellow"
+										className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 									/>
 								))
 							)}
@@ -259,12 +263,13 @@ export function MonitorView() {
 									<p className="text-muted-foreground">No hay sesiones en juego</p>
 								</div>
 							) : (
-								sortedActive.map((session) => (
-									<SessionRow
+								sortedActive.slice(0, 10).map((session, index) => (
+									<AnimatedSessionRow
 										key={session.id}
 										barcodeId={session.barcodeId}
 										rightText={formatSecondsShort(session.remainingSeconds)}
 										tone={session.remainingSeconds <= 60 ? "red" : session.remainingSeconds <= 300 ? "orange" : "green"}
+										className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 									/>
 								))
 							)}
@@ -290,20 +295,22 @@ export function MonitorView() {
 								</div>
 							) : (
 								<>
-									{pausedWithElapsed.map((session) => (
-										<SessionRow
+									{pausedWithElapsed.slice(0, 10).map((session, index) => (
+										<AnimatedSessionRow
 											key={`${session.id}-paused`}
 											barcodeId={session.barcodeId}
 											rightText={formatSecondsShort(session.pausedElapsed)}
 											tone="orange"
+											className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 										/>
 									))}
-									{expiringSoonSessions.map((session) => (
-										<SessionRow
+									{expiringSoonSessions.slice(0, 10).map((session, index) => (
+										<AnimatedSessionRow
 											key={`${session.id}-expiring`}
 											barcodeId={session.barcodeId}
 											rightText={formatSecondsShort(session.remainingSeconds)}
 											tone={session.remainingSeconds <= 60 ? "red" : session.remainingSeconds <= 300 ? "orange" : "green"}
+											className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 										/>
 									))}
 								</>
@@ -333,23 +340,23 @@ export function MonitorView() {
 											<span className="text-sm font-medium text-foreground">
 												Tiempo espera promedio
 											</span>
-											<span className="text-sm text-muted-foreground">
-												{formatTime(performanceMetrics.averageWaitTime)}
+											<span className="text-base">
+												{formatDuration(performanceMetrics.averageWaitTime)}
 											</span>
 										</div>
 										<div className="flex items-center justify-between">
 											<span className="text-sm font-medium text-foreground">
 												Tiempo juego promedio
 											</span>
-											<span className="text-sm text-muted-foreground">
-												{formatTime(performanceMetrics.averagePlayTime)}
+											<span className="text-base">
+												{formatDuration(performanceMetrics.averagePlayTime)}
 											</span>
 										</div>
 										<div className="flex items-center justify-between">
 											<span className="text-sm font-medium text-foreground">
 												Juegos completados hoy
 											</span>
-											<span className="text-sm text-muted-foreground">
+											<span className="text-base">
 												{performanceMetrics.totalCompletedSessions}
 											</span>
 										</div>
@@ -357,7 +364,7 @@ export function MonitorView() {
 											<span className="text-sm font-medium text-foreground">
 												Ocupación promedio del día
 											</span>
-											<span className="text-sm text-muted-foreground">
+											<span className="text-base">
 												{performanceMetrics.dailyOccupancyRate}%
 											</span>
 										</div>
@@ -365,7 +372,7 @@ export function MonitorView() {
 											<span className="text-sm font-medium text-foreground">
 												Máximo de jugadores simultáneos
 											</span>
-											<span className="text-sm text-muted-foreground">
+											<span className="text-base">
 												{performanceMetrics.peakOccupancy}
 											</span>
 										</div>
@@ -373,8 +380,8 @@ export function MonitorView() {
 											<span className="text-sm font-medium text-foreground">
 												Tiempo total de juego acumulado
 											</span>
-											<span className="text-sm text-muted-foreground">
-												{formatTime(performanceMetrics.totalPlayTimeConsumed)}
+											<span className="text-base">
+												{formatDuration(performanceMetrics.totalPlayTimeConsumed)}
 											</span>
 										</div>
 									</>
@@ -394,11 +401,12 @@ export function MonitorView() {
 								</h3>
 								<p className="text-sm text-muted-foreground">Total facturado hoy</p>
 							</div>
-							<RevealValue
-								value={dashboardStats?.todayRevenue || 0}
-								format="currency"
-								size="md"
-							/>
+							<span className="text-lg font-bold text-green-400 whitespace-nowrap">
+								{new Intl.NumberFormat("es-CL", {
+									style: "currency",
+									currency: "CLP",
+								}).format(dashboardStats?.todayRevenue || 0)}
+							</span>
 						</div>
 
 						<div className="mt-4">
@@ -413,10 +421,10 @@ export function MonitorView() {
 												{product.name}
 											</span>
 											<div className="flex items-center gap-4">
-												<span className="text-sm text-muted-foreground">
+												<span className="text-base text-muted-foreground">
 													{product.totalQuantity} un
 												</span>
-												<span className="text-sm font-bold text-green-400 whitespace-nowrap">
+												<span className="text-base font-bold whitespace-nowrap">
 													{new Intl.NumberFormat("es-CL", {
 														style: "currency",
 														currency: "CLP",
@@ -528,3 +536,5 @@ export function MonitorView() {
 		</DesktopShell>
 	);
 }
+
+
