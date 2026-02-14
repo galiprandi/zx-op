@@ -174,23 +174,32 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
     const averageWaitTime = allWaitTimes.length > 0 ? 
       Math.round(allWaitTimes.reduce((sum, time) => sum + time, 0) / allWaitTimes.length) : 0;
 
-    // Calculate play time metrics
+    // Calculate play time metrics - only for sessions that actually played
     const sessionsWithTime = todaySessions.filter(s => s.accumulatedSeconds > 0);
     const totalAccumulated = todaySessions.reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
     
-    // Calculate peak occupancy - should be the maximum number of concurrent active sessions
+    // Calculate peak occupancy - maximum concurrent active sessions today
     const currentlyActiveSessions = todaySessions.filter(s => s.isActive);
-    const peakOccupancy = Math.max(
-        currentlyActiveSessions.length,    // Currently active sessions
-        sessionsWithTime.length,           // Sessions that had time today
-        waitingSessions.length             // Sessions waiting today
-    );
+    // For now, use current active sessions as peak (can be enhanced with time-based tracking)
+    const peakOccupancy = Math.max(currentlyActiveSessions.length, 1); // At least 1 if there were sessions
+
+    // Calculate completed sessions - sessions that have used most of their time
+    const completedSessions = todaySessions.filter(session => {
+      const usagePercentage = session.totalAllowedSeconds > 0 ? session.accumulatedSeconds / session.totalAllowedSeconds : 0;
+      return session.totalAllowedSeconds > 0 && usagePercentage >= 0.9; // Consider 90%+ as completed
+    });
+    
+    // Calculate daily occupancy rate - based on completed sessions vs total capacity
+    const maxOccupancy = 8; // This should come from system settings
+    const totalCapacityToday = maxOccupancy * 24; // Total capacity hours in a day
+    const actualUsageHours = totalAccumulated / 3600; // Convert seconds to hours
+    const dailyOccupancyRate = totalCapacityToday > 0 ? Math.round((actualUsageHours / totalCapacityToday) * 100) : 0;
 
     return {
       averageWaitTime,
       averagePlayTime: sessionsWithTime.length > 0 ? Math.round(totalAccumulated / sessionsWithTime.length) : 0,
-      totalCompletedSessions: 0,
-      dailyOccupancyRate: 0,
+      totalCompletedSessions: completedSessions.length,
+      dailyOccupancyRate,
       totalPlayTimeConsumed: totalAccumulated,
       peakOccupancy,
       averageSessionDuration: sessionsWithTime.length > 0 ? Math.round(totalAccumulated / sessionsWithTime.length) : 0,
