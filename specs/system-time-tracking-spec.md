@@ -97,4 +97,48 @@ WHERE barcode_id = $1;
 
 * If time is added via check-in and the session has never started, it remains in the waiting bucket until first PLAY.
 * If time expires before first play, it will drop from waiting once `remaining_seconds <= 0`.
-```
+
+## Visual Design Guidelines
+
+### State Colors and Icons
+
+Based on the MonitorView implementation, the official visual design for session states is:
+
+#### **Waiting (Esperando)**
+- **Icon**: `Users` (Lucide React)
+- **Primary Color**: `primary` (blue theme)
+- **Row Tone**: `yellow` 
+- **Usage**: StatCard shows count, session rows display with yellow tone
+- **Meaning**: Sessions with check-in but never started
+
+#### **Playing (Jugando)**
+- **Icon**: `Play` (Lucide React)
+- **Primary Color**: `success` (green theme)
+- **Row Tone**: Dynamic based on remaining time:
+  - `green`: > 5 minutes remaining
+  - `orange`: 1-5 minutes remaining  
+  - `red`: < 1 minute remaining
+- **Usage**: StatCard shows active count, session rows show countdown with urgency colors
+- **Meaning**: Currently active sessions consuming time
+
+#### **Paused (Pausa)**
+- **Icon**: `Pause` (Lucide React)
+- **Primary Color**: `warning` (orange/yellow theme)
+- **Row Tone**: `orange`
+- **Usage**: StatCard shows paused count, session rows display elapsed time since pause
+- **Meaning**: Inactive sessions with evidence of prior play
+
+### Additional States
+
+#### **Expired (Tiempo Agotado)**
+- **Icon**: `AlertCircle` (Lucide React)
+- **Primary Color**: `destructive` (red theme)
+- **Usage**: Alert section for sessions needing more time
+- **Meaning**: Sessions with 0 remaining seconds
+
+### Implementation Notes
+
+* **Priority Order**: Monitor displays states right-to-left as "Esperando → En Juego → En Pausa"
+* **Real-time Updates**: All state changes reflect immediately via Socket.IO
+* **Separation Logic**: Waiting sessions never appear in paused bucket (per specification)
+* **Progress Indicators**: Only playing sessions show progress bars; waiting sessions show elapsed wait time
