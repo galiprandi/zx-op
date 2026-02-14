@@ -13,7 +13,7 @@
     "dev:api": "pnpm --filter api dev",
     "dev:ui": "pnpm --filter ui dev --open",
     "build:api": "pnpm --filter api build",
-    "build:ui": "pnpm --filter ui build --open",
+    "build:ui": "pnpm --filter ui build",
     "build": "pnpm build:api && pnpm build:ui",
     "lint": "eslint .",
     "format": "biome format --write .",

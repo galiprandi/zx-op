@@ -1,7 +1,20 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import type { Product, Transaction, PlayerSession } from "@shared/types";
 import { io } from "socket.io-client";
 const { VITE_API_BASE_URL, VITE_API_BASE_PORT } = import.meta.env;
+
+interface SessionPayload {
+	playerSession: PlayerSession;
+	activeSessions?: PlayerSession[];
+	dashboardStats?: unknown;
+}
+
+interface TransactionPayload {
+	transaction: Transaction;
+	dashboardStats?: unknown;
+}
+
 export function useSocket() {
 	const queryClient = useQueryClient();
 
@@ -17,12 +30,12 @@ export function useSocket() {
 		});
 
 		// Eventos de productos - OPTIMIZED
-		socket.on("product:created", ({ product }: { product: any }) => {
+		socket.on("product:created", ({ product }: { product: Product }) => {
 			// OPTIMIZED: Use setQueryData for immediate update
 			queryClient.setQueryData(["products"], (old: any[] = []) => [...old, product]);
 		});
 
-		socket.on("product:updated", ({ product }: { product: any }) => {
+		socket.on("product:updated", ({ product }: { product: Product }) => {
 			// OPTIMIZED: Use setQueryData for immediate update
 			queryClient.setQueryData(["products"], (old: any[] = []) => 
 				old.map((p: any) => p.id === product.id ? product : p)
@@ -37,7 +50,7 @@ export function useSocket() {
 		});
 
 		// Eventos de sesiones (nuevo modelo PlayerSession) - OPTIMIZED
-		socket.on("session:created", ({ playerSession, activeSessions }: { playerSession: any; activeSessions?: any[] }) => {
+		socket.on("session:created", ({ playerSession, activeSessions }: SessionPayload) => {
 			// OPTIMIZED: Use setQueryData for immediate updates
 			queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
 			if (activeSessions) {
@@ -45,7 +58,7 @@ export function useSocket() {
 			}
 		});
 
-		socket.on("session:play", ({ playerSession }: { playerSession: any }) => {
+		socket.on("session:play", ({ playerSession }: { playerSession: PlayerSession }) => {
 			// OPTIMIZED: Only update specific session, not all sessions
 			if (playerSession) {
 				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
@@ -54,7 +67,7 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
-		socket.on("session:pause", ({ playerSession }: { playerSession: any }) => {
+		socket.on("session:pause", ({ playerSession }: { playerSession: PlayerSession }) => {
 			// OPTIMIZED: Only update specific session, not all sessions
 			if (playerSession) {
 				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
@@ -63,7 +76,7 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
-		socket.on("session:updated", ({ playerSession, dashboardStats }: { playerSession: any; dashboardStats?: any }) => {
+		socket.on("session:updated", ({ playerSession, dashboardStats }: SessionPayload) => {
 			// OPTIMIZED: Only update specific session, not all sessions
 			if (playerSession) {
 				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
@@ -80,7 +93,8 @@ export function useSocket() {
 		});
 
 		// Eventos de transacciones - OPTIMIZED
-		socket.on("transaction:created", ({ transaction, dashboardStats }: { transaction: any; dashboardStats?: any }) => {
+		socket.on("transaction:created", ({ transaction, dashboardStats }: TransactionPayload) => {
+			void transaction;
 			// Update transaction history
 			queryClient.invalidateQueries({ queryKey: ["transactions"] });
 			queryClient.invalidateQueries({ queryKey: ["checkinHistory"] });

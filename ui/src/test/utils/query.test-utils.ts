@@ -1,5 +1,4 @@
 import { QueryClient } from '@tanstack/react-query'
-import { vi } from 'vitest'
 
 export interface QueryInvalidation {
   args: Array<{ queryKey: readonly unknown[] }>
@@ -63,23 +62,15 @@ export interface SocketPerformanceMetrics {
 }
 
 export const measureSocketPerformance = async (
-  scenario: string,
-  socketEvents: Array<{ event: string; data: unknown; expectedInvalidations: number }>
+  _socketEvents: Array<{ event: string; data: unknown; expectedInvalidations: number }>
 ): Promise<SocketPerformanceMetrics> => {
-  const { client, invalidations } = createMonitoredQueryClient()
+  const { invalidations } = createMonitoredQueryClient()
   const startTime = performance.now()
   
   // Simulate socket events
-  for (const { event, data } of socketEvents) {
-    const eventStart = performance.now()
-    
+  for (let i = 0; i < _socketEvents.length; i += 1) {
     // Simulate socket event processing
     await new Promise(resolve => setTimeout(resolve, 1))
-    
-    const eventEnd = performance.now()
-    
-    // Track performance
-    // In real tests, this would trigger actual socket handlers
   }
   
   const endTime = performance.now()
