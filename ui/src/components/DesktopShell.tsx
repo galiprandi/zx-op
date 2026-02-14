@@ -16,7 +16,7 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
 
   const navItems = [
     { path: "/checkin", label: "Check-in", icon: Package },
-    { path: "/", label: "Operación", icon: Target },
+    { path: "/operation", label: "Operación", icon: Target },
     { path: "/monitor", label: "Monitor", icon: BarChart3 },
     { path: "/products", label: "Productos", icon: Settings },
     { path: "/accesos", label: "Accesos", icon: QrCode },

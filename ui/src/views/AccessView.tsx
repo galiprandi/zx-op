@@ -45,7 +45,14 @@ export function AccessView() {
               />
               <div className="text-center space-y-1">
                 <p className="text-sm font-semibold text-foreground">{link.label}</p>
-                <p className="text-xs text-muted-foreground break-all">{`${origin}${link.path}`}</p>
+                <a
+                  href={`${origin}${link.path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-muted-foreground break-all underline-offset-2 hover:text-primary transition-colors hover:underline"
+                >
+                  {`${origin}${link.path}`}
+                </a>
               </div>
             </div>
           ))}
