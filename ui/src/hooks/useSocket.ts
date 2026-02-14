@@ -16,43 +16,81 @@ export function useSocket() {
 			withCredentials: false,
 		});
 
-		// Eventos de productos
-		socket.on("product:created", () => {
-			queryClient.invalidateQueries({ queryKey: ["products"] });
+		// Eventos de productos - OPTIMIZED
+		socket.on("product:created", ({ product }: { product: any }) => {
+			// OPTIMIZED: Use setQueryData for immediate update
+			queryClient.setQueryData(["products"], (old: any[] = []) => [...old, product]);
 		});
 
-		socket.on("product:updated", () => {
-			queryClient.invalidateQueries({ queryKey: ["products"] });
+		socket.on("product:updated", ({ product }: { product: any }) => {
+			// OPTIMIZED: Use setQueryData for immediate update
+			queryClient.setQueryData(["products"], (old: any[] = []) => 
+				old.map((p: any) => p.id === product.id ? product : p)
+			);
 		});
 
-		socket.on("product:deleted", () => {
-			queryClient.invalidateQueries({ queryKey: ["products"] });
+		socket.on("product:deleted", ({ productId }: { productId: string }) => {
+			// OPTIMIZED: Use setQueryData for immediate update
+			queryClient.setQueryData(["products"], (old: any[] = []) => 
+				old.filter((p: any) => p.id !== productId)
+			);
 		});
 
-		// Eventos de sesiones (nuevo modelo PlayerSession)
-		socket.on("session:play", () => {
-			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
+		// Eventos de sesiones (nuevo modelo PlayerSession) - OPTIMIZED
+		socket.on("session:created", ({ playerSession, activeSessions }: { playerSession: any; activeSessions?: any[] }) => {
+			// OPTIMIZED: Use setQueryData for immediate updates
+			queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
+			if (activeSessions) {
+				queryClient.setQueryData(["activeSessions"], activeSessions);
+			}
+		});
+
+		socket.on("session:play", ({ playerSession }: { playerSession: any }) => {
+			// OPTIMIZED: Only update specific session, not all sessions
+			if (playerSession) {
+				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
+			}
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
-		socket.on("session:pause", () => {
-			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
+		socket.on("session:pause", ({ playerSession }: { playerSession: any }) => {
+			// OPTIMIZED: Only update specific session, not all sessions
+			if (playerSession) {
+				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
+			}
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
-		socket.on("session:updated", () => {
-			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
+		socket.on("session:updated", ({ playerSession, dashboardStats }: { playerSession: any; dashboardStats?: any }) => {
+			// OPTIMIZED: Only update specific session, not all sessions
+			if (playerSession) {
+				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
+			}
+			
+			// OPTIMIZED: Use setQueryData for dashboard if partial data provided
+			if (dashboardStats) {
+				queryClient.setQueryData(["dashboardStats"], dashboardStats);
+			} else {
+				queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+			}
+			
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
-			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 		});
 
-		// Eventos de transacciones
-		socket.on("transaction:created", () => {
+		// Eventos de transacciones - OPTIMIZED
+		socket.on("transaction:created", ({ transaction, dashboardStats }: { transaction: any; dashboardStats?: any }) => {
+			// Update transaction history
 			queryClient.invalidateQueries({ queryKey: ["transactions"] });
 			queryClient.invalidateQueries({ queryKey: ["checkinHistory"] });
-			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+			
+			// OPTIMIZED: Use setQueryData for dashboard if partial data provided
+			if (dashboardStats) {
+				queryClient.setQueryData(["dashboardStats"], dashboardStats);
+			} else {
+				queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+			}
 		});
 
 		// Eventos de carrito
