@@ -367,8 +367,8 @@ export function CheckInView() {
 
 			{/* Success Overlay */}
 			{showConfirmation && lastCheckinData && (
-				<div className="fixed inset-0 bg-white flex items-center justify-center p-4 z-50">
-					<GlassCard className="w-full max-w-sm text-center animate-fadeIn">
+				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+					<GlassCard className="w-full max-w-sm text-center animate-fadeIn bg-white">
 						<div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
 							<Check className="w-8 h-8 text-green-400" />
 						</div>
