@@ -51,6 +51,12 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["checkinHistory"] });
 		});
 
+		// Eventos de carrito
+		socket.on("cart:updated", () => {
+			queryClient.invalidateQueries({ queryKey: ["products"] });
+			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
+		});
+
 		// Cleanup
 		return () => {
 			socket.disconnect();

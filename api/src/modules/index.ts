@@ -14,6 +14,7 @@ import { productRoutes } from './products/routes/productRoutes';
 import { transactionRoutes } from './transactions/routes/transactionRoutes';
 import { dashboardRoutes } from './dashboard/routes/dashboardRoutes';
 import { systemRoutes } from './system/routes/systemRoutes';
+import { cartRoutes } from './cart/routes/cartRoutes';
 import { initializeSocketIO } from './playerSessions/services/socketService';
 
 /**
@@ -44,6 +45,9 @@ export async function registerModules(app: FastifyInstance) {
 
   await app.register(systemRoutes);
   app.log.info('System module registered');
+
+  await app.register(cartRoutes);
+  app.log.info('Cart module registered');
 
   app.log.info('All modules registered successfully');
 }

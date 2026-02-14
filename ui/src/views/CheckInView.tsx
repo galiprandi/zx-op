@@ -3,6 +3,7 @@ import { Check, AlertCircle, Clock } from "lucide-react";
 import { useState } from "react";
 import { createCheckin, type CheckinResponse, type CheckinPayload } from "@/api/checkin";
 import { formatPrice, formatTimeValue, isTimeProduct, type Product } from "@/api/products";
+import { notifyCartUpdate, type CartItem as ApiCartItem } from "@/api/cart";
 import { MobileShell } from "@/components/MobileShell";
 import { ActionButton } from "@/components/ActionButton";
 import { QRScanner } from "@/components/QRScanner";
@@ -60,6 +61,12 @@ export function CheckInView() {
 		setActiveBarcode("");
 		setCart([]);
 		setLastCheckinData(null);
+
+		// Emit cart clear via socket
+		const effectiveBarcode = (activeBarcode || barcodeId).trim();
+		if (effectiveBarcode) {
+			notifyCartUpdate(effectiveBarcode, []).catch(console.error);
+		}
 	};
 
 	const handleBarcodeSearch = () => {
@@ -73,32 +80,70 @@ export function CheckInView() {
 			const existingItem = prevCart.find(
 				(item) => item.product.id === product.id,
 			);
+			let newCart;
 			if (existingItem) {
-				return prevCart.map((item) =>
+				newCart = prevCart.map((item) =>
 					item.product.id === product.id
 						? { ...item, quantity: item.quantity + 1 }
 						: item,
 				);
+			} else {
+				newCart = [...prevCart, { product, quantity: 1 }];
 			}
-			return [...prevCart, { product, quantity: 1 }];
+
+			// Emit cart update via socket
+			const effectiveBarcode = (activeBarcode || barcodeId).trim();
+			if (effectiveBarcode) {
+				const apiCart: ApiCartItem[] = newCart.map(item => ({
+					productId: item.product.id,
+					quantity: item.quantity
+				}));
+				notifyCartUpdate(effectiveBarcode, apiCart).catch(console.error);
+			}
+
+			return newCart;
 		});
 	};
 
 	const removeFromCart = (productId: string) => {
-		setCart((prevCart) =>
-			prevCart.filter((item) => item.product.id !== productId),
-		);
+		setCart((prevCart) => {
+			const newCart = prevCart.filter((item) => item.product.id !== productId);
+
+			// Emit cart update via socket
+			const effectiveBarcode = (activeBarcode || barcodeId).trim();
+			if (effectiveBarcode) {
+				const apiCart: ApiCartItem[] = newCart.map(item => ({
+					productId: item.product.id,
+					quantity: item.quantity
+				}));
+				notifyCartUpdate(effectiveBarcode, apiCart).catch(console.error);
+			}
+
+			return newCart;
+		});
 	};
 
 	const updateQuantity = (productId: string, quantity: number) => {
 		if (quantity <= 0) {
 			removeFromCart(productId);
 		} else {
-			setCart((prevCart) =>
-				prevCart.map((item) =>
+			setCart((prevCart) => {
+				const newCart = prevCart.map((item) =>
 					item.product.id === productId ? { ...item, quantity } : item,
-				),
-			);
+				);
+
+				// Emit cart update via socket
+				const effectiveBarcode = (activeBarcode || barcodeId).trim();
+				if (effectiveBarcode) {
+					const apiCart: ApiCartItem[] = newCart.map(item => ({
+						productId: item.product.id,
+						quantity: item.quantity
+					}));
+					notifyCartUpdate(effectiveBarcode, apiCart).catch(console.error);
+				}
+
+				return newCart;
+			});
 		}
 	};
 
@@ -114,10 +159,7 @@ export function CheckInView() {
 	const getAvailableRequiredProducts = () => {
 		// If session exists, don't show required products (they should already have them)
 		if (session) return [];
-		return requiredProducts.filter((product) => {
-			const cartItem = cart.find((item) => item.product.id === product.id);
-			return !cartItem;
-		});
+		return requiredProducts;
 	};
 
 	const getAvailableOptionalProducts = () => {
@@ -211,82 +253,10 @@ export function CheckInView() {
 	};
 
 	return (
-		<MobileShell title="Check-in">
-			<div className="flex flex-col h-full space-y-4">
-				{/* Scan Input */}
-				<div className="px-4">
-					<QRScanner
-						value={barcodeId}
-						onChange={setBarcodeId}
-						onSubmit={handleBarcodeSearch}
-						placeholder="Código de pulsera"
-					/>
-				</div>
-
-				{/* Session Status Display */}
-				{getSessionStatusDisplay()}
-
-				{/* Products Grid */}
-				<div className="flex-1 overflow-y-auto px-4 space-y-6">
-					{/* Required Products */}
-					{session && requiredProducts.length > 0 && (
-						<div className="space-y-3">
-							<div className="flex items-center justify-between">
-								<h3 className="font-semibold text-foreground">
-									Productos Obligatorios
-								</h3>
-								<StatusBadge status="playing" size="sm" showIcon={false} />
-							</div>
-							<div className="text-center py-4 text-muted-foreground text-sm">
-								✅ Ya incluidos en la sesión actual
-							</div>
-						</div>
-					)}
-					{!session && getAvailableRequiredProducts().length > 0 && (
-						<div className="space-y-3">
-							<div className="flex items-center justify-between">
-								<h3 className="font-semibold text-foreground">
-									Productos Obligatorios
-								</h3>
-								<StatusBadge status="waiting" size="sm" showIcon={false} />
-							</div>
-							<div className="grid grid-cols-2 gap-3">
-								{getAvailableRequiredProducts()
-									.slice(0, 4)
-									.map((product: Product) => (
-										<ProductButton
-											key={product.id}
-											product={product}
-											onClick={() => addToCart(product)}
-										/>
-									))}
-							</div>
-						</div>
-					)}
-
-					{/* Optional Products */}
-					{getAvailableOptionalProducts().length > 0 && (
-						<div className="space-y-3">
-							<h3 className="font-semibold text-foreground">Productos Opcionales</h3>
-							<div className="grid grid-cols-2 gap-3">
-								{getAvailableOptionalProducts()
-									.slice(0, 4)
-									.map((product: Product) => (
-										<ProductButton
-											key={product.id}
-											product={product}
-											onClick={() => addToCart(product)}
-										/>
-									))}
-							</div>
-						</div>
-					)}
-
-					
-				</div>
-
-				{/* Footer Button */}
-				<div className="px-4 pb-4">
+		<MobileShell 
+			title="Check-in"
+			footer={
+				<div className="space-y-3">
 					<ActionButton
 						type="checkin"
 						onClick={handleCheckin}
@@ -306,14 +276,14 @@ export function CheckInView() {
 						)}
 					</ActionButton>
 					{isMissingRequired && (
-						<div className="mt-2 text-xs text-yellow-400">
+						<div className="text-xs text-yellow-400">
 							Debes incluir los productos obligatorios
 						</div>
 					)}
 
 					{/* Cart Summary */}
 					{cart.length > 0 && (
-						<div className="space-y-3 pt-4">
+						<div className="space-y-3">
 							<div className="flex items-center justify-between">
 								<h3 className="font-semibold text-foreground">Carrito</h3>
 								<span className="text-sm text-muted-foreground font-medium">
@@ -348,44 +318,116 @@ export function CheckInView() {
 						</div>
 					)}
 				</div>
+			}
+		>
+			<div className="px-4 space-y-4 min-h-0">
+				{/* Scan Input */}
+				<QRScanner
+					value={barcodeId}
+					onChange={setBarcodeId}
+					onSubmit={handleBarcodeSearch}
+					placeholder="Código de pulsera"
+				/>
 
-				
+				{/* Session Status Display */}
+				{getSessionStatusDisplay()}
 
-				{/* Success Overlay */}
-				{showConfirmation && lastCheckinData && (
-					<div className="fixed inset-0 bg-white flex items-center justify-center p-4 z-50">
-						<GlassCard className="w-full max-w-sm text-center animate-fadeIn">
-							<div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-								<Check className="w-8 h-8 text-green-400" />
+				{/* Products Grid */}
+				<div className="space-y-6">
+					{/* Required Products */}
+					{session && requiredProducts.length > 0 && (
+						<div className="space-y-3">
+							<div className="flex items-center justify-between">
+								<h3 className="font-semibold text-foreground">
+									Productos Obligatorios
+								</h3>
+								<StatusBadge status="playing" size="sm" showIcon={false} />
 							</div>
-							<h3 className="text-xl font-bold text-green-400 mb-4">
-								¡Check-in Exitoso!
-							</h3>
-							<div className="text-sm text-muted-foreground space-y-2">
-								<div className="font-medium">Código: {barcodeId}</div>
-								<div className="font-medium">Items: {getTotalItems()}</div>
-								<div className="font-bold text-lg text-green-400">
-									Total: {formatPrice(getTotalPrice())}
-								</div>
-								{lastCheckinData.totalSecondsAdded > 0 && (
-									<div className="flex items-center justify-center text-blue-400 font-medium">
-										<Clock className="w-4 h-4 mr-1" />
-										Tiempo agregado: {formatTimeValue(lastCheckinData.totalSecondsAdded)}
-									</div>
-								)}
+							<div className="text-center py-4 text-muted-foreground text-sm">
+								✅ Ya incluidos en la sesión actual
 							</div>
-						</GlassCard>
-					</div>
-				)}
+						</div>
+					)}
+					{!session && getAvailableRequiredProducts().length > 0 && (
+						<div className="space-y-3">
+							<div className="flex items-center justify-between">
+								<h3 className="font-semibold text-foreground">
+									Productos Obligatorios
+								</h3>
+								<StatusBadge status="waiting" size="sm" showIcon={false} />
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								{getAvailableRequiredProducts()
+									.slice(0, 4)
+									.map((product: Product) => {
+										const cartItem = cart.find(item => item.product.id === product.id);
+										return (
+											<ProductButton
+												key={product.id}
+												product={product}
+												onClick={() => addToCart(product)}
+												quantity={cartItem?.quantity}
+											/>
+										);
+									})}
+							</div>
+						</div>
+					)}
 
-
+					{/* Optional Products */}
+					{getAvailableOptionalProducts().length > 0 && (
+						<div className="space-y-3">
+							<h3 className="font-semibold text-foreground">Productos Opcionales</h3>
+							<div className="max-h-96 overflow-y-auto space-y-2">
+								{getAvailableOptionalProducts().map((product: Product) => {
+									const cartItem = cart.find(item => item.product.id === product.id);
+									return (
+										<ProductListItem
+											key={product.id}
+											product={product}
+											onClick={() => addToCart(product)}
+											quantity={cartItem?.quantity}
+										/>
+									);
+								})}
+							</div>
+						</div>
+					)}
+				</div>
 			</div>
+
+			{/* Success Overlay */}
+			{showConfirmation && lastCheckinData && (
+				<div className="fixed inset-0 bg-white flex items-center justify-center p-4 z-50">
+					<GlassCard className="w-full max-w-sm text-center animate-fadeIn">
+						<div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+							<Check className="w-8 h-8 text-green-400" />
+						</div>
+						<h3 className="text-xl font-bold text-green-400 mb-4">
+							¡Check-in Exitoso!
+						</h3>
+						<div className="text-sm text-muted-foreground space-y-2">
+							<div className="font-medium">Código: {barcodeId}</div>
+							<div className="font-medium">Items: {getTotalItems()}</div>
+							<div className="font-bold text-lg text-green-400">
+								Total: {formatPrice(getTotalPrice())}
+							</div>
+							{lastCheckinData.totalSecondsAdded > 0 && (
+								<div className="flex items-center justify-center text-blue-400 font-medium">
+									<Clock className="w-4 h-4 mr-1" />
+									Tiempo agregado: {formatTimeValue(lastCheckinData.totalSecondsAdded)}
+								</div>
+							)}
+						</div>
+					</GlassCard>
+				</div>
+			)}
 		</MobileShell>
 	);
 }
 
 // Product Button Component
-function ProductButton({ product, onClick }: { product: Product; onClick: () => void }) {
+function ProductButton({ product, onClick, quantity }: { product: Product; onClick: () => void; quantity?: number }) {
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat("es-CL", {
 			style: "currency",
@@ -413,6 +455,50 @@ function ProductButton({ product, onClick }: { product: Product; onClick: () => 
 						</span>
 					)}
 				</div>
+				{quantity && quantity > 0 && (
+					<div className="absolute top-2 right-2 bg-primary/20 text-primary text-xs px-2 py-1 rounded-full font-medium">
+						{quantity}
+					</div>
+				)}
+			</div>
+		</button>
+	);
+}
+
+// Product List Item Component
+function ProductListItem({ product, onClick, quantity }: { product: Product; onClick: () => void; quantity?: number }) {
+	const formatPrice = (price: number) => {
+		return new Intl.NumberFormat("es-CL", {
+			style: "currency",
+			currency: "CLP",
+		}).format(price);
+	};
+
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full p-3 border border-border/20 rounded-lg bg-card/50 hover:bg-card hover:border-primary/30 transition-all duration-200 text-left"
+		>
+			<div className="flex items-center justify-between">
+				<div className="flex-1">
+					<div className="font-medium text-sm text-foreground mb-1">
+						{product.name}
+					</div>
+					<div className="flex items-center gap-3 text-xs text-muted-foreground">
+						<span className="text-primary font-bold">{formatPrice(product.price)}</span>
+						{isTimeProduct(product) && product.timeValueSeconds && (
+							<span className="text-blue-400">
+								+{formatTimeValue(product.timeValueSeconds)}
+							</span>
+						)}
+					</div>
+				</div>
+				{quantity && quantity > 0 && (
+					<div className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full font-medium min-w-[2rem] text-center">
+						{quantity}
+					</div>
+				)}
 			</div>
 		</button>
 	);

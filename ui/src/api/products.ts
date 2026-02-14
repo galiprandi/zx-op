@@ -86,9 +86,9 @@ export const getTimeProducts = async (): Promise<Product[]> => {
 
 // Helper functions for UI
 export const formatPrice = (price: number): string => {
-	return new Intl.NumberFormat('es-CL', {
+	return new Intl.NumberFormat('es-AR', {
 		style: 'currency',
-		currency: 'CLP'
+		currency: 'ARS'
 	}).format(price);
 };
 

@@ -38,3 +38,8 @@ export function emitTransactionEvent(event: 'transaction:created', data: unknown
   const socketIO = getSocketIO();
   socketIO.emit(event, data);
 }
+
+export function emitCartEvent(event: 'cart:updated', data: unknown) {
+  const socketIO = getSocketIO();
+  socketIO.emit(event, data);
+}
