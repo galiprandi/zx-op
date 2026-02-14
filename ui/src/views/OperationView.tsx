@@ -29,7 +29,7 @@ export function OperationView() {
 	// Handle QR scanner submit
 	const handleScannerSubmit = (value: string) => {
 		setBarcodeId(value);
-		setInputValue("");
+		setInputValue(value);
 	};
 
 	// Handle play/pause with confirmation modal
@@ -125,7 +125,8 @@ export function OperationView() {
 								{/* Timer Display */}
 								<BigTimer 
 									seconds={session.remainingSeconds} 
-									size="xl"
+									size="lg"
+									showMinutes={false}
 								/>
 								
 								{/* Status Badge */}
@@ -133,15 +134,10 @@ export function OperationView() {
 									status={
 										session.remainingSeconds <= 0 ? "expired" :
 										session.remainingSeconds <= 60 ? "expiring" :
-										session.isActive ? "playing" : "paused"
+										session.status
 									}
 									size="lg"
 								/>
-
-								{/* Barcode */}
-								<div className="text-sm text-muted-foreground">
-									Código: {barcodeId}
-								</div>
 							</div>
 						) : (
 							<GlassCard className="text-center">
@@ -182,16 +178,17 @@ export function OperationView() {
 					</div>
 				)}
 
-				{/* Confirmation Sheet */}
-				<ConfirmSheet
-					isOpen={showConfirm}
-					onClose={() => setShowConfirm(false)}
-					onConfirm={executeAction}
-					action={pendingAction || 'play'}
-					loading={playMutation.isPending || pauseMutation.isPending}
-					barcodeId={barcodeId}
-				/>
 			</div>
+
+			{/* Confirmation Sheet */}
+			<ConfirmSheet
+				isOpen={showConfirm}
+				onClose={() => setShowConfirm(false)}
+				onConfirm={executeAction}
+				action={pendingAction || 'play'}
+				loading={playMutation.isPending || pauseMutation.isPending}
+				barcodeId={barcodeId}
+			/>
 		</MobileShell>
 	);
 }
