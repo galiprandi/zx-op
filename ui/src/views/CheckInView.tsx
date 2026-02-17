@@ -14,6 +14,7 @@ import { ChevronDown, ShoppingCart } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useSocket } from "@/hooks/useSocket";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { formatCurrency } from "@/lib/currency";
 
 interface CartItem {
 	product: Product;
@@ -402,12 +403,7 @@ export function CheckInView() {
 
 // Product Button Component
 function ProductButton({ product, onClick, quantity }: { product: Product; onClick: () => void; quantity?: number }) {
-	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat("es-CL", {
-			style: "currency",
-			currency: "CLP",
-		}).format(price);
-	};
+	const formatPrice = (price: number) => formatCurrency(price);
 
 	return (
 		<button
@@ -448,12 +444,7 @@ function ProductButton({ product, onClick, quantity }: { product: Product; onCli
 
 // Product List Item Component
 function ProductListItem({ product, onClick, quantity }: { product: Product; onClick: () => void; quantity?: number }) {
-	const formatPrice = (price: number) => {
-		return new Intl.NumberFormat("es-CL", {
-			style: "currency",
-			currency: "CLP",
-		}).format(price);
-	};
+	const formatPrice = (price: number) => formatCurrency(price);
 
 	return (
 		<button
@@ -484,4 +475,3 @@ function ProductListItem({ product, onClick, quantity }: { product: Product; onC
 		</button>
 	);
 }
-

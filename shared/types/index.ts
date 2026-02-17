@@ -4,6 +4,7 @@ export * from './sessionStatus';
 export * from './sessionLog';
 export * from './product';
 export * from './transaction';
+export * from './reports';
 
 // Re-export commonly used type combinations
 export type {
@@ -27,6 +28,11 @@ export type {
   CreateTransactionRequest,
   TransactionStats
 } from './transaction';
+
+export type {
+  RecentOperationalDaySales,
+  ReportsSummaryResponse
+} from './reports';
 
 export type {
   LogAction,

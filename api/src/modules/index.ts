@@ -15,6 +15,7 @@ import { transactionRoutes } from './transactions/routes/transactionRoutes';
 import { dashboardRoutes } from './dashboard/routes/dashboardRoutes';
 import { systemRoutes } from './system/routes/systemRoutes';
 import { cartRoutes } from './cart/routes/cartRoutes';
+import { reportsRoutes } from './reports/routes/reportsRoutes';
 import { initializeSocketIO } from './playerSessions/services/socketService';
 
 /**
@@ -48,6 +49,9 @@ export async function registerModules(app: FastifyInstance) {
 
   await app.register(cartRoutes);
   app.log.info('Cart module registered');
+
+  await app.register(reportsRoutes);
+  app.log.info('Reports module registered');
 
   app.log.info('All modules registered successfully');
 }
@@ -110,6 +114,14 @@ export const moduleInfo = {
         'GET /api/dashboard/performance'
       ],
       dependencies: ['transactions', 'playerSessions']
+    },
+    {
+      name: 'reports',
+      description: 'Commercial and operational reporting metrics',
+      routes: [
+        'GET /api/reports/summary'
+      ],
+      dependencies: ['transactions', 'playerSessions', 'system']
     },
     {
       name: 'system',

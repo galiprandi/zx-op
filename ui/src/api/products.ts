@@ -1,4 +1,5 @@
 import { API } from "./api";
+import { formatCurrency } from "@/lib/currency";
 
 export interface Product {
 	id: string;
@@ -85,12 +86,7 @@ export const getTimeProducts = async (): Promise<Product[]> => {
 };
 
 // Helper functions for UI
-export const formatPrice = (price: number): string => {
-	return new Intl.NumberFormat('es-AR', {
-		style: 'currency',
-		currency: 'ARS'
-	}).format(price);
-};
+export const formatPrice = (price: number): string => formatCurrency(price);
 
 export const formatTimeValue = (seconds: number): string => {
 	const minutes = Math.floor(seconds / 60);

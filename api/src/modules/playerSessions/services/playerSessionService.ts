@@ -1,9 +1,17 @@
-import { PrismaClient, LogAction, PlayerSession, Prisma } from '@prisma/client';
+import { PrismaClient, PlayerSession, Prisma } from '@prisma/client';
 import { emitSessionEvent } from './socketService';
 import { SessionStatus } from '../../../types/sessionStatus';
 import { getOperationalContext } from '../../system/services/operationalContextService';
 
 const prisma = new PrismaClient();
+const SessionLogAction = {
+  CHECKIN: 'CHECKIN',
+  PLAY: 'PLAY',
+  PAUSE: 'PAUSE',
+  TIME_ADDED: 'TIME_ADDED',
+  AUTO_EXPIRE: 'AUTO_EXPIRE',
+} as const;
+type SessionLogAction = (typeof SessionLogAction)[keyof typeof SessionLogAction];
 
 export type SessionWithRemaining = PlayerSession & {
   remainingSeconds: number;
@@ -76,7 +84,7 @@ export class PlayerSessionService {
     return new Date(baseTime + addedSeconds * 1000);
   }
 
-  private async logAction(playerSessionId: string, action: LogAction, data?: Prisma.InputJsonValue) {
+  private async logAction(playerSessionId: string, action: SessionLogAction, data?: Prisma.InputJsonValue) {
     await prisma.sessionLog.create({ 
       data: { playerSessionId, action, data } 
     });
@@ -89,7 +97,7 @@ export class PlayerSessionService {
     
     if (!session) {
       session = await prisma.playerSession.create({ data: { barcodeId } });
-      await this.logAction(session.id, LogAction.CHECKIN, { created: true });
+      await this.logAction(session.id, SessionLogAction.CHECKIN, { created: true });
     }
     
     return session;
@@ -112,7 +120,7 @@ export class PlayerSessionService {
       data: { isActive: true, lastStartAt: new Date() } 
     });
     
-    await this.logAction(updated.id, LogAction.PLAY);
+    await this.logAction(updated.id, SessionLogAction.PLAY);
     
     // Emit Socket.IO event
     emitSessionEvent('session:play', { barcodeId, session: updated });
@@ -145,7 +153,7 @@ export class PlayerSessionService {
       },
     });
     
-    await this.logAction(updated.id, LogAction.PAUSE, { extra });
+    await this.logAction(updated.id, SessionLogAction.PAUSE, { extra });
     
     // Emit Socket.IO event
     emitSessionEvent('session:pause', { barcodeId, session: updated });
@@ -179,7 +187,7 @@ export class PlayerSessionService {
           accumulatedSeconds: { increment: extra },
         } 
       });
-      await this.logAction(current.id, LogAction.AUTO_EXPIRE);
+      await this.logAction(current.id, SessionLogAction.AUTO_EXPIRE);
       remainingSeconds = 0;
     }
     
@@ -212,7 +220,7 @@ export class PlayerSessionService {
       data: { expiresAt } 
     });
     
-    await this.logAction(finalUpdated.id, LogAction.TIME_ADDED, { totalSecondsToAdd: seconds });
+    await this.logAction(finalUpdated.id, SessionLogAction.TIME_ADDED, { totalSecondsToAdd: seconds });
     
     // Emit Socket.IO event
     emitSessionEvent('session:updated', { barcodeId, session: finalUpdated });

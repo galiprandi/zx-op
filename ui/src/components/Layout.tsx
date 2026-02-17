@@ -12,6 +12,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 		{ path: "/checkin", label: "Check-in", icon: Package },
 		{ path: "/operation", label: "Operación", icon: Target },
 		{ path: "/monitor", label: "Monitor", icon: BarChart3 },
+		{ path: "/reports", label: "Reportes", icon: BarChart3 },
 		{ path: "/products", label: "Productos", icon: Settings },
 	];
 

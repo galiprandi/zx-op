@@ -19,6 +19,7 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
     { path: "/checkin", label: "Check-in", icon: Package },
     { path: "/operation", label: "Operación", icon: Target },
     { path: "/monitor", label: "Monitor", icon: BarChart3 },
+    { path: "/reports", label: "Reportes", icon: BarChart3 },
     { path: "/products", label: "Productos", icon: Settings },
     { path: "/access", label: "Accesos", icon: QrCode },
     { path: "/settings", label: "Configuración", icon: Cog },
