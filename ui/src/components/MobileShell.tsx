@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { SiteBrand } from "@/components/SiteBrand";
 
 interface MobileShellProps {
   children: React.ReactNode;
@@ -23,23 +24,14 @@ export function MobileShell({
       className
     )}>
       {/* Header minimal */}
-      {(title || showStatusDot) && (
+      {showStatusDot && (
         <header className="sticky top-0 z-50 bg-card/80 backdrop-blur border-b border-border/20 px-4 py-3">
           <div className="flex items-center justify-between">
-            {title && (
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">ZX</span>
-                </div>
-                <h1 className="text-lg font-bold text-foreground">{title}</h1>
-              </div>
-            )}
-            {showStatusDot && (
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs text-muted-foreground">Online</span>
-              </div>
-            )}
+            <SiteBrand variant="compact" className="flex items-center gap-2" />
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-xs text-muted-foreground">Online</span>
+            </div>
           </div>
         </header>
       )}

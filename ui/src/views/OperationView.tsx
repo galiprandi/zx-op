@@ -103,7 +103,7 @@ export function OperationView() {
 	const buttonConfig = getButtonConfig();
 
 	return (
-		<MobileShell title="Operación">
+		<MobileShell>
 			<div className="flex flex-col h-full space-y-6">
 				{/* Scan Input */}
 				<div className="px-4">

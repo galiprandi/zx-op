@@ -16,12 +16,16 @@ export class SystemController {
 
   async updateSettings(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { maxOccupancy } = request.body as { maxOccupancy?: number };
-      const settings = await systemService.updateSettings(maxOccupancy);
+      const { maxOccupancy, siteName, logoUrl } = request.body as { 
+        maxOccupancy?: number;
+        siteName?: string;
+        logoUrl?: string | null;
+      };
+      const settings = await systemService.updateSettings(maxOccupancy, siteName, logoUrl);
       return settings;
     } catch (error) {
       if (error instanceof Error) {
-        return reply.status(400).send({ error: error.message });
+        return reply.status(500).send({ error: error.message });
       }
       return reply.status(500).send({ error: 'Internal server error' });
     }

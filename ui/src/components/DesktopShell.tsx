@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { SiteBrand } from "@/components/SiteBrand";
 
 interface DesktopShellProps {
   children: React.ReactNode;
@@ -28,17 +29,7 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
       <aside className="hidden md:flex md:w-48 lg:w-56 bg-card/50 backdrop-blur border-r border-border/20 flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-border/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">ZX</span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Zona Xtreme
-              </h1>
-              <p className="text-xs text-muted-foreground">Centro de Control</p>
-            </div>
-          </div>
+          <SiteBrand variant="full" />
         </div>
 
         {/* Navigation */}
@@ -77,12 +68,7 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
         {/* Mobile Header */}
         <header className="md:hidden sticky top-0 z-50 bg-card/80 backdrop-blur border-b border-border/20 px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">ZX</span>
-              </div>
-              <h1 className="text-lg font-bold text-foreground">Zona Xtreme</h1>
-            </div>
+            <SiteBrand variant="compact" className="flex items-center gap-2" />
 
             <button
               type="button"

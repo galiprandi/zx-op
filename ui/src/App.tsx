@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import { AppProviders } from "@/providers/AppProviders";
 import { CheckInView } from "./views/CheckInView";
 import { OperationView } from "./views/OperationView";
 import { ProductsView } from "./views/ProductsView";
@@ -8,7 +9,7 @@ import { LandingView } from "./views/LandingView";
 
 function App() {
 	return (
-		<div className="min-h-screen bg-background text-foreground">
+		<AppProviders>
 			<Routes>
 				<Route path="/" element={<LandingView />} />
 				<Route path="/operation" element={<OperationView />} />
@@ -17,7 +18,7 @@ function App() {
 				<Route path="/products" element={<ProductsView />} />
 				<Route path="/accesos" element={<AccessView />} />
 			</Routes>
-		</div>
+		</AppProviders>
 	);
 }
 
