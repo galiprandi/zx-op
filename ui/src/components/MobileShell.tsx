@@ -44,7 +44,7 @@ export function MobileShell({
 
       {/* Fixed footer */}
       {footer && (
-        <footer className="sticky bottom-0 bg-card border-t border-border/20 p-4 z-10">
+        <footer className="sticky bottom-0 bg-card border-t border-border/20 p-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] z-10">
           {footer}
         </footer>
       )}
