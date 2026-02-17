@@ -65,6 +65,7 @@ export function useSocket() {
 			}
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
 		});
 
 		socket.on("session:pause", ({ playerSession }: { playerSession: PlayerSession }) => {
@@ -74,6 +75,7 @@ export function useSocket() {
 			}
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
 		});
 
 		socket.on("session:updated", ({ playerSession, dashboardStats }: SessionPayload) => {
@@ -90,6 +92,7 @@ export function useSocket() {
 			}
 			
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
 		});
 
 		// Eventos de transacciones - OPTIMIZED
@@ -105,6 +108,7 @@ export function useSocket() {
 			} else {
 				queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 			}
+			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
 		});
 
 		// Eventos de carrito

@@ -6,6 +6,7 @@ const routeTitles: Record<string, string> = {
   "/": "ZX: Operación",
   "/checkin": "ZX: Check-in", 
   "/monitor": "ZX: Monitor",
+  "/reports": "ZX: Reportes",
   "/products": "ZX: Productos",
   "/access": "ZX: Accesos",
   "/settings": "ZX: Configuración",

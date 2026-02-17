@@ -42,6 +42,18 @@ This system manages the flow of passengers in a massive inflatable attraction (*
 * **No Frontend Manual Invalidation:** The frontend must **NEVER** manually invalidate queries or trigger cache updates. All real-time synchronization must happen through backend-emitted socket events.
 * **Socket Event Flow:** Backend persists data → Backend emits socket events → Frontend socket listeners invalidate appropriate queries → UI updates automatically.
 
+## 5.2. **CRITICAL: UI Formatting Standards**
+
+* **Time Formatting:** Use the shared `TimeFormatter` component (`ui/src/components/TimeFormatter.tsx`) whenever time values are displayed in the UI. Avoid ad-hoc time formatting logic in views/components.
+* **Currency Formatting:** Use the shared `formatCurrency` helper (`ui/src/lib/currency.ts`) for all monetary values in the UI. Avoid direct `Intl.NumberFormat` currency formatting in feature code.
+* **Presentation Scope:** These formatters must provide formatting only (no visual styles), so typography/colors/layout remain controlled by the consuming component.
+
+## 5.3. **CRITICAL: Reports Scope (Closed Days Only)**
+
+* **No In-Progress Day in Reports:** The `/reports` section must never include the current in-progress operational day in any KPI, summary card, or table.
+* **Monitor vs Reports Separation:** In-progress operational visibility belongs to **Monitor**; **Reports** is strictly historical and based on closed operational days.
+* **Operational Windows:** All report aggregations must use windows derived from `timezone` + `operationalDayStart`, and only finalized (closed) windows.
+
 ## 6. Required Views
 
 1. **Check-in Terminal (Mobile/Tablet):** Fast credit loading and barcode wristband scanning; add products (time and extras); accumulates time on existing player session.

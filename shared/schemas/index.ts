@@ -3,6 +3,7 @@ export * from "./playerSession";
 export * from "./sessionLog";
 export * from "./product";
 export * from "./transaction";
+export * from "./reports";
 
 // Re-export commonly used schemas
 export {
@@ -34,6 +35,11 @@ export {
   TransactionStatsSchema,
   TransactionQuerySchema
 } from "./transaction";
+
+export {
+  RecentOperationalDaySalesSchema,
+  ReportsSummarySchema
+} from "./reports";
 
 export {
   SessionLogSchema,

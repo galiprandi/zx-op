@@ -2,6 +2,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
 
 interface RevealValueProps {
   value: string | number;
@@ -28,10 +29,7 @@ export function RevealValue({
     if (!isRevealed) return "--,--";
     
     if (format === "currency" && typeof value === "number") {
-      return new Intl.NumberFormat("es-CL", {
-        style: "currency",
-        currency: "CLP",
-      }).format(value);
+      return formatCurrency(value);
     }
     
     if (format === "number" && typeof value === "number") {

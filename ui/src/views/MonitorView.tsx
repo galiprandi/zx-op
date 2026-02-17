@@ -9,6 +9,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useActiveSessions } from "@/hooks/usePlayerSession";
 import { useDashboardStats, usePerformanceMetrics } from "@/hooks/useDashboardStats";
 import { useSystemSettings } from "@/hooks/useSystemSettingsQuery";
+import { formatCurrency } from "@/lib/currency";
 
 export function MonitorView() {
 	useSocket(); // Initialize socket connection for real-time updates
@@ -386,10 +387,7 @@ export function MonitorView() {
 								<p className="text-sm text-muted-foreground">Total facturado en la jornada operativa</p>
 							</div>
 							<span className="text-lg font-bold text-green-400 whitespace-nowrap">
-								{new Intl.NumberFormat("es-CL", {
-									style: "currency",
-									currency: "CLP",
-								}).format(dashboardStats?.todayRevenue || 0)}
+								{formatCurrency(dashboardStats?.todayRevenue || 0)}
 							</span>
 						</div>
 
@@ -409,10 +407,7 @@ export function MonitorView() {
 													{product.totalQuantity} un
 												</span>
 												<span className="text-base font-bold whitespace-nowrap">
-													{new Intl.NumberFormat("es-CL", {
-														style: "currency",
-														currency: "CLP",
-													}).format(product.totalRevenue)}
+													{formatCurrency(product.totalRevenue)}
 												</span>
 											</div>
 										</div>

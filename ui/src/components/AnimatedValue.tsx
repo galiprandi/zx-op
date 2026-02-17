@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
 
 interface AnimatedValueProps {
   value: string | number;
@@ -21,10 +22,7 @@ export function AnimatedValue({
 }: AnimatedValueProps) {
   const formatValue = () => {
     if (format === "currency" && typeof value === "number") {
-      return new Intl.NumberFormat("es-CL", {
-        style: "currency",
-        currency: "CLP",
-      }).format(value);
+      return formatCurrency(value);
     }
     
     if (format === "number" && typeof value === "number") {
