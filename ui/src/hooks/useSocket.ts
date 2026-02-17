@@ -113,6 +113,12 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["playerSession"] });
 		});
 
+		socket.on("system:settings-updated", () => {
+			queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+			queryClient.invalidateQueries({ queryKey: ["performanceMetrics"] });
+		});
+
 		// Cleanup
 		return () => {
 			socket.disconnect();

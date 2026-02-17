@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { systemSettingsApi, type SystemSetting } from "@/api/systemSettings";
+import { getSystemSettings, updateSystemSettings, type SystemSettings } from "@/api/system";
 import { toast } from "sonner";
 
 export function useSystemSettings() {
@@ -9,20 +9,16 @@ export function useSystemSettings() {
 		data: settings = null,
 		isLoading,
 		error,
-	} = useQuery<SystemSetting, Error>({
+	} = useQuery<SystemSettings, Error>({
 		queryKey: ["systemSettings"],
-		queryFn: systemSettingsApi.getSettings,
+		queryFn: getSystemSettings,
 		staleTime: 5 * 60 * 1000, // 5 minutos
 		gcTime: 10 * 60 * 1000, // 10 minutos
 		retry: 2,
 	});
 
 	const updateSettingsMutation = useMutation({
-		mutationFn: (settings: Partial<SystemSetting>) => systemSettingsApi.updateSettings(settings),
-		onSuccess: (updatedSettings) => {
-			// Actualizar el cache con los nuevos datos
-			queryClient.setQueryData(["systemSettings"], updatedSettings);
-		},
+		mutationFn: (settings: Partial<SystemSettings>) => updateSystemSettings(settings),
 		onError: (error) => {
 			console.error('Failed to update system settings:', error);
 			toast.error(`Error al actualizar configuración: ${error.message}`);
@@ -42,7 +38,7 @@ export function useSystemSettings() {
 		return updateSettingsMutation.mutateAsync({ maxOccupancy });
 	};
 
-	const updateMultipleSettings = (settings: Partial<SystemSetting>) => {
+	const updateMultipleSettings = (settings: Partial<SystemSettings>) => {
 		return updateSettingsMutation.mutateAsync(settings);
 	};
 

@@ -1,4 +1,4 @@
-import { BarChart3, Menu, Package, QrCode, Settings, Target, X } from "lucide-react";
+import { BarChart3, Cog, Menu, Package, QrCode, Settings, Target, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,8 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
     { path: "/operation", label: "Operación", icon: Target },
     { path: "/monitor", label: "Monitor", icon: BarChart3 },
     { path: "/products", label: "Productos", icon: Settings },
-    { path: "/accesos", label: "Accesos", icon: QrCode },
+    { path: "/access", label: "Accesos", icon: QrCode },
+    { path: "/settings", label: "Configuración", icon: Cog },
   ];
 
   return (

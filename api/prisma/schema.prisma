@@ -60,6 +60,8 @@ model SystemSetting {
   maxOccupancy  Int      @default(100)
   siteName      String?  @default("Zona Xtreme")
   logoUrl       String?
+  operationalDayStart String @default("07:00")
+  timezone      String   @default("America/Argentina/Tucuman")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

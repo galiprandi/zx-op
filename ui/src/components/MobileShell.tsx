@@ -13,7 +13,7 @@ interface MobileShellProps {
 export function MobileShell({ 
   children, 
   className, 
-  title, 
+  title,
   showStatusDot = true,
   footer 
 }: MobileShellProps) {
@@ -33,6 +33,7 @@ export function MobileShell({
               <span className="text-xs text-muted-foreground">Online</span>
             </div>
           </div>
+          {title && <span className="sr-only">{title}</span>}
         </header>
       )}
 

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { isValidTimeZone, parseOperationalDayStart } from '../../dashboard/services/operationalDay';
 
 const prisma = new PrismaClient();
 
@@ -6,14 +7,29 @@ export class SystemService {
   async getSettings() {
     const setting = await prisma.systemSetting.findUnique({ where: { id: 'system' } });
     if (setting) return setting;
-    return prisma.systemSetting.create({ data: { id: 'system', maxOccupancy: 100 } });
+    return prisma.systemSetting.create({
+      data: {
+        id: 'system',
+        maxOccupancy: 100,
+        operationalDayStart: '07:00',
+        timezone: 'America/Argentina/Tucuman',
+      },
+    });
   }
 
-  async updateSettings(maxOccupancy?: number, siteName?: string, logoUrl?: string | null) {
+  async updateSettings(
+    maxOccupancy?: number,
+    siteName?: string,
+    logoUrl?: string | null,
+    operationalDayStart?: string,
+    timezone?: string,
+  ) {
     const updateData: {
       maxOccupancy?: number;
       siteName?: string;
       logoUrl?: string | null;
+      operationalDayStart?: string;
+      timezone?: string;
     } = {};
     
     if (maxOccupancy !== undefined) {
@@ -45,6 +61,18 @@ export class SystemService {
       }
     }
 
+    if (operationalDayStart !== undefined) {
+      parseOperationalDayStart(operationalDayStart);
+      updateData.operationalDayStart = operationalDayStart;
+    }
+
+    if (timezone !== undefined) {
+      if (!isValidTimeZone(timezone)) {
+        throw new Error('timezone must be a valid IANA timezone');
+      }
+      updateData.timezone = timezone;
+    }
+
     const updated = await prisma.systemSetting.upsert({
       where: { id: 'system' },
       update: updateData,
@@ -52,7 +80,9 @@ export class SystemService {
         id: 'system', 
         maxOccupancy: updateData.maxOccupancy || 100,
         siteName: updateData.siteName || 'Zona Xtreme',
-        logoUrl: updateData.logoUrl || null
+        logoUrl: updateData.logoUrl || null,
+        operationalDayStart: updateData.operationalDayStart || '07:00',
+        timezone: updateData.timezone || 'America/Argentina/Tucuman',
       },
     });
 

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { getOperationalDayRange } from './operationalDay';
 
 const prisma = new PrismaClient();
 
@@ -24,19 +25,31 @@ export interface PerformanceMetrics {
   averageSessionDuration: number; // seconds
 }
 
+interface DashboardContext {
+  startUtc: Date;
+  endUtc: Date;
+  maxOccupancy: number;
+}
+
+async function getDashboardContext(now: Date = new Date()): Promise<DashboardContext> {
+  const settings = await prisma.systemSetting.findUnique({ where: { id: 'system' } });
+  const timezone = settings?.timezone || 'America/Argentina/Tucuman';
+  const operationalDayStart = settings?.operationalDayStart || '07:00';
+  const maxOccupancy = settings?.maxOccupancy || 100;
+  const { startUtc, endUtc } = getOperationalDayRange(now, timezone, operationalDayStart);
+
+  return { startUtc, endUtc, maxOccupancy };
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
-    // Get today's date range (start of day to end of day)
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const { startUtc, endUtc } = await getDashboardContext();
 
-    // Get today's revenue from transactions
     const todayRevenueResult = await prisma.transaction.aggregate({
       where: {
         createdAt: {
-          gte: startOfDay,
-          lt: endOfDay,
+          gte: startUtc,
+          lt: endUtc,
         },
       },
       _sum: {
@@ -46,13 +59,12 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     const todayRevenue = Number(todayRevenueResult._sum.totalPrice || 0);
 
-    // Get top 4 products by quantity sold today (include revenue)
     const topProductsResult = await prisma.transaction.groupBy({
       by: ['productId'],
       where: {
         createdAt: {
-          gte: startOfDay,
-          lt: endOfDay,
+          gte: startUtc,
+          lt: endUtc,
         },
       },
       _sum: {
@@ -67,8 +79,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       take: 4,
     });
 
-    // Get product details for top products
-    const productIds = topProductsResult.map(item => item.productId);
+    const productIds = topProductsResult.map((item) => item.productId);
     const products = await prisma.product.findMany({
       where: {
         id: {
@@ -82,9 +93,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       },
     });
 
-    // Combine product details with quantities
-    const topProducts = topProductsResult.map(item => {
-      const product = products.find(p => p.id === item.productId);
+    const topProducts = topProductsResult.map((item) => {
+      const product = products.find((p) => p.id === item.productId);
       return {
         productId: item.productId,
         name: product?.name || 'Unknown',
@@ -94,8 +104,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       };
     });
 
-    // Get waiting count: sessions with remaining time but never activated
-    // For now, use a simpler approach for waiting count
     const allSessions = await prisma.playerSession.findMany({
       where: {
         lastStartAt: null,
@@ -110,9 +118,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       },
     });
 
-    const finalWaitingCount = allSessions.filter(session => 
-      session.totalAllowedSeconds > session.accumulatedSeconds
-    ).length;
+    const finalWaitingCount = allSessions.filter((session) => session.totalAllowedSeconds > session.accumulatedSeconds).length;
 
     return {
       todayRevenue,
@@ -127,17 +133,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
   try {
-    // Get today's date range in UTC for PostgreSQL compatibility
-    const today = new Date();
-    const startOfDayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-    const endOfDayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1));
+    const { startUtc, endUtc, maxOccupancy } = await getDashboardContext();
 
-    // Get all sessions from today
     const todaySessions = await prisma.playerSession.findMany({
       where: {
         createdAt: {
-          gte: startOfDayUTC,
-          lt: endOfDayUTC,
+          gte: startUtc,
+          lt: endUtc,
         },
       },
       select: {
@@ -151,48 +153,38 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
       },
     });
 
-    // Calculate average wait time - include both waiting and activated sessions
-    const waitingSessions = todaySessions.filter(session => 
-      session.lastStartAt === null && session.accumulatedSeconds === 0 && session.totalAllowedSeconds > 0
+    const waitingSessions = todaySessions.filter(
+      (session) => session.lastStartAt === null && session.accumulatedSeconds === 0 && session.totalAllowedSeconds > 0,
     );
-    const activatedSessions = todaySessions.filter(session => session.lastStartAt !== null);
-    
-    // Calculate wait time for waiting sessions (time since creation)
-    const waitingTimes = waitingSessions.map(session => {
+    const activatedSessions = todaySessions.filter((session) => session.lastStartAt !== null);
+
+    const waitingTimes = waitingSessions.map((session) => {
       const waitTime = (Date.now() - session.createdAt.getTime()) / 1000;
       return Math.max(0, waitTime);
     });
-    
-    // Calculate wait time for activated sessions (time from creation to first activation)
-    const activatedWaitTimes = activatedSessions.map(session => {
+
+    const activatedWaitTimes = activatedSessions.map((session) => {
       const waitTime = (session.lastStartAt!.getTime() - session.createdAt.getTime()) / 1000;
       return Math.max(0, waitTime);
     });
-    
-    // Combine all wait times
+
     const allWaitTimes = [...waitingTimes, ...activatedWaitTimes];
-    const averageWaitTime = allWaitTimes.length > 0 ? 
-      Math.round(allWaitTimes.reduce((sum, time) => sum + time, 0) / allWaitTimes.length) : 0;
+    const averageWaitTime =
+      allWaitTimes.length > 0 ? Math.round(allWaitTimes.reduce((sum, time) => sum + time, 0) / allWaitTimes.length) : 0;
 
-    // Calculate play time metrics - only for sessions that actually played
-    const sessionsWithTime = todaySessions.filter(s => s.accumulatedSeconds > 0);
+    const sessionsWithTime = todaySessions.filter((s) => s.accumulatedSeconds > 0);
     const totalAccumulated = todaySessions.reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
-    
-    // Calculate peak occupancy - maximum concurrent active sessions today
-    const currentlyActiveSessions = todaySessions.filter(s => s.isActive);
-    // For now, use current active sessions as peak (can be enhanced with time-based tracking)
-    const peakOccupancy = Math.max(currentlyActiveSessions.length, 1); // At least 1 if there were sessions
 
-    // Calculate completed sessions - sessions that have used most of their time
-    const completedSessions = todaySessions.filter(session => {
+    const currentlyActiveSessions = todaySessions.filter((s) => s.isActive);
+    const peakOccupancy = Math.max(currentlyActiveSessions.length, 1);
+
+    const completedSessions = todaySessions.filter((session) => {
       const usagePercentage = session.totalAllowedSeconds > 0 ? session.accumulatedSeconds / session.totalAllowedSeconds : 0;
-      return session.totalAllowedSeconds > 0 && usagePercentage >= 0.9; // Consider 90%+ as completed
+      return session.totalAllowedSeconds > 0 && usagePercentage >= 0.9;
     });
-    
-    // Calculate daily occupancy rate - based on completed sessions vs total capacity
-    const maxOccupancy = 8; // This should come from system settings
-    const totalCapacityToday = maxOccupancy * 24; // Total capacity hours in a day
-    const actualUsageHours = totalAccumulated / 3600; // Convert seconds to hours
+
+    const totalCapacityToday = maxOccupancy * 24;
+    const actualUsageHours = totalAccumulated / 3600;
     const dailyOccupancyRate = totalCapacityToday > 0 ? Math.round((actualUsageHours / totalCapacityToday) * 100) : 0;
 
     return {
@@ -208,4 +200,64 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
     console.error('Error in getPerformanceMetrics:', error);
     throw error;
   }
+}
+
+export async function getPerformanceDebugData() {
+  const { startUtc, endUtc } = await getDashboardContext();
+
+  const allSessions = await prisma.playerSession.findMany({
+    where: {
+      createdAt: {
+        gte: startUtc,
+        lt: endUtc,
+      },
+    },
+    select: {
+      id: true,
+      barcodeId: true,
+      createdAt: true,
+      lastStartAt: true,
+      updatedAt: true,
+      totalAllowedSeconds: true,
+      accumulatedSeconds: true,
+      isActive: true,
+    },
+  });
+
+  const waitingSessions = allSessions.filter(
+    (s) => s.lastStartAt === null && s.accumulatedSeconds === 0 && s.totalAllowedSeconds > 0,
+  );
+  const activatedSessions = allSessions.filter((s) => s.lastStartAt !== null);
+  const currentlyActiveSessions = allSessions.filter((s) => s.isActive);
+  const sessionsWithTime = allSessions.filter((s) => s.accumulatedSeconds > 0);
+  const totalAccumulated = allSessions.reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
+
+  const waitingTimes = waitingSessions.map((s) => (Date.now() - s.createdAt.getTime()) / 1000);
+  const activatedWaitTimes = activatedSessions.map((s) => (s.lastStartAt!.getTime() - s.createdAt.getTime()) / 1000);
+  const allWaitTimes = [...waitingTimes, ...activatedWaitTimes];
+  const averageWaitTime =
+    allWaitTimes.length > 0 ? Math.round(allWaitTimes.reduce((sum, time) => sum + time, 0) / allWaitTimes.length) : 0;
+
+  return {
+    summary: {
+      totalSessions: allSessions.length,
+      waitingSessions: waitingSessions.length,
+      activatedSessions: activatedSessions.length,
+      currentlyActiveSessions: currentlyActiveSessions.length,
+      sessionsWithTime: sessionsWithTime.length,
+      totalAccumulated,
+    },
+    calculations: {
+      averageWaitTime,
+      averagePlayTime: sessionsWithTime.length > 0 ? Math.round(totalAccumulated / sessionsWithTime.length) : 0,
+      totalPlayTimeConsumed: totalAccumulated,
+      peakOccupancy: Math.max(currentlyActiveSessions.length, sessionsWithTime.length, waitingSessions.length),
+    },
+    sessions: allSessions.map((s) => ({
+      barcodeId: s.barcodeId,
+      isActive: s.isActive,
+      accumulatedSeconds: s.accumulatedSeconds,
+      waitingTime: s.lastStartAt === null ? (Date.now() - s.createdAt.getTime()) / 1000 : null,
+    })),
+  };
 }

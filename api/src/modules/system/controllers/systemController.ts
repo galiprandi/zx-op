@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { systemService } from '../services/systemService';
+import { emitSystemEvent } from '../../playerSessions/services/socketService';
 
 export class SystemController {
   async getSettings(request: FastifyRequest, reply: FastifyReply) {
@@ -16,12 +17,21 @@ export class SystemController {
 
   async updateSettings(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { maxOccupancy, siteName, logoUrl } = request.body as { 
+      const { maxOccupancy, siteName, logoUrl, operationalDayStart, timezone } = request.body as {
         maxOccupancy?: number;
         siteName?: string;
         logoUrl?: string | null;
+        operationalDayStart?: string;
+        timezone?: string;
       };
-      const settings = await systemService.updateSettings(maxOccupancy, siteName, logoUrl);
+      const settings = await systemService.updateSettings(
+        maxOccupancy,
+        siteName,
+        logoUrl,
+        operationalDayStart,
+        timezone,
+      );
+      emitSystemEvent('system:settings-updated', { settings });
       return settings;
     } catch (error) {
       if (error instanceof Error) {

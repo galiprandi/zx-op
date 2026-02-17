@@ -7,7 +7,8 @@ const routeTitles: Record<string, string> = {
   "/checkin": "ZX: Check-in", 
   "/monitor": "ZX: Monitor",
   "/products": "ZX: Productos",
-  "/accesos": "ZX: Accesos",
+  "/access": "ZX: Accesos",
+  "/settings": "ZX: Configuración",
 };
 
 export function usePageTitle() {
