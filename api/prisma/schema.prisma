@@ -58,6 +58,8 @@ model Transaction {
 model SystemSetting {
   id            String   @id @default("system")
   maxOccupancy  Int      @default(100)
+  siteName      String?  @default("Zona Xtreme")
+  logoUrl       String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

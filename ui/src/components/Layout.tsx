@@ -2,6 +2,7 @@ import { BarChart3, Menu, Package, Settings, Target, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { SiteBrand } from "@/components/SiteBrand";
 
 export function Layout({ children }: { children: React.ReactNode }) {
 	const location = useLocation();
@@ -19,14 +20,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			{/* Header */}
 			<header className="glass border-b border-border/20 px-4 py-4 sticky top-0 z-50">
 				<div className="container mx-auto flex items-center justify-between">
-					<div className="flex items-center gap-2">
-						<div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-							<span className="text-white font-bold text-sm">ZX</span>
-						</div>
-						<h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-							Zona Xtreme
-						</h1>
-					</div>
+					<SiteBrand variant="compact" className="flex items-center gap-2" />
 
 					{/* Desktop Navigation */}
 					<nav className="hidden md:flex gap-2">
