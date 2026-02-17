@@ -1,7 +1,5 @@
-import { Play, Pause, AlertCircle, Users, Settings, DollarSign, BarChart3 } from "lucide-react";
+import { Play, Pause, AlertCircle, Users, DollarSign, BarChart3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DesktopShell } from "@/components/DesktopShell";
 import { StatCard } from "@/components/StatCard";
 import { AnimatedSessionRow } from "@/components/AnimatedSessionRow";
@@ -10,15 +8,10 @@ import { MonitorTime } from "@/components/MonitorTime";
 import { useSocket } from "@/hooks/useSocket";
 import { useActiveSessions } from "@/hooks/usePlayerSession";
 import { useDashboardStats, usePerformanceMetrics } from "@/hooks/useDashboardStats";
-import { getSystemSettings, updateSystemSettings, type SystemSettings } from "@/api/system";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSystemSettings } from "@/hooks/useSystemSettingsQuery";
 
 export function MonitorView() {
 	useSocket(); // Initialize socket connection for real-time updates
-	const queryClient = useQueryClient();
-	const [isConfigOpen, setIsConfigOpen] = useState(false);
-	const [localMax, setLocalMax] = useState<number | "">("");
-	const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 	const [nowTs, setNowTs] = useState(() => Date.now());
 
 	// Get real-time active sessions data
@@ -41,33 +34,12 @@ export function MonitorView() {
 	// Get performance metrics
 	const { data: performanceMetrics } = usePerformanceMetrics();
 
-	const { data: systemSettings } = useQuery<SystemSettings>({
-		queryKey: ["systemSettings"],
-		queryFn: getSystemSettings,
-		staleTime: 1000 * 60,
-	});
+	const { settings: systemSettings } = useSystemSettings();
 
 	useEffect(() => {
 		const id = setInterval(() => setNowTs(Date.now()), 60000); // Update every 1 minute
 		return () => clearInterval(id);
 	}, []);
-
-	if (systemSettings && localMax === "") {
-		setLocalMax(systemSettings.maxOccupancy);
-	}
-
-	const { mutate: saveSettings, isPending: saving } = useMutation({
-		mutationFn: updateSystemSettings,
-		onSuccess: (data) => {
-			setToast({ message: "Capacidad actualizada", type: "success" });
-			setIsConfigOpen(false);
-			setLocalMax(data.maxOccupancy);
-			queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-		},
-		onError: () => {
-			setToast({ message: "Error al guardar", type: "error" });
-		},
-	});
 
 	// Debug logging for session conflicts
 	useEffect(() => {
@@ -143,16 +115,6 @@ export function MonitorView() {
 		}
 	}, [pausedSessionsFinal, expiringSoonFinal, activePlayingSessions, pausedSessionsClean, expiringSoonNotPaused]);
 
-	const handleSave = () => {
-		if (localMax === "") return;
-		const parsed = Number(localMax);
-		if (!Number.isFinite(parsed)) {
-			setToast({ message: "Ingresa un número válido", type: "error" });
-			return;
-		}
-		saveSettings({ maxOccupancy: parsed });
-	};
-
 	// Calculate waiting count from dashboard stats or fallback
 	const waitingCount = totalWaiting;
 
@@ -179,14 +141,6 @@ export function MonitorView() {
 
 	return (
 		<DesktopShell>
-			{toast && (
-				<div className={`fixed top-4 right-4 z-50 rounded-lg px-4 py-3 shadow-lg text-sm text-white ${
-					toast.type === "success" ? "bg-green-600" : "bg-destructive"
-				}`}>
-					{toast.message}
-				</div>
-			)}
-
 			<div className="space-y-6">
 				{/* Header */}
 				<div className="text-center">
@@ -358,7 +312,7 @@ export function MonitorView() {
 									<BarChart3 className="w-5 h-5 text-blue-400" />
 									Métricas de Rendimiento
 								</h3>
-								<p className="text-sm text-muted-foreground">Estadísticas operativas del día · Se actualiza cada 1 min</p>
+								<p className="text-sm text-muted-foreground">Estadísticas de la jornada operativa · Actualiza por eventos y verificación cada 1 min</p>
 							</div>
 						</div>
 
@@ -384,7 +338,7 @@ export function MonitorView() {
 										</div>
 										<div className="flex items-center justify-between">
 											<span className="text-sm font-medium text-foreground">
-												Juegos completados hoy
+												Juegos completados (jornada)
 											</span>
 											<span className="text-base">
 												{performanceMetrics.totalCompletedSessions}
@@ -392,7 +346,7 @@ export function MonitorView() {
 										</div>
 										<div className="flex items-center justify-between">
 											<span className="text-sm font-medium text-foreground">
-												Ocupación promedio del día
+												Ocupación promedio (jornada)
 											</span>
 											<span className="text-base">
 												{performanceMetrics.dailyOccupancyRate}%
@@ -427,9 +381,9 @@ export function MonitorView() {
 							<div>
 								<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
 									<DollarSign className="w-5 h-5 text-green-400" />
-									Ventas del día
+									Ventas de la jornada
 								</h3>
-								<p className="text-sm text-muted-foreground">Total facturado hoy</p>
+								<p className="text-sm text-muted-foreground">Total facturado en la jornada operativa</p>
 							</div>
 							<span className="text-lg font-bold text-green-400 whitespace-nowrap">
 								{new Intl.NumberFormat("es-CL", {
@@ -464,7 +418,7 @@ export function MonitorView() {
 										</div>
 									))
 								) : (
-									<p className="text-muted-foreground text-sm">Sin ventas hoy</p>
+									<p className="text-muted-foreground text-sm">Sin ventas en esta jornada</p>
 								)}
 							</div>
 						</div>
@@ -504,67 +458,10 @@ export function MonitorView() {
 					{/* Footer status */}
 				<div className="flex items-center justify-center gap-2 mt-6 text-sm text-muted-foreground">
 					<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-					<span>Sistema en línea · Actualización cada 3 segundos</span>
+					<span>Sistema en línea</span>
 				</div>
 			</div>
 
-			{/* Configuration Modal */}
-			{isConfigOpen && (
-				<div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center px-4">
-					<GlassCard className="w-full max-w-sm">
-						<div className="flex items-center justify-between mb-4">
-							<h3 className="text-lg font-semibold">Capacidad máxima</h3>
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								onClick={() => setIsConfigOpen(false)}
-								className="h-8 w-8 p-0"
-							>
-								×
-							</Button>
-						</div>
-						<p className="text-sm text-muted-foreground mb-4">
-							Define la cantidad máxima de jugadores en juego.
-						</p>
-						<label className="text-sm text-foreground mb-2 block" htmlFor="maxOccupancy">
-							Número de jugadores
-						</label>
-						<Input
-							id="maxOccupancy"
-							type="number"
-							value={localMax}
-							onChange={(e) => setLocalMax(e.target.value === "" ? "" : Number(e.target.value))}
-							className="w-full"
-						/>
-						<div className="flex justify-end gap-2 mt-6">
-							<Button
-								onClick={() => setIsConfigOpen(false)}
-								variant="outline"
-							>
-								Cancelar
-							</Button>
-							<Button
-								onClick={handleSave}
-								disabled={saving}
-							>
-								{saving ? "Guardando..." : "Guardar"}
-							</Button>
-						</div>
-					</GlassCard>
-				</div>
-			)}
-
-			{/* Settings Button */}
-			<Button
-				onClick={() => setIsConfigOpen(true)}
-				className="fixed bottom-4 right-4 h-12 w-12 rounded-full shadow-lg z-30"
-				size="icon"
-			>
-				<Settings className="w-5 h-5" />
-			</Button>
 		</DesktopShell>
 	);
 }
-
-

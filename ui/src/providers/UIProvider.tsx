@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { SystemSetting } from '@/api/systemSettings';
+import { SystemSettings } from '@/api/system';
 import { useSystemSettings } from '@/hooks/useSystemSettingsQuery';
 
 // Types
@@ -19,7 +19,7 @@ export interface UIState {
   modal: ModalConfig;
   
   // System settings
-  systemSettings: SystemSetting | null;
+  systemSettings: SystemSettings | null;
   isLoadingSettings: boolean;
   
   // Global loading state
@@ -66,7 +66,7 @@ export interface UIContextType extends UIState {
   };
   
   // Settings actions
-  updateSystemSettings: (settings: SystemSetting) => void;
+  updateSystemSettings: (settings: Partial<SystemSettings>) => void;
   refreshSettings: () => Promise<void>;
   
   // Loading actions
@@ -137,7 +137,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Settings actions
-  const updateSystemSettings = useCallback(async (settings: SystemSetting) => {
+  const updateSystemSettings = useCallback(async (settings: Partial<SystemSettings>) => {
     try {
       setLoading(true);
       await updateMultipleSettings(settings);
@@ -306,4 +306,4 @@ export function useUi() {
 }
 
 // Export types for external use
-export type { SystemSetting };
+export type { SystemSettings as SystemSetting };
