@@ -1,6 +1,7 @@
 import { PrismaClient, LogAction, PlayerSession, Prisma } from '@prisma/client';
 import { emitSessionEvent } from './socketService';
 import { SessionStatus } from '../../../types/sessionStatus';
+import { getOperationalContext } from '../../system/services/operationalContextService';
 
 const prisma = new PrismaClient();
 
@@ -16,8 +17,15 @@ export class PlayerSessionService {
     accumulatedSeconds: number | null | undefined;
     isActive: boolean;
     lastStartAt: Date | null;
+    expiresAt?: Date | null;
   }): number {
     const now = new Date();
+
+    if (session.expiresAt) {
+      const remainingFromExpiry = Math.floor((session.expiresAt.getTime() - now.getTime()) / 1000);
+      return Math.max(0, Number.isFinite(remainingFromExpiry) ? remainingFromExpiry : 0);
+    }
+
     const running = session.isActive && session.lastStartAt 
       ? Math.floor((now.getTime() - session.lastStartAt.getTime()) / 1000) 
       : 0;
@@ -59,14 +67,13 @@ export class PlayerSessionService {
   }
 
   private calcExpiry(session: {
-    totalAllowedSeconds: number;
-    accumulatedSeconds: number;
-    isActive: boolean;
-    lastStartAt: Date | null;
-  }): Date {
-    const remaining = this.computeRemainingSeconds(session);
+    expiresAt: Date | null;
+  }, addedSeconds: number): Date {
     const now = new Date();
-    return remaining > 0 ? new Date(now.getTime() + remaining * 1000) : now;
+    const baseTime = session.expiresAt && session.expiresAt.getTime() > now.getTime()
+      ? session.expiresAt.getTime()
+      : now.getTime();
+    return new Date(baseTime + addedSeconds * 1000);
   }
 
   private async logAction(playerSessionId: string, action: LogAction, data?: Prisma.InputJsonValue) {
@@ -160,12 +167,16 @@ export class PlayerSessionService {
     
     // Auto-pause if expired and still active
     if (session.isActive && remainingSeconds <= 0) {
+      const extra = session.lastStartAt
+        ? Math.max(0, Math.floor((new Date().getTime() - session.lastStartAt.getTime()) / 1000))
+        : 0;
+
       current = await prisma.playerSession.update({ 
         where: { id: session.id }, 
         data: { 
           isActive: false, 
           lastStartAt: null, 
-          accumulatedSeconds: session.accumulatedSeconds + remainingSeconds 
+          accumulatedSeconds: { increment: extra },
         } 
       });
       await this.logAction(current.id, LogAction.AUTO_EXPIRE);
@@ -195,7 +206,7 @@ export class PlayerSessionService {
       data: { totalAllowedSeconds: { increment: seconds } },
     });
     
-    const expiresAt = this.calcExpiry(updated);
+    const expiresAt = this.calcExpiry(updated, seconds);
     const finalUpdated = await prisma.playerSession.update({ 
       where: { id: session.id }, 
       data: { expiresAt } 
@@ -210,7 +221,19 @@ export class PlayerSessionService {
   }
 
   async getAllActive(): Promise<SessionWithRemaining[]> {
-    const sessions = await prisma.playerSession.findMany();
+    const now = new Date();
+    const { startUtc, endUtc } = await getOperationalContext(now);
+    const sessions = await prisma.playerSession.findMany({
+      where: {
+        createdAt: {
+          gte: startUtc,
+          lt: endUtc,
+        },
+        expiresAt: {
+          gt: now,
+        },
+      },
+    });
     
     return sessions
       .map((session) => {

@@ -48,6 +48,7 @@ model SystemSetting {
 - `waitingSessions`: Sesiones con check-in pero sin juego previo
 - `pausedSessions`: Sesiones en pausa que pueden reanudar
 - **Excluidos**: `activePlayingSessions` (sesiones en juego)
+- **Filtro backend obligatorio**: solo sesiones dentro de la jornada operativa vigente y con `expiresAt > now`
 
 #### Ordering Algorithm
 ```typescript
@@ -56,6 +57,8 @@ const unifiedQueue = [
   ...pausedSessions.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt))
 ].slice(0, 15);
 ```
+
+Operational day range must be resolved centrally from DB settings (`operationalDayStart`, `timezone`) in backend and shared by monitor/operations/queue consumers.
 
 #### State Management
 - **Query Key**: `["queueDisplay"]`

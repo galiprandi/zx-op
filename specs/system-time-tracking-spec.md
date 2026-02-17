@@ -52,10 +52,7 @@ Remaining seconds derive from the current state; never stored directly.
 ```sql
 SELECT 
     barcode_id,
-    CASE 
-        WHEN is_active = false THEN (total_allowed_seconds - accumulated_seconds)
-        ELSE (total_allowed_seconds - (accumulated_seconds + EXTRACT(EPOCH FROM (NOW() - last_start_at))))
-    END AS remaining_seconds
+    GREATEST(0, EXTRACT(EPOCH FROM (expires_at - NOW())))::INT AS remaining_seconds
 FROM player_sessions
 WHERE barcode_id = $1;
 ```
@@ -81,11 +78,16 @@ WHERE barcode_id = $1;
 * `is_active = false`
 * `last_start_at IS NULL`
 * `accumulated_seconds = 0`
-* `total_allowed_seconds - accumulated_seconds > 0` (i.e., `remaining_seconds > 0`)
+* `expires_at > NOW()` (i.e., `remaining_seconds > 0`)
 
 **Why it matters:** These IDs are shown on the monitor (and later on the TV “next to enter” view) so staff can prioritize onboarding.
 
-**Backend source:** `/api/sessions/active` already returns all sessions with computed `remaining_seconds`; the waiting subset is derived in the client using the predicate above. No separate endpoint is required today.
+**Backend source:** `/api/sessions/active` returns only operationally valid sessions:
+
+* within current operational day range (`created_at >= startUtc` and `< endUtc`)
+* not expired (`expires_at > NOW()`)
+
+The waiting subset is then derived in the client using the predicate above, but expired/out-of-range rows are already excluded by backend.
 
 **UI handling (Monitor):**
 
@@ -192,7 +194,7 @@ interface PerformanceMetrics {
 
 #### Implementation Details
 
-* **Time Range**: All calculations use current day (midnight to current time)
+* **Time Range**: All calculations use operational day range (configurable `operationalDayStart` + `timezone`, from SystemSetting)
 * **Session States**: Completed = expired or finished with accumulated time
 * **Real-time**: Metrics update with each session state change
 * **Error Handling**: Returns 0 for metrics with no data

@@ -48,3 +48,22 @@ This system manages the flow of passengers in a massive inflatable attraction (*
 2. **Boarding/In-Flight Dashboard (Staff Mobile):** Play/Pause control via barcode scan with confirmation modal; shows remaining time and landing list.
 3. **Public Monitor (Smart TV):** Visual display of IDs and countdown timers using color coding (Green > Yellow > Red).
 4. **Products Admin (Staff):** CRUD for products, including `time_value_seconds` for time packages and required/optional flags.
+
+## 7. Mandatory Spec-First Workflow
+
+* **Spec Review Before Any Task:** Before starting any implementation, bugfix, refactor, or behavior change, the agent must locate and read the related spec(s) in `/specs` (and any relevant root docs such as `SYSTEM_SPEC.md`).
+* **No Implicit Logic Changes:** If the requested work requires changing logic explicitly defined in an existing spec, the agent must follow this exact sequence:
+  1. Ask for user authorization **before coding**, explaining:
+     * what will change,
+     * how the current behavior works,
+     * how behavior will work after the change,
+     * possible risks/issues/regressions.
+  2. Update the related spec(s) to reflect the approved behavior.
+  3. Implement the code change aligned with the updated spec(s).
+* **Strict Order Enforcement:** For spec-governed logic changes, implementation must never happen before user authorization and spec update.
+
+## 8. Active Documentation Maintenance
+
+* The agent must actively review and maintain existing documentation as part of normal development work.
+* When code and documentation diverge, the agent must propose and apply doc updates in the same task scope whenever possible.
+* New behavior, constraints, and operational rules introduced in code must be reflected in the corresponding spec(s) and technical docs.

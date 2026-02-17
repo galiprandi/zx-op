@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { getOperationalDayRange } from './operationalDay';
+import { getOperationalContext } from '../../system/services/operationalContextService';
 
 const prisma = new PrismaClient();
 
@@ -25,25 +25,9 @@ export interface PerformanceMetrics {
   averageSessionDuration: number; // seconds
 }
 
-interface DashboardContext {
-  startUtc: Date;
-  endUtc: Date;
-  maxOccupancy: number;
-}
-
-async function getDashboardContext(now: Date = new Date()): Promise<DashboardContext> {
-  const settings = await prisma.systemSetting.findUnique({ where: { id: 'system' } });
-  const timezone = settings?.timezone || 'America/Argentina/Tucuman';
-  const operationalDayStart = settings?.operationalDayStart || '07:00';
-  const maxOccupancy = settings?.maxOccupancy || 100;
-  const { startUtc, endUtc } = getOperationalDayRange(now, timezone, operationalDayStart);
-
-  return { startUtc, endUtc, maxOccupancy };
-}
-
 export async function getDashboardStats(): Promise<DashboardStats> {
   try {
-    const { startUtc, endUtc } = await getDashboardContext();
+    const { startUtc, endUtc } = await getOperationalContext();
 
     const todayRevenueResult = await prisma.transaction.aggregate({
       where: {
@@ -106,6 +90,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     const allSessions = await prisma.playerSession.findMany({
       where: {
+        createdAt: {
+          gte: startUtc,
+          lt: endUtc,
+        },
+        expiresAt: {
+          gt: new Date(),
+        },
         lastStartAt: null,
         totalAllowedSeconds: {
           gt: 0,
@@ -133,7 +124,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
   try {
-    const { startUtc, endUtc, maxOccupancy } = await getDashboardContext();
+    const { startUtc, endUtc, maxOccupancy } = await getOperationalContext();
 
     const todaySessions = await prisma.playerSession.findMany({
       where: {
@@ -203,7 +194,7 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
 }
 
 export async function getPerformanceDebugData() {
-  const { startUtc, endUtc } = await getDashboardContext();
+  const { startUtc, endUtc } = await getOperationalContext();
 
   const allSessions = await prisma.playerSession.findMany({
     where: {
