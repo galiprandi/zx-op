@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Scan, AlertCircle } from "lucide-react";
 import { MobileShell } from "@/components/MobileShell";
 import { QRScanner } from "@/components/QRScanner";
@@ -9,8 +10,20 @@ import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { GlassCard } from "@/components/GlassCard";
 import { TimeFormatter, type TimerState } from "@/components/TimeFormatter";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { getCheckinHistory } from "@/api/checkin";
+import { formatTimeValue } from "@/api/products";
+import { useSocket } from "@/hooks/useSocket";
+
+interface ProductSummaryItem {
+	productId: string;
+	name: string;
+	quantity: number;
+	isTimeProduct: boolean;
+}
 
 export function OperationView() {
+	useSocket();
+
 	const [barcodeId, setBarcodeId] = useState("");
 	const [inputValue, setInputValue] = useState("");
 	const [showConfirm, setShowConfirm] = useState(false);
@@ -26,6 +39,46 @@ export function OperationView() {
 		playMutation,
 		pauseMutation
 	} = usePlayerSession(barcodeId);
+
+	const {
+		data: checkinHistory = [],
+		isLoading: historyLoading,
+		error: historyError,
+	} = useQuery({
+		queryKey: ["checkinHistory", barcodeId],
+		queryFn: () => getCheckinHistory(barcodeId, 100),
+		enabled: Boolean(barcodeId && session),
+		retry: 1,
+	});
+
+	const purchaseSummary = useMemo(() => {
+		const grouped = new Map<string, ProductSummaryItem>();
+
+		for (const transaction of checkinHistory) {
+			if (!transaction.product) continue;
+
+			const existing = grouped.get(transaction.productId);
+			const isTimeProduct = transaction.product.timeValueSeconds !== null && transaction.product.timeValueSeconds !== undefined;
+
+			if (existing) {
+				existing.quantity += transaction.quantity;
+				continue;
+			}
+
+			grouped.set(transaction.productId, {
+				productId: transaction.productId,
+				name: transaction.product.name,
+				quantity: transaction.quantity,
+				isTimeProduct,
+			});
+		}
+
+		const products = Array.from(grouped.values());
+		return {
+			timeProducts: products.filter((item) => item.isTimeProduct),
+			accessories: products.filter((item) => !item.isTimeProduct),
+		};
+	}, [checkinHistory]);
 
 	// Determine timer state based on session status
 	const getTimerState = (): TimerState => {
@@ -103,7 +156,67 @@ export function OperationView() {
 	const buttonConfig = getButtonConfig();
 
 	return (
-		<MobileShell>
+		<MobileShell
+			title="Operación"
+			footer={
+				barcodeId && session ? (
+					<div className="space-y-3">
+						<div className="rounded-lg border border-border/30 bg-card/40 p-3 space-y-2">
+							{historyLoading ? (
+								<p className="text-xs text-muted-foreground">Cargando productos...</p>
+							) : historyError ? (
+								<p className="text-xs text-muted-foreground">No se pudo cargar el resumen de productos.</p>
+							) : checkinHistory.length === 0 ? (
+								<p className="text-xs text-muted-foreground">Sin productos registrados aún.</p>
+							) : (
+								<div className="space-y-2">
+									<div className="flex items-center justify-between text-xs">
+										<span className="text-muted-foreground">Tiempo comprado total</span>
+										<span className="font-semibold text-foreground">
+											{formatTimeValue(session.totalAllowedSeconds)}
+										</span>
+									</div>
+
+									{purchaseSummary.timeProducts.length > 0 && (
+										<div className="space-y-1">
+											<p className="text-[11px] uppercase tracking-wide text-muted-foreground">Tiempo</p>
+											{purchaseSummary.timeProducts.map((item) => (
+												<div key={item.productId} className="flex items-center justify-between text-xs">
+													<span className="text-foreground">{item.name}</span>
+													<span className="text-muted-foreground">x{item.quantity}</span>
+												</div>
+											))}
+										</div>
+									)}
+
+									{purchaseSummary.accessories.length > 0 && (
+										<div className="space-y-1">
+											<p className="text-[11px] uppercase tracking-wide text-muted-foreground">Accesorios</p>
+											{purchaseSummary.accessories.map((item) => (
+												<div key={item.productId} className="flex items-center justify-between text-xs">
+													<span className="text-foreground">{item.name}</span>
+													<span className="text-muted-foreground">x{item.quantity}</span>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							)}
+						</div>
+
+						<ActionButton
+							type={buttonConfig.type}
+							onClick={() => session && handlePlayPause(session.isActive ? "pause" : "play")}
+							disabled={buttonConfig.disabled}
+							loading={buttonConfig.loading}
+							size="xl"
+						>
+							{buttonConfig.text}
+						</ActionButton>
+					</div>
+				) : null
+			}
+		>
 			<div className="flex flex-col h-full space-y-6">
 				{/* Scan Input */}
 				<div className="px-4">
@@ -177,22 +290,6 @@ export function OperationView() {
 						</div>
 					)}
 				</div>
-
-				{/* Action Button */}
-				{barcodeId && session && (
-					<div className="px-4 pb-4">
-						<ActionButton
-							type={buttonConfig.type}
-							onClick={() => session && handlePlayPause(session.isActive ? 'pause' : 'play')}
-							disabled={buttonConfig.disabled}
-							loading={buttonConfig.loading}
-							size="xl"
-						>
-							{buttonConfig.text}
-						</ActionButton>
-					</div>
-				)}
-
 			</div>
 
 			{/* Confirmation Sheet */}

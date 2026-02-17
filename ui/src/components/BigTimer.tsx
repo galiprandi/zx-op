@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { formatTimeValue } from "@/api/products";
 
 interface BigTimerProps {
   seconds: number;
@@ -27,6 +28,9 @@ export function BigTimer({ seconds, className, size = "lg", showMinutes = true }
 
   const formatTime = () => {
     if (seconds <= 0) return "00:00";
+    if (seconds >= 3600) {
+      return formatTimeValue(seconds);
+    }
     return `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -35,7 +39,7 @@ export function BigTimer({ seconds, className, size = "lg", showMinutes = true }
       {formatTime()}
       {showMinutes && seconds > 0 && (
         <div className="text-sm font-normal text-muted-foreground mt-1 text-center">
-          {minutes} min restantes
+          {seconds >= 3600 ? `${formatTimeValue(seconds)} restantes` : `${minutes} min restantes`}
         </div>
       )}
     </div>
