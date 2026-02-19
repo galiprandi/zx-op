@@ -38,6 +38,22 @@ if ($LASTEXITCODE -ne 0) {
   throw 'docker compose up postgres failed'
 }
 
+Write-Host '[start] Waiting for postgres healthcheck...'
+$maxAttempts = 30
+for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+  $status = (docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' zx-op-postgres 2>$null)
+  if ($status -eq 'healthy' -or $status -eq 'running') {
+    Write-Host "[start] Postgres is ready ($status)."
+    break
+  }
+
+  if ($attempt -eq $maxAttempts) {
+    throw "postgres did not become ready in time (last status: $status)"
+  }
+
+  Start-Sleep -Seconds 2
+}
+
 Write-Host '[start] Running prisma generate...'
 docker compose -f $ComposeFile run --rm api pnpm --filter api db:generate
 if ($LASTEXITCODE -ne 0) {

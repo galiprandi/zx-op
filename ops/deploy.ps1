@@ -44,6 +44,26 @@ function Save-PreviousTag {
   }
 }
 
+function Wait-PostgresReady {
+  param(
+    [Parameter(Mandatory = $true)][int]$MaxAttempts
+  )
+
+  for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+    $status = (docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' zx-op-postgres 2>$null)
+
+    if ($status -eq 'healthy' -or $status -eq 'running') {
+      return
+    }
+
+    if ($attempt -eq $MaxAttempts) {
+      throw "postgres did not become ready in time (last status: $status)"
+    }
+
+    Start-Sleep -Seconds 2
+  }
+}
+
 $lockHandle = $null
 $deployStart = Get-Date
 
@@ -86,6 +106,8 @@ try {
   if ($LASTEXITCODE -ne 0) {
     throw 'failed to ensure postgres is running'
   }
+
+  Wait-PostgresReady -MaxAttempts 30
 
   docker compose -f $ComposeFile run --rm api pnpm --filter api db:generate
   if ($LASTEXITCODE -ne 0) {
