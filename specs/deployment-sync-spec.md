@@ -1,161 +1,177 @@
 # Deployment Sync Specification
 
 ## Summary
-This specification defines how production deployments are executed for **Zona Xtreme Operation System** when code is pushed to `main`.  
-The objective is to ensure safe, automatic, and recoverable updates on a customer-hosted server using GitHub Actions with a self-hosted runner.
+This specification defines production deployments for **Zona Xtreme Operation System** on a **customer-hosted Windows 11 machine** using Docker Compose.
+
+Deployment objective:
+- run `api + ui + postgres` in Docker,
+- synchronize updates from `main` using a LAN Git remote,
+- perform safe migrations,
+- verify health,
+- rollback automatically on failure.
 
 ## Scope
-- Automatic deployment on every push to `main`.
-- Build and restart of API/UI services on customer server.
-- Database migration execution in production-safe mode.
-- Health checks and rollback strategy.
-- Operational rules for downtime minimization.
+- Automatic deployment for new commits on `main`.
+- Local build of API and UI images on the production host.
+- PostgreSQL persistence in Docker volume.
+- Automatic Prisma client generation (`prisma generate`) and production migrations (`prisma migrate deploy`).
+- Automatic rollback to previous image tags on failed deployment.
+- Windows Task Scheduler based polling.
 
 ## Out of Scope
 - Functional feature changes in API/UI.
-- Data model redesign.
-- Multi-region or cloud-native orchestration.
+- Cloud/CDN/Kubernetes deployment models.
+- Public internet webhook exposure.
 
 ## Deployment Architecture
 
 ### Components
-1. **GitHub Repository**
-   - Source of truth for `main`.
-2. **GitHub Actions Workflow**
-   - Validates and triggers deployment.
-3. **Self-hosted Runner (Customer Server)**
-   - Executes deployment steps locally.
-4. **PostgreSQL**
-   - Persistent storage.
-5. **Process Manager**
-   - `systemd` services for API and UI delivery (`nginx` or equivalent static server).
+1. **LAN Git Remote (`lan-origin`)**
+   - Source used by production for deployment synchronization.
+2. **Windows Task Scheduler**
+   - Triggers deployment polling every minute.
+3. **Production Host (Windows 11 Acer)**
+   - Executes `ops/deploy.ps1`.
+4. **Docker Compose Stack**
+   - `postgres`, `api`, `ui` services.
+5. **Operational Scripts**
+   - `ops/deploy.ps1`, `ops/rollback.ps1`, `ops/healthcheck.ps1`.
+   - `ops/start-system.ps1`, `ops/stop-system.ps1`, `ops/install-autostart.ps1`.
 
 ### High-Level Flow
-`push to main -> GitHub Action starts -> self-hosted runner pulls/builds/migrates -> restart services -> health check -> success/failure report`
-
-## Environments and Paths (Default)
-- App root: `/opt/zx-op`
-- Release folders: `/opt/zx-op/releases/<timestamp>-<short_sha>`
-- Current symlink: `/opt/zx-op/current`
-- Previous symlink metadata: `/opt/zx-op/previous`
-- Logs: `journalctl -u zx-api`, web server logs
+`push to LAN main -> scheduler triggers deploy.ps1 -> git fetch/pull -> docker compose build -> prisma generate -> prisma migrate deploy -> docker compose up -> health checks -> success or rollback`
 
 ## Branch and Trigger Policy
-- Deploy trigger: `push` events on `main`.
-- Recommended protection for `main`:
-  - PR required
-  - Status checks required (build/tests)
-  - No direct force push
+- Deploy target branch: `main`.
+- Source remote for production sync: `lan-origin`.
+- Deployment trigger mode: polling every 1 minute.
+- Pull policy: fast-forward only (`git pull --ff-only`).
+
+## Runtime Stack Specification
+
+### PostgreSQL Service
+- Image: `postgres:16-alpine`
+- Persistent volume: `postgres_data`
+- Health check: `pg_isready`
+- Credentials and DB name from environment.
+
+### API Service
+- Built from `api/Dockerfile`.
+- Runtime command: `pnpm --filter api start`.
+- Required endpoint for deploy checks: `GET /api/health`.
+- API health endpoint must validate DB connectivity.
+
+### UI Service
+- Built from `ui/Dockerfile`.
+- Runtime command: `pnpm --filter ui preview --host 0.0.0.0 --port 4173`.
+- API base URL/port are injected at build time via compose build args.
+
+### Operator-Friendly Runtime Controls
+- `ops/start-system.ps1` starts the complete stack (`postgres`, `prisma generate`, migrations, `api`, `ui`) with health checks.
+- `ops/stop-system.ps1` stops the full stack.
+- `ops/install-autostart.ps1` registers Windows tasks for startup and periodic deploy polling.
+- `.cmd` wrappers are provided for non-technical operators.
 
 ## Deployment Pipeline Specification
 
-### Stage 1: Pre-Deployment Validation
-1. Checkout repository.
-2. Install dependencies (`pnpm install --frozen-lockfile`).
-3. Run checks:
-   - `pnpm lint`
-   - `pnpm --filter api build`
-   - `pnpm --filter @zx-op/ui build`
-   - Optional tests (`pnpm --filter api test`, `pnpm --filter @zx-op/ui test`)
+### Stage 1: Synchronization
+1. Acquire deployment lock to avoid concurrent runs.
+2. `git fetch lan-origin main`
+3. Compare local `HEAD` with `lan-origin/main`.
+4. If equal: log and exit without restart.
+5. If different: `git pull --ff-only lan-origin main`.
 
-### Stage 2: Release Preparation (on customer server)
-1. Create release directory under `/opt/zx-op/releases/...`.
-2. Sync repository content into new release folder.
-3. Install dependencies in release.
-4. Build API and UI artifacts.
+### Stage 2: Release Build
+1. Save rollback image tags:
+   - `zx-op-api:local -> zx-op-api:prev`
+   - `zx-op-ui:local -> zx-op-ui:prev`
+2. Build images:
+   - `docker compose build api ui`
 
-### Stage 3: Database Migration
-1. Run Prisma generate (`pnpm --filter api db:generate`).
-2. Run production migration command:
-   - `prisma migrate deploy` (via API workspace command).
-3. If migration fails:
-   - Mark deployment as failed.
-   - Do not switch `current` symlink.
-   - Keep running previous stable release.
+### Stage 3: Migration
+1. Ensure DB is running:
+   - `docker compose up -d postgres`
+2. Generate Prisma client:
+   - `docker compose run --rm api pnpm --filter api db:generate`
+3. Run production migration:
+   - `docker compose run --rm api pnpm --filter api exec prisma migrate deploy`
+4. If generation/migration fails:
+   - deployment fails,
+   - rollback starts,
+   - previous stable images remain active.
 
 ### Stage 4: Activation
-1. Save old `current` target into `previous`.
-2. Point `current` symlink to new release.
-3. Restart services:
-   - `systemctl restart zx-api`
-   - `systemctl reload nginx` (or restart UI static service)
+1. Start/restart application services:
+   - `docker compose up -d api ui`
+2. Restart policy remains `unless-stopped`.
 
-### Stage 5: Post-Deployment Health Check
-1. Call API health endpoint (recommended: `GET /api/health`).
-2. Verify UI static host responds.
-3. If health check fails:
-   - rollback to `previous`
-   - restart services
-   - mark deployment failed.
-
-## Service Management Specification
-
-### API Service (`systemd`)
-- Runs compiled entrypoint from `/opt/zx-op/current/api/dist/server.cjs`.
-- Restart policy: `Restart=always`.
-- Starts on boot: `WantedBy=multi-user.target`.
-- Uses `.env` outside repository for sensitive values.
-
-### UI Service
-- Preferred: static build served by `nginx`.
-- Serve `/opt/zx-op/current/ui/dist`.
-- Cache headers configured to avoid stale critical assets after deploy.
-
-## Public Interfaces and Operational Additions
-
-### New/Required Operational Interface
-- `GET /api/health`
-  - Returns service status and basic DB connectivity signal.
-  - Used exclusively for deploy verification and monitoring.
-
-### No Functional API Contract Changes
-- Existing business endpoints remain unchanged.
+### Stage 5: Post-Deploy Health Check
+1. Validate API endpoint (default `http://127.0.0.1:3000/api/health`).
+2. Validate UI endpoint (default `http://127.0.0.1:4173/`).
+3. If any check fails: trigger rollback.
 
 ## Rollback Specification
-1. Read `previous` symlink target.
-2. Re-point `current` to `previous`.
-3. Restart API + reload/restart UI server.
-4. Run health checks.
-5. Record rollback event with commit hash and timestamp.
+1. Retag rollback images back to active tags:
+   - `zx-op-api:prev -> zx-op-api:local`
+   - `zx-op-ui:prev -> zx-op-ui:local`
+2. `docker compose up -d --no-build postgres api ui`
+3. Re-run health checks.
+4. Log rollback status and reason.
 
 ## Failure Modes and Expected Behavior
-1. Build fails:
-   - No activation; current production remains unchanged.
-2. Migration fails:
-   - No activation; rollback not needed if symlink not switched.
-3. Service restart fails:
-   - Attempt rollback immediately.
-4. Health check fails after activation:
-   - Auto rollback to previous stable release.
+1. Git fetch/pull fails:
+   - running services are unchanged,
+   - next scheduler cycle retries.
+2. Build fails:
+   - deployment marked failed,
+   - rollback attempted.
+3. Migration fails:
+   - deployment marked failed,
+   - rollback attempted.
+4. Health check fails:
+   - rollback attempted automatically.
+5. Rollback fails:
+   - error logged for manual intervention.
 
 ## Security and Access Rules
-- Dedicated OS user for deployment (non-root where possible).
-- Least-privilege permissions for runner and service files.
-- Secrets stored in server environment, not committed.
-- Runner labels restricted to deployment workflow only.
-
-## Testing and Acceptance Scenarios
-1. Push with frontend-only change:
-   - Pipeline succeeds, UI updated, API remains healthy.
-2. Push with backend change and migration:
-   - Migration applied, API healthy, data preserved.
-3. Intentionally broken build:
-   - Deployment blocked, production unchanged.
-4. Intentionally broken migration:
-   - Deployment blocked, production unchanged.
-5. Simulated post-deploy failure:
-   - Automatic rollback succeeds.
-6. Server reboot:
-   - Services auto-start and load active `current` release.
+- Run deployment script with a dedicated Windows account where possible.
+- Keep secrets outside repository when feasible.
+- Restrict Task Scheduler permissions to deployment operator account.
+- Keep production host behind local network controls.
 
 ## Monitoring and Audit
-- Keep deployment log entries: commit SHA, actor, start/end time, result.
-- Keep rollback log entries with reason and restored release.
-- GitHub Actions retains workflow history for audit trail.
+- Deployment log file: `ops/logs/deploy.log`
+- Log fields: timestamp, commit SHA, duration, result.
+- Diagnostics source:
+  - `docker compose logs api`
+  - `docker compose logs ui`
+  - `docker compose logs postgres`
+
+## Testing and Acceptance Scenarios
+1. Frontend-only commit:
+   - deploy succeeds,
+   - UI reflects new build,
+   - API health remains OK.
+2. Backend + migration commit:
+   - migration applies,
+   - API health OK,
+   - data preserved.
+3. No-change cycle:
+   - no build/restart.
+4. Broken build:
+   - deploy fails,
+   - previous version remains running.
+5. Broken migration:
+   - deploy fails,
+   - previous version remains running.
+6. Post-deploy runtime failure:
+   - rollback runs and restores service.
+7. Host reboot:
+   - compose services restart automatically (`unless-stopped`).
 
 ## Assumptions and Defaults
-- Repository is reachable from customer server via GitHub.
-- Deployment is Linux-based with `systemd`.
-- PostgreSQL data is persistent and external to app release folders.
-- UI is built statically and served by web server.
-- Default deploy target is `main` only.
+- Production source is `main` from `lan-origin`.
+- Images are built locally on production host.
+- Access is local network via host IP and exposed ports.
+- Deploy uses polling, not public webhooks.
+- PostgreSQL persistence is volume-based and isolated from source updates.
