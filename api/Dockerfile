@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -18,7 +18,7 @@ COPY . .
 RUN pnpm --filter api db:generate
 RUN pnpm --filter api build
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
