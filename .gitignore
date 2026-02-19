@@ -25,3 +25,8 @@ dist-ssr
 
 # Local HTTPS certs
 ui/certs/*.pem
+
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.example

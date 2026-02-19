@@ -1,11 +1,11 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-
 param(
   [string]$RepoPath = (Resolve-Path "$PSScriptRoot/..").Path,
   [string]$ComposeFile = 'docker-compose.yml',
   [switch]$SkipBuild
 )
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
 Write-Host '[start] Starting Zona Xtreme stack...'
 Set-Location $RepoPath
