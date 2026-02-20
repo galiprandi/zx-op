@@ -187,7 +187,7 @@ export function ProductsView() {
 
 	return (
 		<DesktopShell>
-			<div className="space-y-6">
+			<div className="space-y-5">
 				<div className="flex items-center justify-between">
 					<div>
 						<h2 className="text-3xl font-bold">Productos</h2>
@@ -239,7 +239,7 @@ export function ProductsView() {
 				{!isLoading && !error && (
 					<>
 						<GlassCard className="overflow-hidden">
-							<div className="flex items-center gap-2 p-4 border-b border-border">
+							<div className="flex items-center gap-2 p-3 border-b border-border">
 								<Package className="w-5 h-5 text-primary" />
 								<h3 className="text-lg font-semibold">Obligatorios</h3>
 								<span className="text-sm text-muted-foreground">({requiredProducts.length})</span>
@@ -248,21 +248,21 @@ export function ProductsView() {
 								<table className="w-full text-sm">
 									<thead className="bg-muted/40">
 										<tr className="text-left">
-											<th className="px-4 py-3 font-medium">Nombre</th>
-											<th className="px-4 py-3 font-medium">Categoría</th>
-											<th className="px-4 py-3 font-medium">Tiempo</th>
-											<th className="px-4 py-3 font-medium">Precio</th>
-											<th className="px-4 py-3 font-medium text-right">Acción</th>
+											<th className="px-4 py-2.5 font-medium">Nombre</th>
+											<th className="px-4 py-2.5 font-medium">Categoría</th>
+											<th className="px-4 py-2.5 font-medium">Tiempo</th>
+											<th className="px-4 py-2.5 font-medium">Precio</th>
+											<th className="px-4 py-2.5 font-medium text-right">Acción</th>
 										</tr>
 									</thead>
 									<tbody>
 										{requiredProducts.map((product) => (
 											<tr key={product.id} className="border-t border-border">
-												<td className="px-4 py-3">{product.name}</td>
-												<td className="px-4 py-3">{product.category}</td>
-												<td className="px-4 py-3">{isTimeProduct(product) ? formatTimeValue(product.timeValueSeconds!) : "-"}</td>
-												<td className="px-4 py-3">{formatPrice(product.price)}</td>
-												<td className="px-4 py-3 text-right">
+												<td className="px-4 py-2.5">{product.name}</td>
+												<td className="px-4 py-2.5">{product.category}</td>
+												<td className="px-4 py-2.5">{isTimeProduct(product) ? formatTimeValue(product.timeValueSeconds!) : "-"}</td>
+												<td className="px-4 py-2.5">{formatPrice(product.price)}</td>
+												<td className="px-4 py-2.5 text-right">
 													<Button onClick={() => handleEdit(product)} variant="outline" size="sm">
 														<Edit2 className="w-3 h-3 mr-1" />
 														Editar
@@ -283,7 +283,7 @@ export function ProductsView() {
 						</GlassCard>
 
 						<GlassCard className="overflow-hidden">
-							<div className="flex items-center gap-2 p-4 border-b border-border">
+							<div className="flex items-center gap-2 p-3 border-b border-border">
 								<Package className="w-5 h-5 text-primary" />
 								<h3 className="text-lg font-semibold">Otros</h3>
 								<span className="text-sm text-muted-foreground">({optionalProducts.length})</span>
@@ -292,21 +292,21 @@ export function ProductsView() {
 								<table className="w-full text-sm">
 									<thead className="bg-muted/40">
 										<tr className="text-left">
-											<th className="px-4 py-3 font-medium">Nombre</th>
-											<th className="px-4 py-3 font-medium">Categoría</th>
-											<th className="px-4 py-3 font-medium">Tiempo</th>
-											<th className="px-4 py-3 font-medium">Precio</th>
-											<th className="px-4 py-3 font-medium text-right">Acción</th>
+											<th className="px-4 py-2.5 font-medium">Nombre</th>
+											<th className="px-4 py-2.5 font-medium">Categoría</th>
+											<th className="px-4 py-2.5 font-medium">Tiempo</th>
+											<th className="px-4 py-2.5 font-medium">Precio</th>
+											<th className="px-4 py-2.5 font-medium text-right">Acción</th>
 										</tr>
 									</thead>
 									<tbody>
 										{optionalProducts.map((product) => (
 											<tr key={product.id} className="border-t border-border">
-												<td className="px-4 py-3">{product.name}</td>
-												<td className="px-4 py-3">{product.category}</td>
-												<td className="px-4 py-3">{isTimeProduct(product) ? formatTimeValue(product.timeValueSeconds!) : "-"}</td>
-												<td className="px-4 py-3">{formatPrice(product.price)}</td>
-												<td className="px-4 py-3 text-right">
+												<td className="px-4 py-2.5">{product.name}</td>
+												<td className="px-4 py-2.5">{product.category}</td>
+												<td className="px-4 py-2.5">{isTimeProduct(product) ? formatTimeValue(product.timeValueSeconds!) : "-"}</td>
+												<td className="px-4 py-2.5">{formatPrice(product.price)}</td>
+												<td className="px-4 py-2.5 text-right">
 													<Button onClick={() => handleEdit(product)} variant="outline" size="sm">
 														<Edit2 className="w-3 h-3 mr-1" />
 														Editar
@@ -326,30 +326,6 @@ export function ProductsView() {
 							</div>
 						</GlassCard>
 					</>
-				)}
-
-				{!isLoading && !error && filteredProducts.length === 0 && (
-					<div className="text-center py-12">
-						<Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-						<h3 className="text-lg font-medium text-foreground mb-2">
-							{searchTerm ? "No se encontraron productos" : "No hay productos"}
-						</h3>
-						<p className="text-muted-foreground">
-							{searchTerm ? "Intenta con otra búsqueda" : "Crea tu primer producto para comenzar"}
-						</p>
-						{!searchTerm && (
-							<Button
-								onClick={() => {
-									resetForm();
-									setIsCreateModalOpen(true);
-								}}
-								className="mt-4"
-							>
-								<Plus className="w-4 h-4 mr-2" />
-								Crear Producto
-							</Button>
-						)}
-					</div>
 				)}
 
 				{isCreateModalOpen && (

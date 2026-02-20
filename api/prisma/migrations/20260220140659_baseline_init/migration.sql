@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "LogAction" AS ENUM ('CHECKIN', 'PLAY', 'PAUSE', 'TIME_ADDED', 'AUTO_EXPIRE');
+CREATE TYPE "LogAction" AS ENUM ('CHECKIN', 'PLAY', 'PAUSE', 'TIME_ADDED', 'AUTO_EXPIRE', 'LAP');
 
 -- CreateTable
 CREATE TABLE "PlayerSession" (
@@ -7,6 +7,7 @@ CREATE TABLE "PlayerSession" (
     "barcodeId" TEXT NOT NULL,
     "totalAllowedSeconds" INTEGER NOT NULL DEFAULT 0,
     "accumulatedSeconds" INTEGER NOT NULL DEFAULT 0,
+    "lapsCount" INTEGER NOT NULL DEFAULT 0,
     "lastStartAt" TIMESTAMP(3),
     "isActive" BOOLEAN NOT NULL DEFAULT false,
     "expiresAt" TIMESTAMP(3),
@@ -44,6 +45,16 @@ CREATE TABLE "Product" (
 );
 
 -- CreateTable
+CREATE TABLE "ProductCategory" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProductCategory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Transaction" (
     "id" TEXT NOT NULL,
     "playerSessionId" TEXT NOT NULL,
@@ -59,6 +70,10 @@ CREATE TABLE "Transaction" (
 CREATE TABLE "SystemSetting" (
     "id" TEXT NOT NULL DEFAULT 'system',
     "maxOccupancy" INTEGER NOT NULL DEFAULT 100,
+    "siteName" TEXT DEFAULT 'Zona Xtreme',
+    "logoUrl" TEXT,
+    "operationalDayStart" TEXT NOT NULL DEFAULT '07:00',
+    "timezone" TEXT NOT NULL DEFAULT 'America/Argentina/Tucuman',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -67,6 +82,9 @@ CREATE TABLE "SystemSetting" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PlayerSession_barcodeId_key" ON "PlayerSession"("barcodeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProductCategory_name_key" ON "ProductCategory"("name");
 
 -- AddForeignKey
 ALTER TABLE "SessionLog" ADD CONSTRAINT "SessionLog_playerSessionId_fkey" FOREIGN KEY ("playerSessionId") REFERENCES "PlayerSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;

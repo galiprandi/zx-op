@@ -12,7 +12,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { CartSheet } from "@/components/CartSheet";
 import { Modal } from "@/components/Modal";
 import { SurfaceCard } from "@/components/SurfaceCard";
-import { ChevronDown, ShoppingCart } from "lucide-react";
+import { ChevronDown, Package, ShoppingCart } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useSocket } from "@/hooks/useSocket";
 import { useActiveSessions, usePlayerSession } from "@/hooks/usePlayerSession";
@@ -379,6 +379,19 @@ export function CheckInView() {
 							</div>
 						</div>
 					)}
+
+					{getAvailableRequiredProducts.length === 0 &&
+						getAvailableOptionalProducts.length === 0 && (
+							<SurfaceCard contentPaddingClassName="[&>div]:p-6">
+								<div className="text-center space-y-2">
+									<Package className="w-10 h-10 text-muted-foreground mx-auto" />
+									<h3 className="text-base font-medium text-foreground">No hay productos disponibles</h3>
+									<p className="text-sm text-muted-foreground">
+										Crea productos en Administración para poder hacer check-in.
+									</p>
+								</div>
+							</SurfaceCard>
+						)}
 				</div>
 			</div>
 

@@ -165,6 +165,7 @@ export function OperationView() {
 	const buttonConfig = getButtonConfig();
 	const visualState = session ? resolveVisualState(session) : "expired";
 	const timeState = visualState === "waiting" || visualState === "paused" ? "stop" : undefined;
+	const isSessionNotFound = sessionError?.message === "Session not found";
 
 	return (
 		<MobileShell
@@ -260,10 +261,18 @@ export function OperationView() {
 								<p className="text-muted-foreground">Cargando sesión...</p>
 							</div>
 						) : sessionError ? (
-							<GlassCard className="text-center">
-								<AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-								<p className="text-destructive font-medium">Error de conexión</p>
-							</GlassCard>
+							isSessionNotFound ? (
+								<GlassCard className="text-center">
+									<Scan className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+									<h3 className="text-lg font-medium mb-2">La sesión no existe</h3>
+									<p className="text-muted-foreground">Verifica el código o realiza el check-in primero.</p>
+								</GlassCard>
+							) : (
+								<GlassCard className="text-center">
+									<AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+									<p className="text-destructive font-medium">Error de conexión</p>
+								</GlassCard>
+							)
 						) : session ? (
 							<div className="text-center space-y-6">
 								<div className="flex flex-col items-center gap-3">
