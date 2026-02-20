@@ -4,7 +4,7 @@ import { z } from "zod";
 export const SessionLogSchema = z.object({
   id: z.string(),
   playerSessionId: z.string(),
-  action: z.enum(['CHECKIN', 'PLAY', 'PAUSE', 'TIME_ADDED', 'AUTO_EXPIRE']),
+  action: z.enum(['CHECKIN', 'PLAY', 'PAUSE', 'TIME_ADDED', 'AUTO_EXPIRE', 'LAP']),
   data: z.any().optional(),
   createdAt: z.date(),
 });
@@ -37,6 +37,9 @@ export const TimeAddedLogDataSchema = z.object({
 }).optional();
 
 export const AutoExpireLogDataSchema = z.object({}).optional();
+export const LapLogDataSchema = z.object({
+  lapsCount: z.number().int().nonnegative(),
+}).optional();
 
 // Response schemas
 export const SessionLogListResponseSchema = z.array(SessionLogWithSessionSchema);
@@ -45,7 +48,7 @@ export const SessionLogListResponseSchema = z.array(SessionLogWithSessionSchema)
 export const SessionLogQuerySchema = z.object({
   playerSessionId: z.string().optional(),
   barcodeId: z.string().optional(),
-  action: z.enum(['CHECKIN', 'PLAY', 'PAUSE', 'TIME_ADDED', 'AUTO_EXPIRE']).optional(),
+  action: z.enum(['CHECKIN', 'PLAY', 'PAUSE', 'TIME_ADDED', 'AUTO_EXPIRE', 'LAP']).optional(),
   limit: z.string().optional().transform((val) => val ? parseInt(val, 10) : undefined),
   startDate: z.string().optional().transform((val) => val ? new Date(val) : undefined),
   endDate: z.string().optional().transform((val) => val ? new Date(val) : undefined),
@@ -59,5 +62,6 @@ export type PlayLogDataSchema = z.infer<typeof PlayLogDataSchema>;
 export type PauseLogDataSchema = z.infer<typeof PauseLogDataSchema>;
 export type TimeAddedLogDataSchema = z.infer<typeof TimeAddedLogDataSchema>;
 export type AutoExpireLogDataSchema = z.infer<typeof AutoExpireLogDataSchema>;
+export type LapLogDataSchema = z.infer<typeof LapLogDataSchema>;
 export type SessionLogListResponseSchema = z.infer<typeof SessionLogListResponseSchema>;
 export type SessionLogQuerySchema = z.infer<typeof SessionLogQuerySchema>;

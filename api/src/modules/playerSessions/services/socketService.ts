@@ -24,7 +24,7 @@ export function getSocketIO() {
   return io;
 }
 
-export function emitSessionEvent(event: 'session:play' | 'session:pause' | 'session:updated', data: unknown) {
+export function emitSessionEvent(event: 'session:play' | 'session:pause' | 'session:updated' | 'session:lap', data: unknown) {
   const socketIO = getSocketIO();
   socketIO.emit(event, data);
 }

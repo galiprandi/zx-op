@@ -58,10 +58,10 @@ export class CheckinService {
     }
 
     // 6. Emitir eventos Socket.IO
-    emitSessionEvent('session:updated', { 
-      barcodeId, 
-      session: await playerSessionService.getStatus(barcodeId),
-      timeAdded: totalSecondsToAdd 
+    emitSessionEvent('session:updated', {
+      barcodeId,
+      playerSession: await playerSessionService.getStatus(barcodeId),
+      timeAdded: totalSecondsToAdd,
     });
 
     // Emitir evento de transacción por cada una creada

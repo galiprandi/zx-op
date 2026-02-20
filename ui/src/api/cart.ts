@@ -1,5 +1,3 @@
-const { VITE_API_BASE_URL, VITE_API_BASE_PORT } = import.meta.env;
-
 export interface CartItem {
   productId: string;
   quantity: number;
@@ -7,7 +5,7 @@ export interface CartItem {
 
 export async function notifyCartUpdate(barcodeId: string, cart: CartItem[]) {
   const response = await fetch(
-    `${VITE_API_BASE_URL}:${VITE_API_BASE_PORT}/api/cart/notify`,
+    `/api/cart/notify`,
     {
       method: 'POST',
       headers: {

@@ -2,15 +2,18 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const certPath = path.resolve(__dirname, "certs/cert.pem");
 const keyPath = path.resolve(__dirname, "certs/key.pem");
+export default defineConfig(({ mode }) => {
+	const env = loadEnv(mode, __dirname, "");
+	const apiProxyTarget = env.VITE_API_PROXY_TARGET || "http://localhost:3000";
 
-export default defineConfig({
+	return {
 	plugins: [
 		react(),
 		VitePWA({
@@ -51,15 +54,22 @@ export default defineConfig({
 		port: 8080,
 		host: "0.0.0.0", // Permitir acceso desde cualquier dispositivo en la red local
 		strictPort: true,
+		open: env.VITE_DEV_OPEN_URL || "/monitor",
 		https: {
 			key: fs.readFileSync(keyPath),
 			cert: fs.readFileSync(certPath),
 		},
 		proxy: {
 			"/api": {
-				target: "https://192.168.68.51:3000",
+				target: apiProxyTarget,
 				changeOrigin: true,
-				// Allow self-signed certs on the local mesh API endpoint
+				// Allow local/self-signed targets when needed
+				secure: false,
+			},
+			"/socket.io": {
+				target: apiProxyTarget,
+				changeOrigin: true,
+				ws: true,
 				secure: false,
 			},
 		},
@@ -68,4 +78,5 @@ export default defineConfig({
 		outDir: "dist",
 		sourcemap: true,
 	},
+	};
 });

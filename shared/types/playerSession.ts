@@ -5,6 +5,7 @@ export interface PlayerSession {
   barcodeId: string;
   totalAllowedSeconds: number;
   accumulatedSeconds: number;
+  lapsCount: number;
   lastStartAt: Date | null;
   isActive: boolean;
   expiresAt: Date | null;
@@ -16,6 +17,7 @@ export interface PlayerSessionStatus extends PlayerSession {
   remainingSeconds: number;
   remainingMinutes: number;
   status: SessionStatus;
+  avgSecondsPerLap: number | null;
 }
 
 export interface SessionWithComputedFields extends PlayerSessionStatus {

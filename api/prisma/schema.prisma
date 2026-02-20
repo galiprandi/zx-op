@@ -12,6 +12,7 @@ model PlayerSession {
   barcodeId           String        @unique
   totalAllowedSeconds Int           @default(0)
   accumulatedSeconds  Int           @default(0)
+  lapsCount           Int           @default(0)
   lastStartAt         DateTime?
   isActive            Boolean       @default(false)
   expiresAt           DateTime?
@@ -72,4 +73,5 @@ enum LogAction {
   PAUSE
   TIME_ADDED
   AUTO_EXPIRE
+  LAP
 }

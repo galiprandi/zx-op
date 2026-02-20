@@ -1,11 +1,12 @@
 import { AxiosError } from "axios";
 import { API } from "./api";
-import type { PlayerSession, PlayerSessionStatus, SessionStatus } from "@shared/types";
+import type { PlayerSessionStatus, SessionStatus } from "@shared/types";
 
 export interface SessionStatusResponse extends PlayerSessionStatus {
   remainingSeconds: number;
   remainingMinutes: number;
   status: SessionStatus;
+  avgSecondsPerLap: number | null;
 }
 
 export interface ActiveSessionResponse {
@@ -13,6 +14,7 @@ export interface ActiveSessionResponse {
   barcodeId: string;
   totalAllowedSeconds: number;
   accumulatedSeconds: number;
+  lapsCount: number;
   lastStartAt: string | null;
   isActive: boolean;
   expiresAt: string | null;
@@ -21,6 +23,7 @@ export interface ActiveSessionResponse {
   remainingSeconds: number;
   remainingMinutes: number;
   status: SessionStatus;
+  avgSecondsPerLap: number | null;
 }
 
 export const getSessionStatus = async (barcodeId: string): Promise<SessionStatusResponse> => {
@@ -35,13 +38,18 @@ export const getSessionStatus = async (barcodeId: string): Promise<SessionStatus
   }
 };
 
-export const playSession = async (barcodeId: string): Promise<PlayerSession> => {
-  const { data } = await API.post<PlayerSession>(`/api/sessions/play`, { barcodeId });
+export const playSession = async (barcodeId: string): Promise<SessionStatusResponse> => {
+  const { data } = await API.post<SessionStatusResponse>(`/api/sessions/play`, { barcodeId });
   return data;
 };
 
-export const pauseSession = async (barcodeId: string): Promise<PlayerSession> => {
-  const { data } = await API.post<PlayerSession>(`/api/sessions/pause`, { barcodeId });
+export const pauseSession = async (barcodeId: string): Promise<SessionStatusResponse> => {
+  const { data } = await API.post<SessionStatusResponse>(`/api/sessions/pause`, { barcodeId });
+  return data;
+};
+
+export const registerLap = async (barcodeId: string): Promise<SessionStatusResponse> => {
+  const { data } = await API.post<SessionStatusResponse>(`/api/sessions/lap`, { barcodeId });
   return data;
 };
 

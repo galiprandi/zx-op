@@ -1,12 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import type { Product, Transaction, PlayerSession } from "@shared/types";
+import type { Product, Transaction } from "@shared/types";
+import type { SessionStatusResponse } from "@/api/playerSession";
 import { io } from "socket.io-client";
-const { VITE_API_BASE_URL, VITE_API_BASE_PORT } = import.meta.env;
 
 interface SessionPayload {
-	playerSession: PlayerSession;
-	activeSessions?: PlayerSession[];
+	playerSession: SessionStatusResponse;
+	activeSessions?: SessionStatusResponse[];
 	dashboardStats?: unknown;
 }
 
@@ -20,7 +20,7 @@ export function useSocket() {
 
 	useEffect(() => {
 		// Conectar al servidor de Socket.IO
-		const socket = io(`${VITE_API_BASE_URL}:${VITE_API_BASE_PORT}`, {
+		const socket = io("/", {
 			transports: ["polling", "websocket"],
 			timeout: 10000,
 			reconnection: true,
@@ -58,7 +58,7 @@ export function useSocket() {
 			}
 		});
 
-		socket.on("session:play", ({ playerSession }: { playerSession: PlayerSession }) => {
+		socket.on("session:play", ({ playerSession }: SessionPayload) => {
 			// OPTIMIZED: Only update specific session, not all sessions
 			if (playerSession) {
 				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
@@ -68,7 +68,7 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
 		});
 
-		socket.on("session:pause", ({ playerSession }: { playerSession: PlayerSession }) => {
+		socket.on("session:pause", ({ playerSession }: SessionPayload) => {
 			// OPTIMIZED: Only update specific session, not all sessions
 			if (playerSession) {
 				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
@@ -93,6 +93,13 @@ export function useSocket() {
 			
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
+		});
+
+		socket.on("session:lap", ({ playerSession }: SessionPayload) => {
+			if (playerSession) {
+				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
+			}
+			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 		});
 
 		// Eventos de transacciones - OPTIMIZED

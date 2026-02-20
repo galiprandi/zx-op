@@ -26,7 +26,8 @@ A local-first management system for a massive inflatable attraction. The system 
 * `accumulated_seconds`: Int (Consumed seconds from finished segments)
 * `last_start_at`: DateTime? (When Play was last pressed)
 * `is_active`: Boolean (Playing vs paused)
-* `expires_at`: DateTime? (Time when purchased balance runs out)
+* `expires_at`: DateTime? (Legacy compatibility field; not used for consumption calculation)
+* `laps_count`: Int (Manual lap counter recorded during active play)
 * `created_at`: DateTime
 * `updated_at`: DateTime
 
@@ -48,6 +49,7 @@ A local-first management system for a massive inflatable attraction. The system 
 * Staff scans a wristband (barcode) and selects products (tiempo + adicionales).
 * The system creates or finds the `player_session` and adds purchased time (`total_allowed_seconds += time_value_seconds`), keeping existing balance.
 * Session stays **paused/inactive** until Play at the gate.
+* **Timer policy:** check-in only loads credit. Time does not start consuming at check-in.
 
 ### B. Boarding Gate (Entrance)
 
@@ -63,7 +65,14 @@ A local-first management system for a massive inflatable attraction. The system 
 1. Staff scans wristband at exit → triggers **Pause**.
 2. Status changes to `Technical-Stop` (paused), `is_active=false`, `last_start_at` cleared, `accumulated_seconds` updated.
 3. **Crucial:** `current_occupancy` decreases immediately to allow new entries.
-4. **Timer Policy:** Credit consumption is accounted for up to the pause moment; if resumed, it continues from the remaining balance.
+4. **Timer Policy:** Credit consumption runs only while `is_active=true`. On pause, segment consumption is accumulated and timer stops immediately.
+
+### C.1 Lap Registration (Operation View)
+
+1. When a wristband is in active play (`is_active=true` and `remaining_seconds > 0`), staff can tap **Registrar vuelta**.
+2. Each tap increments `laps_count` by exactly 1.
+3. Lap data is attached to the same session and used for per-session operational stats (e.g., average seconds per lap).
+4. Lap registration is disabled for paused, waiting, or expired sessions.
 
 ### D. Auto-Release & Landing
 

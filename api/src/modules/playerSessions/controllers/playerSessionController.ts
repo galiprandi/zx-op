@@ -49,6 +49,19 @@ export class PlayerSessionController {
       return reply.status(500).send({ error: 'Internal server error' });
     }
   }
+
+  async registerLap(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { barcodeId } = request.body as { barcodeId: string };
+      const session = await playerSessionService.registerLap(barcodeId);
+      return session;
+    } catch (error) {
+      if (error instanceof Error) {
+        return reply.status(400).send({ error: error.message });
+      }
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  }
 }
 
 export const playerSessionController = new PlayerSessionController();

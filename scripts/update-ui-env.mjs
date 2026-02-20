@@ -56,7 +56,8 @@ function formatEnvFile(entries, headerComment) {
 
 function main() {
   const localIp = getLocalIPv4();
-  const useHttps = process.env.USE_HTTPS !== 'false';
+  // API runs on HTTP by default unless HTTPS is explicitly enabled.
+  const useHttps = process.env.USE_HTTPS === 'true';
   const protocol = useHttps ? 'https' : 'http';
   const defaultPort = process.env.API_PORT || process.env.PORT || '3000';
   const currentContent = readFileSync(uiEnvPath, 'utf8');
@@ -64,6 +65,8 @@ function main() {
 
   envMap.set('VITE_API_BASE_URL', `${protocol}://${localIp}`);
   envMap.set('VITE_API_BASE_PORT', envMap.get('VITE_API_BASE_PORT') || defaultPort);
+  envMap.set('VITE_API_PROXY_TARGET', `${protocol}://${localIp}:${envMap.get('VITE_API_BASE_PORT') || defaultPort}`);
+  envMap.set('VITE_DEV_OPEN_URL', `https://${localIp}:8080/monitor`);
   if (envMap.has('VITE_API_SOCKET_PORT')) {
     envMap.set('VITE_API_SOCKET_PORT', envMap.get('VITE_API_SOCKET_PORT'));
   }

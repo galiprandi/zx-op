@@ -1,4 +1,4 @@
-export type LogAction = 'CHECKIN' | 'PLAY' | 'PAUSE' | 'TIME_ADDED' | 'AUTO_EXPIRE';
+export type LogAction = 'CHECKIN' | 'PLAY' | 'PAUSE' | 'TIME_ADDED' | 'AUTO_EXPIRE' | 'LAP';
 
 export interface SessionLog {
   id: string;
@@ -19,5 +19,6 @@ export interface SessionLogData {
   created?: boolean;
   extra?: number;
   totalSecondsToAdd?: number;
+  lapsCount?: number;
   products?: Array<{ id: string; quantity: number }>;
 }

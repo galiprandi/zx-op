@@ -10,6 +10,7 @@ export const PlayerSessionSchema = z.object({
   barcodeId: z.string(),
   totalAllowedSeconds: z.number().int().nonnegative(),
   accumulatedSeconds: z.number().int().nonnegative(),
+  lapsCount: z.number().int().nonnegative(),
   lastStartAt: z.date().nullable(),
   isActive: z.boolean(),
   expiresAt: z.date().nullable(),
@@ -22,6 +23,7 @@ export const PlayerSessionStatusSchema = PlayerSessionSchema.extend({
   remainingSeconds: z.number().int().nonnegative(),
   remainingMinutes: z.number().int().nonnegative(),
   status: SessionStatusSchema,
+  avgSecondsPerLap: z.number().int().positive().nullable(),
 });
 
 // PlayerSession with additional computed fields for UI

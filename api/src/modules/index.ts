@@ -67,6 +67,7 @@ export const moduleInfo = {
       routes: [
         'POST /api/sessions/play',
         'POST /api/sessions/pause',
+        'POST /api/sessions/lap',
         'GET /api/sessions/status/:barcodeId',
         'GET /api/sessions/active'
       ],

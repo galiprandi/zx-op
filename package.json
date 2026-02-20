@@ -9,18 +9,19 @@
     "shared"
   ],
   "scripts": {
-    "dev:all": "node scripts/update-ui-env.mjs && concurrently \"pnpm dev:api\" \"pnpm dev:ui\"",
-    "start:all": "node scripts/update-ui-env.mjs && concurrently \"pnpm start:api\" \"pnpm start:ui\"",
+    "dev:all": "node scripts/update-ui-env.mjs && pnpm --filter api db:deploy && concurrently \"pnpm dev:api\" \"pnpm dev:ui\"",
+    "start:all": "node scripts/update-ui-env.mjs && pnpm --filter api db:deploy && concurrently \"pnpm start:api\" \"pnpm start:ui\"",
     "build:all": "pnpm build:api && pnpm build:ui",
     "dev:api": "pnpm --filter api dev",
-    "dev:ui": "pnpm --filter ui dev --open",
+    "dev:ui": "pnpm --filter ui dev",
     "build:api": "pnpm --filter api build",
     "build:ui": "pnpm --filter ui build",
     "start:api": "pnpm --filter api start",
-    "start:ui": "pnpm --filter ui preview --host",
+    "start:ui": "pnpm --filter ui preview --host 0.0.0.0",
     "lint": "eslint .",
     "format": "biome format --write .",
     "db:migrate": "pnpm --filter api db:migrate",
+    "db:deploy": "pnpm --filter api db:deploy",
     "db:generate": "pnpm --filter api db:generate",
     "db:seed": "pnpm --filter api db:seed",
     "db:studio": "pnpm --filter api db:studio"

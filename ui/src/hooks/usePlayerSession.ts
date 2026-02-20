@@ -3,6 +3,7 @@ import {
 	getSessionStatus, 
 	playSession, 
 	pauseSession, 
+	registerLap,
 	getAllActiveSessions,
 	getSessionColor,
 	isSessionExpired,
@@ -43,6 +44,10 @@ export function usePlayerSession(barcodeId: string) {
 		},
 	});
 
+	const lapMutation = useMutation({
+		mutationFn: () => registerLap(barcodeId),
+	});
+
 	const handlePlay = () => {
 		if (session && !isSessionExpired(session)) {
 			playMutation.mutate();
@@ -75,6 +80,7 @@ export function usePlayerSession(barcodeId: string) {
 		handlePause,
 		playMutation,
 		pauseMutation,
+		lapMutation,
 		refetch,
 	};
 }
