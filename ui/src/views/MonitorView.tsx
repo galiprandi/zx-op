@@ -1,7 +1,7 @@
 import { Play, Pause, AlertCircle, Users, DollarSign, BarChart3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DesktopShell } from "@/components/DesktopShell";
-import { StatCard } from "@/components/StatCard";
+import { KPICard } from "@/components/KPICard";
 import { AnimatedSessionRow } from "@/components/AnimatedSessionRow";
 import { GlassCard } from "@/components/GlassCard";
 import { MonitorTime } from "@/components/MonitorTime";
@@ -159,7 +159,7 @@ export function MonitorView() {
 
 				{/* Stats Overview (right-to-left priority: Esperando, En Juego, En Pausa) */}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					<StatCard
+					<KPICard
 						title="Esperando"
 						value={waitingCount}
 						icon={Users}
@@ -167,7 +167,7 @@ export function MonitorView() {
 						color="primary"
 					/>
 
-					<StatCard
+					<KPICard
 						title="En Juego"
 						value={totalPlaying}
 						icon={Play}
@@ -197,7 +197,7 @@ export function MonitorView() {
 						}
 					/>
 
-					<StatCard
+					<KPICard
 						title="En Pausa"
 						value={totalPaused}
 						icon={Pause}

@@ -66,6 +66,8 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsDays"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsDayDetail"] });
 		});
 
 		socket.on("session:pause", ({ playerSession }: SessionPayload) => {
@@ -76,6 +78,8 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsDays"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsDayDetail"] });
 		});
 
 		socket.on("session:updated", ({ playerSession, dashboardStats }: SessionPayload) => {
@@ -93,6 +97,8 @@ export function useSocket() {
 			
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsDays"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsDayDetail"] });
 		});
 
 		socket.on("session:lap", ({ playerSession }: SessionPayload) => {
@@ -117,6 +123,8 @@ export function useSocket() {
 				queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 			}
 			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsDays"] });
+			queryClient.invalidateQueries({ queryKey: ["reportsDayDetail"] });
 		});
 
 		// Eventos de carrito

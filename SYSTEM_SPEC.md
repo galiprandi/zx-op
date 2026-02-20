@@ -116,6 +116,7 @@ A local-first management system for a massive inflatable attraction. The system 
 * CRUD de productos (tiempo y extras).
 * Campo `time_value_seconds` para productos de tiempo.
 * Control de requeridos/opcionales.
+* Categorías administrables desde UI (listar, crear, renombrar y eliminar), servidas por API.
 
 ---
 

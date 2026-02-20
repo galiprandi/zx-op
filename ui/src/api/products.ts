@@ -80,6 +80,29 @@ export const getProductsByCategory = async (category: string): Promise<Product[]
 	return data;
 };
 
+export const getProductCategories = async (): Promise<string[]> => {
+	const { data } = await API.get<string[]>("/api/products/categories");
+	return data;
+};
+
+export const createProductCategory = async (name: string): Promise<{ name: string }> => {
+	const { data } = await API.post<{ name: string }>("/api/products/categories", { name });
+	return data;
+};
+
+export const renameProductCategory = async (
+	currentName: string,
+	newName: string,
+): Promise<{ name: string }> => {
+	const { data } = await API.put<{ name: string }>(`/api/products/categories/${encodeURIComponent(currentName)}`, { newName });
+	return data;
+};
+
+export const deleteProductCategory = async (name: string): Promise<{ success: boolean }> => {
+	const { data } = await API.delete<{ success: boolean }>(`/api/products/categories/${encodeURIComponent(name)}`);
+	return data;
+};
+
 export const getTimeProducts = async (): Promise<Product[]> => {
 	const { data } = await API.get<Product[]>("/api/products/time");
 	return data;

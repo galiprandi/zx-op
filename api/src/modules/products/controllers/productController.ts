@@ -2,6 +2,68 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { productService, CreateProductRequest, UpdateProductRequest } from '../services/productService';
 
 export class ProductController {
+  async getProductCategories(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const categories = await productService.getProductCategories();
+      return categories;
+    } catch (error) {
+      console.error('Get product categories error:', error);
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  }
+
+  async createProductCategory(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const body = request.body as { name?: string };
+      if (!body.name || typeof body.name !== 'string' || body.name.trim().length === 0) {
+        return reply.status(400).send({ error: 'Category name is required' });
+      }
+
+      const category = await productService.createProductCategory(body.name);
+      return { name: category };
+    } catch (error) {
+      console.error('Create product category error:', error);
+      if (error instanceof Error) {
+        return reply.status(400).send({ error: error.message });
+      }
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  }
+
+  async renameProductCategory(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { name } = request.params as { name: string };
+      const body = request.body as { newName?: string };
+
+      if (!body.newName || typeof body.newName !== 'string' || body.newName.trim().length === 0) {
+        return reply.status(400).send({ error: 'newName is required' });
+      }
+
+      const updatedName = await productService.renameProductCategory(name, body.newName);
+      return { name: updatedName };
+    } catch (error) {
+      console.error('Rename product category error:', error);
+      if (error instanceof Error) {
+        return reply.status(400).send({ error: error.message });
+      }
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  }
+
+  async deleteProductCategory(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { name } = request.params as { name: string };
+      await productService.deleteProductCategory(name);
+      return { success: true };
+    } catch (error) {
+      console.error('Delete product category error:', error);
+      if (error instanceof Error) {
+        return reply.status(400).send({ error: error.message });
+      }
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  }
+
   async getAllProducts(request: FastifyRequest, reply: FastifyReply) {
     try {
       const products = await productService.getAllProducts();

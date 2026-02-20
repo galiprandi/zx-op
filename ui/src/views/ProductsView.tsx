@@ -1,16 +1,30 @@
 import { useState } from "react";
-import { Search, Plus, Edit2, Package, Clock, AlertCircle } from "lucide-react";
+import { Search, Plus, Edit2, Package, Clock, AlertCircle, Pencil } from "lucide-react";
 import { DesktopShell } from "@/components/DesktopShell";
 import { GlassCard } from "@/components/GlassCard";
+import { modalOverlayClass, modalPanelBaseClass } from "@/components/modalStyles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useProducts } from "@/hooks/useProducts";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatPrice, formatTimeValue, isTimeProduct, type Product, createProduct, updateProduct, deleteProduct, type CreateProductRequest, type UpdateProductRequest } from "@/api/products";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	formatPrice,
+	formatTimeValue,
+	isTimeProduct,
+	type Product,
+	createProduct,
+	updateProduct,
+	deleteProduct,
+	getProductCategories,
+	createProductCategory,
+	renameProductCategory,
+	type CreateProductRequest,
+	type UpdateProductRequest,
+} from "@/api/products";
 
 export function ProductsView() {
-	const CATEGORY_OPTIONS = ["Tiempo", "Accesorios", "Consumo", "Otros"] as const;
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [editingProduct, setEditingProduct] = useState<string | null>(null);
@@ -20,17 +34,17 @@ export function ProductsView() {
 		price: "",
 		category: "",
 		required: false,
-		timeValueSeconds: "",
+		timeValueMinutes: "",
 	});
 
 	const queryClient = useQueryClient();
-	const {
-		products,
-		isLoading,
-		error,
-	} = useProducts();
+	const { data: categories = [] } = useQuery({
+		queryKey: ["productCategories"],
+		queryFn: getProductCategories,
+	});
 
-	// Mutations
+	const { products, isLoading, error } = useProducts();
+
 	const createMutation = useMutation({
 		mutationFn: createProduct,
 		onSuccess: () => {
@@ -56,18 +70,36 @@ export function ProductsView() {
 		},
 	});
 
+	const createCategoryMutation = useMutation({
+		mutationFn: createProductCategory,
+		onSuccess: ({ name }) => {
+			queryClient.invalidateQueries({ queryKey: ["productCategories"] });
+			setFormData((prev) => ({ ...prev, category: name }));
+		},
+		onError: () => alert("No se pudo crear la categoría"),
+	});
+
+	const renameCategoryMutation = useMutation({
+		mutationFn: ({ currentName, nextName }: { currentName: string; nextName: string }) =>
+			renameProductCategory(currentName, nextName),
+		onSuccess: ({ name }) => {
+			queryClient.invalidateQueries({ queryKey: ["productCategories"] });
+			queryClient.invalidateQueries({ queryKey: ["products"] });
+			setFormData((prev) => ({ ...prev, category: name }));
+		},
+		onError: () => alert("No se pudo renombrar la categoría"),
+	});
+
 	const refreshProducts = () => {
 		queryClient.invalidateQueries({ queryKey: ["products"] });
 	};
 
-	// Filter products based on search term
 	const filteredProducts = products.filter(
 		(product) =>
 			product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			product.category.toLowerCase().includes(searchTerm.toLowerCase()),
 	);
 
-	// Reset form
 	const resetForm = () => {
 		setFormData({
 			name: "",
@@ -75,20 +107,30 @@ export function ProductsView() {
 			price: "",
 			category: "",
 			required: false,
-			timeValueSeconds: "",
+			timeValueMinutes: "",
 		});
 		setEditingProduct(null);
 	};
 
-	// Handle create/update
+	const handleAddCategory = () => {
+		const trimmed = prompt("Nombre de la nueva categoría:")?.trim() || "";
+		if (!trimmed) return;
+		createCategoryMutation.mutate(trimmed);
+	};
+
+	const handleRenameSelectedCategory = () => {
+		if (!formData.category) return;
+		const nextName = prompt("Nuevo nombre para la categoría:", formData.category)?.trim();
+		if (!nextName || nextName === formData.category) return;
+		renameCategoryMutation.mutate({ currentName: formData.category, nextName });
+	};
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 
-		const parsedTimeValueSeconds = formData.timeValueSeconds === ""
-			? undefined
-			: parseInt(formData.timeValueSeconds);
+		const parsedTimeValueMinutes = formData.timeValueMinutes === "" ? undefined : parseInt(formData.timeValueMinutes);
 
-		if (parsedTimeValueSeconds !== undefined && (Number.isNaN(parsedTimeValueSeconds) || parsedTimeValueSeconds <= 0)) {
+		if (parsedTimeValueMinutes !== undefined && (Number.isNaN(parsedTimeValueMinutes) || parsedTimeValueMinutes <= 0)) {
 			return;
 		}
 
@@ -98,7 +140,7 @@ export function ProductsView() {
 			price: parseFloat(formData.price),
 			category: formData.category,
 			required: formData.required,
-			timeValueSeconds: parsedTimeValueSeconds,
+			timeValueSeconds: parsedTimeValueMinutes !== undefined ? parsedTimeValueMinutes * 60 : undefined,
 		};
 
 		if (editingProduct) {
@@ -108,7 +150,7 @@ export function ProductsView() {
 				price: productData.price,
 				category: productData.category,
 				required: productData.required,
-				timeValueSeconds: formData.timeValueSeconds === "" ? null : productData.timeValueSeconds,
+				timeValueSeconds: formData.timeValueMinutes === "" ? null : productData.timeValueSeconds,
 			};
 			updateMutation.mutate({ id: editingProduct, ...updateData });
 		} else {
@@ -119,7 +161,6 @@ export function ProductsView() {
 		setIsCreateModalOpen(false);
 	};
 
-	// Handle edit
 	const handleEdit = (product: Product) => {
 		setFormData({
 			name: product.name,
@@ -127,13 +168,12 @@ export function ProductsView() {
 			price: product.price.toString(),
 			category: product.category,
 			required: product.required,
-			timeValueSeconds: product.timeValueSeconds?.toString() || "",
+			timeValueMinutes: product.timeValueSeconds ? (product.timeValueSeconds / 60).toString() : "",
 		});
 		setEditingProduct(product.id);
 		setIsCreateModalOpen(true);
 	};
 
-	// Handle delete
 	const handleDelete = (productId: string) => {
 		if (confirm("¿Estás seguro de que quieres eliminar este producto?")) {
 			deleteMutation.mutate(productId);
@@ -142,25 +182,16 @@ export function ProductsView() {
 		}
 	};
 
-	// Group products by category
-	const productsByCategory = filteredProducts.reduce((acc, product) => {
-		if (!acc[product.category]) {
-			acc[product.category] = [];
-		}
-		acc[product.category].push(product);
-		return acc;
-	}, {} as Record<string, Product[]>);
+	const requiredProducts = filteredProducts.filter((product) => product.required);
+	const optionalProducts = filteredProducts.filter((product) => !product.required);
 
 	return (
 		<DesktopShell>
 			<div className="space-y-6">
-				{/* Header */}
 				<div className="flex items-center justify-between">
 					<div>
 						<h2 className="text-3xl font-bold">Productos</h2>
-						<p className="text-muted-foreground">
-							Gestión de productos y servicios
-						</p>
+						<p className="text-muted-foreground">Administra productos y categorías</p>
 					</div>
 					<Button
 						onClick={() => {
@@ -174,7 +205,6 @@ export function ProductsView() {
 					</Button>
 				</div>
 
-				{/* Search */}
 				<div className="relative">
 					<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
 					<Input
@@ -185,7 +215,6 @@ export function ProductsView() {
 					/>
 				</div>
 
-				{/* Loading/Error States */}
 				{isLoading && (
 					<div className="flex items-center justify-center min-h-[40vh]">
 						<div className="text-center">
@@ -207,62 +236,97 @@ export function ProductsView() {
 					</div>
 				)}
 
-				{/* Products Grid by Category */}
-				{!isLoading && !error && Object.entries(productsByCategory).map(([category, categoryProducts]) => (
-					<div key={category} className="space-y-4">
-						<div className="flex items-center gap-2">
-							<Package className="w-5 h-5 text-primary" />
-							<h3 className="text-xl font-semibold text-foreground">{category}</h3>
-							<span className="text-sm text-muted-foreground">
-								({categoryProducts.length} productos)
-							</span>
-						</div>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{categoryProducts.map((product) => (
-								<GlassCard key={product.id} className="relative">
-									{product.required && (
-										<div className="absolute top-2 right-2">
-											<span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">
-												Requerido
-											</span>
-										</div>
-									)}
-									<div className="space-y-3">
-										<div>
-											<h4 className="font-semibold text-foreground">{product.name}</h4>
-											{product.description && (
-												<p className="text-sm text-muted-foreground mt-1">
-													{product.description}
-												</p>
-											)}
-										</div>
-										<div className="flex items-center justify-between">
-											<span className="text-lg font-bold text-primary">
-												{formatPrice(product.price)}
-											</span>
-											{isTimeProduct(product) && (
-												<span className="text-sm bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
-													{formatTimeValue(product.timeValueSeconds!)}
-												</span>
-											)}
-										</div>
-										<div className="flex gap-2">
-											<Button
-												onClick={() => handleEdit(product)}
-												variant="outline"
-												size="sm"
-												className="w-full"
-											>
-												<Edit2 className="w-3 h-3 mr-1" />
-												Editar
-											</Button>
-										</div>
-									</div>
-								</GlassCard>
-							))}
-						</div>
-					</div>
-				))}
+				{!isLoading && !error && (
+					<>
+						<GlassCard className="overflow-hidden">
+							<div className="flex items-center gap-2 p-4 border-b border-border">
+								<Package className="w-5 h-5 text-primary" />
+								<h3 className="text-lg font-semibold">Obligatorios</h3>
+								<span className="text-sm text-muted-foreground">({requiredProducts.length})</span>
+							</div>
+							<div className="overflow-x-auto">
+								<table className="w-full text-sm">
+									<thead className="bg-muted/40">
+										<tr className="text-left">
+											<th className="px-4 py-3 font-medium">Nombre</th>
+											<th className="px-4 py-3 font-medium">Categoría</th>
+											<th className="px-4 py-3 font-medium">Tiempo</th>
+											<th className="px-4 py-3 font-medium">Precio</th>
+											<th className="px-4 py-3 font-medium text-right">Acción</th>
+										</tr>
+									</thead>
+									<tbody>
+										{requiredProducts.map((product) => (
+											<tr key={product.id} className="border-t border-border">
+												<td className="px-4 py-3">{product.name}</td>
+												<td className="px-4 py-3">{product.category}</td>
+												<td className="px-4 py-3">{isTimeProduct(product) ? formatTimeValue(product.timeValueSeconds!) : "-"}</td>
+												<td className="px-4 py-3">{formatPrice(product.price)}</td>
+												<td className="px-4 py-3 text-right">
+													<Button onClick={() => handleEdit(product)} variant="outline" size="sm">
+														<Edit2 className="w-3 h-3 mr-1" />
+														Editar
+													</Button>
+												</td>
+											</tr>
+										))}
+										{requiredProducts.length === 0 && (
+											<tr className="border-t border-border">
+												<td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+													No hay productos obligatorios
+												</td>
+											</tr>
+										)}
+									</tbody>
+								</table>
+							</div>
+						</GlassCard>
+
+						<GlassCard className="overflow-hidden">
+							<div className="flex items-center gap-2 p-4 border-b border-border">
+								<Package className="w-5 h-5 text-primary" />
+								<h3 className="text-lg font-semibold">Otros</h3>
+								<span className="text-sm text-muted-foreground">({optionalProducts.length})</span>
+							</div>
+							<div className="overflow-x-auto">
+								<table className="w-full text-sm">
+									<thead className="bg-muted/40">
+										<tr className="text-left">
+											<th className="px-4 py-3 font-medium">Nombre</th>
+											<th className="px-4 py-3 font-medium">Categoría</th>
+											<th className="px-4 py-3 font-medium">Tiempo</th>
+											<th className="px-4 py-3 font-medium">Precio</th>
+											<th className="px-4 py-3 font-medium text-right">Acción</th>
+										</tr>
+									</thead>
+									<tbody>
+										{optionalProducts.map((product) => (
+											<tr key={product.id} className="border-t border-border">
+												<td className="px-4 py-3">{product.name}</td>
+												<td className="px-4 py-3">{product.category}</td>
+												<td className="px-4 py-3">{isTimeProduct(product) ? formatTimeValue(product.timeValueSeconds!) : "-"}</td>
+												<td className="px-4 py-3">{formatPrice(product.price)}</td>
+												<td className="px-4 py-3 text-right">
+													<Button onClick={() => handleEdit(product)} variant="outline" size="sm">
+														<Edit2 className="w-3 h-3 mr-1" />
+														Editar
+													</Button>
+												</td>
+											</tr>
+										))}
+										{optionalProducts.length === 0 && (
+											<tr className="border-t border-border">
+												<td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+													No hay productos en esta lista
+												</td>
+											</tr>
+										)}
+									</tbody>
+								</table>
+							</div>
+						</GlassCard>
+					</>
+				)}
 
 				{!isLoading && !error && filteredProducts.length === 0 && (
 					<div className="text-center py-12">
@@ -271,10 +335,7 @@ export function ProductsView() {
 							{searchTerm ? "No se encontraron productos" : "No hay productos"}
 						</h3>
 						<p className="text-muted-foreground">
-							{searchTerm 
-								? "Intenta con otra búsqueda" 
-								: "Crea tu primer producto para comenzar"
-							}
+							{searchTerm ? "Intenta con otra búsqueda" : "Crea tu primer producto para comenzar"}
 						</p>
 						{!searchTerm && (
 							<Button
@@ -291,145 +352,78 @@ export function ProductsView() {
 					</div>
 				)}
 
-				{/* Create/Edit Modal */}
 				{isCreateModalOpen && (
-					<div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center px-4">
-						<div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-							<div className="flex items-center justify-between mb-6">
-								<h3 className="text-lg font-semibold text-slate-900">
-									{editingProduct ? "Editar Producto" : "Nuevo Producto"}
-								</h3>
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									onClick={() => setIsCreateModalOpen(false)}
-									className="h-8 w-8 p-0"
-								>
+					<div className={`${modalOverlayClass} !mt-0 px-4`}>
+						<div className={`${modalPanelBaseClass} max-w-md p-6`}>
+							<div className="flex items-center justify-between mb-4">
+								<h3 className="text-lg font-semibold text-slate-900">{editingProduct ? "Editar Producto" : "Nuevo Producto"}</h3>
+								<Button type="button" variant="ghost" size="sm" onClick={() => setIsCreateModalOpen(false)} className="h-8 w-8 p-0">
 									×
 								</Button>
 							</div>
 
-							<form onSubmit={handleSubmit} className="space-y-4">
-								<div>
-									<Label htmlFor="name">Nombre *</Label>
-									<Input
-										id="name"
-										value={formData.name}
-										onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-										placeholder="Nombre del producto"
-										required
-									/>
-								</div>
-
-								<div>
-									<Label htmlFor="description">Descripción</Label>
-									<Input
-										id="description"
-										value={formData.description}
-										onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-										placeholder="Descripción opcional"
-									/>
-								</div>
-
-								<div className="grid grid-cols-2 gap-4">
-									<div>
+							<form onSubmit={handleSubmit} className="space-y-5">
+								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+									<div className="space-y-2">
+										<Label htmlFor="name">Nombre *</Label>
+										<Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Nombre del producto" required />
+									</div>
+									<div className="space-y-2">
 										<Label htmlFor="price">Precio *</Label>
-										<Input
-											id="price"
-											type="number"
-											step="0.01"
-											value={formData.price}
-											onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-											placeholder="0.00"
-											required
-										/>
+										<Input id="price" type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="0.00" required />
 									</div>
+								</div>
 
-									<div>
+								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+									<div className="space-y-2">
 										<Label htmlFor="category">Categoría *</Label>
-										<select
-											id="category"
-											value={formData.category}
-											onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-											className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-											required
-										>
-											<option value="" disabled>
-												Selecciona una categoría
-											</option>
-											{CATEGORY_OPTIONS.map((option) => (
-												<option key={option} value={option}>
-													{option}
-												</option>
-											))}
-										</select>
+										<div className="flex items-center gap-2">
+											<select id="category" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background" required>
+												<option value="" disabled>Selecciona una categoría</option>
+												{categories.map((category) => (
+													<option key={category} value={category}>{category}</option>
+												))}
+											</select>
+											<Button type="button" variant="outline" size="icon" onClick={handleAddCategory} disabled={createCategoryMutation.isPending} title="Agregar categoría">
+												<Plus className="h-4 w-4" />
+											</Button>
+											<Button type="button" variant="outline" size="icon" onClick={handleRenameSelectedCategory} disabled={!formData.category || renameCategoryMutation.isPending} title="Editar categoría">
+												<Pencil className="h-4 w-4" />
+											</Button>
+										</div>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="timeValueMinutes">Tiempo (minutos)</Label>
+										<div className="relative">
+											<Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+											<Input id="timeValueMinutes" type="number" min={1} step={1} value={formData.timeValueMinutes} onChange={(e) => setFormData({ ...formData, timeValueMinutes: e.target.value })} placeholder="30" className="pl-10" />
+										</div>
 									</div>
 								</div>
 
-								<div>
-									<Label htmlFor="timeValueSeconds">
-										Tiempo (segundos) - solo para productos de tiempo
-									</Label>
-									<div className="relative">
-										<Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-										<Input
-											id="timeValueSeconds"
-											type="number"
-											min={1}
-											value={formData.timeValueSeconds}
-											onChange={(e) => setFormData({ ...formData, timeValueSeconds: e.target.value })}
-											placeholder="1800 (30 minutos)"
-											className="pl-10"
-										/>
-									</div>
-									<p className="text-xs text-muted-foreground mt-1">
-										Deja vacío para productos sin tiempo (ej: medias, snacks). Si completas, debe ser mayor a 0.
-									</p>
+								<div className="space-y-2">
+									<Label htmlFor="description">Descripción</Label>
+									<Input id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Descripción opcional" />
 								</div>
 
-								<div className="flex items-center gap-2">
-									<input
-										type="checkbox"
+								<div className="flex items-center gap-3">
+									<Switch
 										id="required"
 										checked={formData.required}
-										onChange={(e) => setFormData({ ...formData, required: e.target.checked })}
-										className="rounded border-border"
+										onCheckedChange={(checked) => setFormData({ ...formData, required: checked })}
 									/>
-									<Label htmlFor="required" className="text-sm">
-										Producto obligatorio (requerido para todos los check-ins)
-									</Label>
+									<Label htmlFor="required" className="text-sm">Producto obligatorio</Label>
 								</div>
 
 								<div className="flex justify-end gap-2 pt-4">
 									{editingProduct && (
-										<Button
-											type="button"
-											variant="destructive"
-											onClick={() => handleDelete(editingProduct)}
-											disabled={deleteMutation.isPending}
-											className="mr-auto"
-										>
+										<Button type="button" variant="destructive" onClick={() => handleDelete(editingProduct)} disabled={deleteMutation.isPending} className="mr-auto">
 											{deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
 										</Button>
 									)}
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setIsCreateModalOpen(false)}
-									>
-										Cancelar
-									</Button>
-									<Button
-										type="submit"
-										disabled={createMutation.isPending || updateMutation.isPending}
-									>
-										{createMutation.isPending || updateMutation.isPending
-											? "Guardando..."
-											: editingProduct
-											? "Actualizar"
-											: "Crear"
-										}
+									<Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancelar</Button>
+									<Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+										{createMutation.isPending || updateMutation.isPending ? "Guardando..." : editingProduct ? "Actualizar" : "Crear"}
 									</Button>
 								</div>
 							</form>

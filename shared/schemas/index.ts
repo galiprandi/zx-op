@@ -38,7 +38,11 @@ export {
 
 export {
   RecentOperationalDaySalesSchema,
-  ReportsSummarySchema
+  ReportsSummarySchema,
+  OperationalDayListItemSchema,
+  OperationalDaysPageSchema,
+  OperationalDayTopProductSchema,
+  OperationalDayDetailSchema
 } from "./reports";
 
 export {

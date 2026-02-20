@@ -2,6 +2,12 @@ import { FastifyInstance } from 'fastify';
 import { productController } from '../controllers/productController';
 
 export async function productRoutes(fastify: FastifyInstance) {
+  // Category management
+  fastify.get('/api/products/categories', productController.getProductCategories);
+  fastify.post('/api/products/categories', productController.createProductCategory);
+  fastify.put('/api/products/categories/:name', productController.renameProductCategory);
+  fastify.delete('/api/products/categories/:name', productController.deleteProductCategory);
+
   // Get all products
   fastify.get('/api/products', productController.getAllProducts);
   

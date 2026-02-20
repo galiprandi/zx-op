@@ -86,6 +86,10 @@ export const moduleInfo = {
       name: 'products',
       description: 'Product management with time value support',
       routes: [
+        'GET /api/products/categories',
+        'POST /api/products/categories',
+        'PUT /api/products/categories/:name',
+        'DELETE /api/products/categories/:name',
         'GET /api/products',
         'GET /api/products/:id',
         'POST /api/products',
@@ -120,7 +124,9 @@ export const moduleInfo = {
       name: 'reports',
       description: 'Commercial and operational reporting metrics',
       routes: [
-        'GET /api/reports/summary'
+        'GET /api/reports/summary',
+        'GET /api/reports/days',
+        'GET /api/reports/days/:operationalDate'
       ],
       dependencies: ['transactions', 'playerSessions', 'system']
     },

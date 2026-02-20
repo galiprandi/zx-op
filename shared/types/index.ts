@@ -31,7 +31,11 @@ export type {
 
 export type {
   RecentOperationalDaySales,
-  ReportsSummaryResponse
+  ReportsSummaryResponse,
+  OperationalDayListItem,
+  OperationalDaysPageResponse,
+  OperationalDayTopProduct,
+  OperationalDayDetailResponse
 } from './reports';
 
 export type {

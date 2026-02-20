@@ -45,6 +45,13 @@ model Product {
   transactions     Transaction[]
 }
 
+model ProductCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Transaction {
   id              String        @id @default(cuid())
   playerSession   PlayerSession @relation(fields: [playerSessionId], references: [id], onDelete: Cascade)

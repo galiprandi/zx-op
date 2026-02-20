@@ -17,7 +17,9 @@ Reports must **never** include the in-progress operational day.
 
 ## Data Windows
 - Top KPI cards (`Ventas`, `Minutos vendidos`, `% ocupación`) use the **last closed operational day**.
-- Table (`Últimos 10 días operativos`) uses the latest 10 **closed** operational days with activity.
+- Table (`Historial de jornadas operativas cerradas`) uses **paginated** closed operational days with activity.
+  - Default page size: **15** rows.
+  - Sorted by most recent closed day first.
 - Table includes `Prom. / vuelta` (average seconds per lap) for each closed day row.
 - Period cards:
   - `Últimos 7 días`: last 7 closed operational days.
@@ -38,5 +40,12 @@ Reports must **never** include the in-progress operational day.
   - If `sum(lapsCount) = 0`, the value is `N/A` in UI.
 
 ## Exclusions
-- If a closed day has no transactions, it is omitted from the 10-day table.
+- If a closed day has no transactions, it is omitted from the paginated table.
 - No metric in Reports may include in-progress day transactions.
+
+## Day Detail
+- Clicking a row in the closed-day history opens a **day detail panel**.
+- Day detail uses monitor-style cards for:
+  - Operational KPIs (sessions, sold minutes, occupancy, laps, average seconds per lap).
+  - Commercial KPIs and top sold products for that closed day.
+- Day detail is available only for **closed** operational days.

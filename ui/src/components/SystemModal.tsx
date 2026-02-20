@@ -2,6 +2,7 @@ import { Check, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "./GlassCard";
 import { useUi } from "@/providers/UIProvider";
+import { modalOverlayClass, modalPanelBaseClass } from "./modalStyles";
 
 const modalConfig = {
   success: {
@@ -44,8 +45,8 @@ export function SystemModal() {
   if (!modal.isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <GlassCard className={`w-full max-w-sm text-center ${config.cardBg}`}>
+    <div className={modalOverlayClass}>
+      <GlassCard className={`${modalPanelBaseClass} max-w-sm text-center ${config.cardBg}`}>
         {/* Close Button */}
         <div className="absolute top-4 right-4">
           <Button
