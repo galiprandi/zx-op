@@ -18,7 +18,7 @@ export interface UpdateProductRequest {
   price?: number;
   category?: string;
   required?: boolean;
-  timeValueSeconds?: number;
+  timeValueSeconds?: number | null;
 }
 
 export class ProductService {

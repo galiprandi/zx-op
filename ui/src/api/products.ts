@@ -29,7 +29,7 @@ export interface UpdateProductRequest {
 	price?: number;
 	category?: string;
 	required?: boolean;
-	timeValueSeconds?: number;
+	timeValueSeconds?: number | null;
 }
 
 export interface ProductPayload {
@@ -47,7 +47,7 @@ export interface ProductUpdatePayload {
 	price?: number;
 	category?: string;
 	required?: boolean;
-	timeValueSeconds?: number;
+	timeValueSeconds?: number | null;
 }
 
 export const getProducts = async (): Promise<Product[]> => {

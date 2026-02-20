@@ -18,6 +18,7 @@ Reports must **never** include the in-progress operational day.
 ## Data Windows
 - Top KPI cards (`Ventas`, `Minutos vendidos`, `% ocupación`) use the **last closed operational day**.
 - Table (`Últimos 10 días operativos`) uses the latest 10 **closed** operational days with activity.
+- Table includes `Prom. / vuelta` (average seconds per lap) for each closed day row.
 - Period cards:
   - `Últimos 7 días`: last 7 closed operational days.
   - `Últimos 30 días`: last 30 closed operational days.
@@ -27,6 +28,14 @@ Reports must **never** include the in-progress operational day.
 - Daily occupancy is computed on closed-day data only.
 - Formula:
   - `occupancyPct = totalTimeSeconds / (maxOccupancy * 24h) * 100`
+
+## Lap Pace Metric in Reports
+- Daily lap pace is computed on closed-day data only.
+- Scope: only sessions with `lapsCount > 0` in each closed-day window.
+- Formula (weighted):
+  - `averageSecondsPerLap = sum(accumulatedSeconds) / sum(lapsCount)`
+- Fallback:
+  - If `sum(lapsCount) = 0`, the value is `N/A` in UI.
 
 ## Exclusions
 - If a closed day has no transactions, it is omitted from the 10-day table.

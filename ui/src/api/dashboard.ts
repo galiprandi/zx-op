@@ -15,6 +15,8 @@ export interface DashboardStats {
 export interface PerformanceMetrics {
   averageWaitTime: number; // seconds
   averagePlayTime: number; // seconds
+  averageSecondsPerLap: number | null; // weighted by total laps
+  totalLaps: number;
   totalCompletedSessions: number;
   dailyOccupancyRate: number; // percentage
   totalPlayTimeConsumed: number; // seconds today

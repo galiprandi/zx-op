@@ -73,6 +73,11 @@ A local-first management system for a massive inflatable attraction. The system 
 2. Each tap increments `laps_count` by exactly 1.
 3. Lap data is attached to the same session and used for per-session operational stats (e.g., average seconds per lap).
 4. Lap registration is disabled for paused, waiting, or expired sessions.
+5. Visibility:
+* **Monitor** shows "Tiempo promedio por vuelta" for the current operational day using weighted formula:
+  `sum(consumed_seconds_live) / sum(laps_count)` over sessions with `laps_count > 0`.
+  For active sessions, `consumed_seconds_live = accumulated_seconds + (now - last_start_at)`.
+* **Reports** shows per-day "Prom. / vuelta" only for closed operational days, with `N/A` when there are no laps.
 
 ### D. Auto-Release & Landing
 

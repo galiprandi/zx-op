@@ -9,6 +9,8 @@ export interface RecentOperationalDaySales {
   occupancyPct: number;
   sessionCount: number;
   totalTimeSeconds: number;
+  averageSecondsPerLap: number | null;
+  totalLaps: number;
   timeRevenue: number;
   otherRevenue: number;
   totalRevenue: number;
@@ -108,8 +110,26 @@ async function getOperationalDaySales(
     return null;
   }
 
+  const sessionsWithLaps = await prisma.playerSession.findMany({
+    where: {
+      createdAt: {
+        gte: windowStart,
+        lt: windowEnd,
+      },
+      lapsCount: {
+        gt: 0,
+      },
+    },
+    select: {
+      lapsCount: true,
+      accumulatedSeconds: true,
+    },
+  });
+
   const sessions = new Set<string>();
   let totalTimeSeconds = 0;
+  let totalLaps = 0;
+  let totalLapSeconds = 0;
   let timeRevenue = 0;
   let otherRevenue = 0;
 
@@ -126,6 +146,10 @@ async function getOperationalDaySales(
   }
 
   const totalRevenue = timeRevenue + otherRevenue;
+  for (const session of sessionsWithLaps) {
+    totalLaps += session.lapsCount;
+    totalLapSeconds += session.accumulatedSeconds || 0;
+  }
   const dayCapacitySeconds = Math.max(1, maxOccupancy) * ONE_DAY_MS / 1000;
   const occupancyPct = Number(Math.min(100, (totalTimeSeconds / dayCapacitySeconds) * 100).toFixed(2));
 
@@ -134,6 +158,8 @@ async function getOperationalDaySales(
     occupancyPct,
     sessionCount: sessions.size,
     totalTimeSeconds,
+    averageSecondsPerLap: totalLaps > 0 ? Math.round(totalLapSeconds / totalLaps) : null,
+    totalLaps,
     timeRevenue: Number(timeRevenue.toFixed(2)),
     otherRevenue: Number(otherRevenue.toFixed(2)),
     totalRevenue: Number(totalRevenue.toFixed(2)),

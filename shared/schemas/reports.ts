@@ -5,6 +5,8 @@ export const RecentOperationalDaySalesSchema = z.object({
   occupancyPct: z.number().nonnegative(),
   sessionCount: z.number().int().nonnegative(),
   totalTimeSeconds: z.number().int().nonnegative(),
+  averageSecondsPerLap: z.number().int().nonnegative().nullable(),
+  totalLaps: z.number().int().nonnegative(),
   timeRevenue: z.number().nonnegative(),
   otherRevenue: z.number().nonnegative(),
   totalRevenue: z.number().nonnegative(),

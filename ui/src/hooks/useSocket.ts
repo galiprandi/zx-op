@@ -100,6 +100,7 @@ export function useSocket() {
 				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
 			}
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+			queryClient.invalidateQueries({ queryKey: ["performanceMetrics"] });
 		});
 
 		// Eventos de transacciones - OPTIMIZED

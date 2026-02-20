@@ -346,6 +346,18 @@ export function MonitorView() {
 										</div>
 										<div className="flex items-center justify-between">
 											<span className="text-sm font-medium text-foreground">
+												Tiempo promedio por vuelta
+											</span>
+											<span className="text-base">
+												{performanceMetrics.averageSecondsPerLap === null ? (
+													"N/A"
+												) : (
+													<MonitorTime seconds={performanceMetrics.averageSecondsPerLap} state="stop" />
+												)}
+											</span>
+										</div>
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-foreground">
 												Juegos completados (jornada)
 											</span>
 											<span className="text-base">

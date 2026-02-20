@@ -18,6 +18,8 @@ export interface DashboardStats {
 export interface PerformanceMetrics {
   averageWaitTime: number; // seconds
   averagePlayTime: number; // seconds
+  averageSecondsPerLap: number | null; // weighted by total laps
+  totalLaps: number;
   totalCompletedSessions: number;
   dailyOccupancyRate: number; // percentage
   totalPlayTimeConsumed: number; // seconds today
@@ -125,6 +127,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
   try {
     const { startUtc, endUtc, maxOccupancy } = await getOperationalContext();
+    const nowMs = Date.now();
 
     const todaySessions = await prisma.playerSession.findMany({
       where: {
@@ -140,6 +143,7 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
         updatedAt: true,
         totalAllowedSeconds: true,
         accumulatedSeconds: true,
+        lapsCount: true,
         isActive: true,
       },
     });
@@ -165,6 +169,13 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
 
     const sessionsWithTime = todaySessions.filter((s) => s.accumulatedSeconds > 0);
     const totalAccumulated = todaySessions.reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
+    const sessionsWithLaps = todaySessions.filter((s) => s.lapsCount > 0);
+    const totalLaps = sessionsWithLaps.reduce((sum, s) => sum + s.lapsCount, 0);
+    const totalLapSeconds = sessionsWithLaps.reduce((sum, s) => {
+      const activeSegmentSeconds =
+        s.isActive && s.lastStartAt ? Math.max(0, Math.floor((nowMs - s.lastStartAt.getTime()) / 1000)) : 0;
+      return sum + (s.accumulatedSeconds || 0) + activeSegmentSeconds;
+    }, 0);
 
     const currentlyActiveSessions = todaySessions.filter((s) => s.isActive);
     const peakOccupancy = Math.max(currentlyActiveSessions.length, 1);
@@ -181,6 +192,8 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
     return {
       averageWaitTime,
       averagePlayTime: sessionsWithTime.length > 0 ? Math.round(totalAccumulated / sessionsWithTime.length) : 0,
+      averageSecondsPerLap: totalLaps > 0 ? Math.round(totalLapSeconds / totalLaps) : null,
+      totalLaps,
       totalCompletedSessions: completedSessions.length,
       dailyOccupancyRate,
       totalPlayTimeConsumed: totalAccumulated,
@@ -195,6 +208,7 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
 
 export async function getPerformanceDebugData() {
   const { startUtc, endUtc } = await getOperationalContext();
+  const nowMs = Date.now();
 
   const allSessions = await prisma.playerSession.findMany({
     where: {
@@ -211,6 +225,7 @@ export async function getPerformanceDebugData() {
       updatedAt: true,
       totalAllowedSeconds: true,
       accumulatedSeconds: true,
+      lapsCount: true,
       isActive: true,
     },
   });
@@ -222,6 +237,13 @@ export async function getPerformanceDebugData() {
   const currentlyActiveSessions = allSessions.filter((s) => s.isActive);
   const sessionsWithTime = allSessions.filter((s) => s.accumulatedSeconds > 0);
   const totalAccumulated = allSessions.reduce((sum, s) => sum + (s.accumulatedSeconds || 0), 0);
+  const sessionsWithLaps = allSessions.filter((s) => s.lapsCount > 0);
+  const totalLaps = sessionsWithLaps.reduce((sum, s) => sum + s.lapsCount, 0);
+  const totalLapSeconds = sessionsWithLaps.reduce((sum, s) => {
+    const activeSegmentSeconds =
+      s.isActive && s.lastStartAt ? Math.max(0, Math.floor((nowMs - s.lastStartAt.getTime()) / 1000)) : 0;
+    return sum + (s.accumulatedSeconds || 0) + activeSegmentSeconds;
+  }, 0);
 
   const waitingTimes = waitingSessions.map((s) => (Date.now() - s.createdAt.getTime()) / 1000);
   const activatedWaitTimes = activatedSessions.map((s) => (s.lastStartAt!.getTime() - s.createdAt.getTime()) / 1000);
@@ -241,6 +263,8 @@ export async function getPerformanceDebugData() {
     calculations: {
       averageWaitTime,
       averagePlayTime: sessionsWithTime.length > 0 ? Math.round(totalAccumulated / sessionsWithTime.length) : 0,
+      averageSecondsPerLap: totalLaps > 0 ? Math.round(totalLapSeconds / totalLaps) : null,
+      totalLaps,
       totalPlayTimeConsumed: totalAccumulated,
       peakOccupancy: Math.max(currentlyActiveSessions.length, sessionsWithTime.length, waitingSessions.length),
     },

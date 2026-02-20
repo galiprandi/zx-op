@@ -8,7 +8,6 @@ import { SessionTime } from "@/components/SessionTime";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { GlassCard } from "@/components/GlassCard";
-import { TimeFormatter } from "@/components/TimeFormatter";
 import { useActiveSessions, usePlayerSession } from "@/hooks/usePlayerSession";
 import { getCheckinHistory } from "@/api/checkin";
 import { formatTimeValue } from "@/api/products";
@@ -216,6 +215,18 @@ export function OperationView() {
 							)}
 						</div>
 
+						{session.isActive && session.remainingSeconds > 0 && (
+							<Button
+								type="button"
+								variant="secondary"
+								className="w-full h-12 text-base operation-secondary-cta"
+								onClick={() => lapMutation.mutate()}
+								disabled={lapMutation.isPending}
+							>
+								{lapMutation.isPending ? `Registrando... (Total: ${session.lapsCount})` : `+1 Vuelta (Total: ${session.lapsCount})`}
+							</Button>
+						)}
+
 						<ActionButton
 							type={buttonConfig.type}
 							onClick={() => session && handlePlayPause(session.isActive ? "pause" : "play")}
@@ -225,18 +236,6 @@ export function OperationView() {
 						>
 							{buttonConfig.text}
 						</ActionButton>
-
-						{session.isActive && session.remainingSeconds > 0 && (
-							<Button
-								type="button"
-								variant="outline"
-								className="w-full h-12 text-base"
-								onClick={() => lapMutation.mutate()}
-								disabled={lapMutation.isPending}
-							>
-								{lapMutation.isPending ? "Registrando..." : "Registrar vuelta"}
-							</Button>
-						)}
 					</div>
 				) : null
 			}
@@ -278,19 +277,6 @@ export function OperationView() {
 									<StatusBadge status={visualState} size="lg" />
 								</div>
 
-								<div className="space-y-1">
-									<p className="text-sm text-muted-foreground">Vueltas: <span className="text-foreground font-semibold">{session.lapsCount}</span></p>
-									<p className="text-sm text-muted-foreground">
-										Promedio/vuelta:{" "}
-										{session.avgSecondsPerLap === null ? (
-											<span className="text-foreground font-semibold">N/A</span>
-										) : (
-											<TimeFormatter seconds={session.avgSecondsPerLap} state="stop">
-												{({ formatted }) => <span className="text-foreground font-semibold">{formatted}</span>}
-											</TimeFormatter>
-										)}
-									</p>
-								</div>
 							</div>
 						) : (
 							<GlassCard className="text-center">

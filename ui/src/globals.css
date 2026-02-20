@@ -133,3 +133,15 @@ input, .input {
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid hsl(var(--border) / 0.2);
 }
+
+@layer components {
+  .operation-secondary-cta {
+    @apply border border-border/60 font-semibold shadow-sm;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+  }
+
+  .operation-secondary-cta:hover:not(:disabled) {
+    background-color: hsl(var(--secondary) / 0.85);
+  }
+}

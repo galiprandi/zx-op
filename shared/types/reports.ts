@@ -3,6 +3,8 @@ export interface RecentOperationalDaySales {
   occupancyPct: number;
   sessionCount: number;
   totalTimeSeconds: number;
+  averageSecondsPerLap: number | null;
+  totalLaps: number;
   timeRevenue: number;
   otherRevenue: number;
   totalRevenue: number;

@@ -173,6 +173,12 @@ export function ReportsView() {
                             <th className="py-2 pr-3 font-medium text-right">
                               <span className="inline-flex items-center justify-end gap-1.5 w-full">
                                 <Timer className="w-4 h-4" />
+                                Prom. / vuelta
+                              </span>
+                            </th>
+                            <th className="py-2 pr-3 font-medium text-right">
+                              <span className="inline-flex items-center justify-end gap-1.5 w-full">
+                                <Timer className="w-4 h-4" />
                                 En tiempo
                               </span>
                             </th>
@@ -205,6 +211,19 @@ export function ReportsView() {
                                   size="sm"
                                 />
                               </td>
+                              <td className="py-3 pr-3 text-right">
+                                {row.averageSecondsPerLap === null ? (
+                                  'N/A'
+                                ) : (
+                                  <SessionTime
+                                    seconds={row.averageSecondsPerLap}
+                                    state="stop"
+                                    format="adaptive"
+                                    colorize={false}
+                                    size="sm"
+                                  />
+                                )}
+                              </td>
                               <td className="py-3 pr-3 text-right">{formatCurrency(row.timeRevenue)}</td>
                               <td className="py-3 pr-3 text-right">{formatCurrency(row.otherRevenue)}</td>
                               <td className="py-3 font-semibold text-right">{formatCurrency(row.totalRevenue)}</td>
@@ -232,6 +251,20 @@ export function ReportsView() {
                               colorize={false}
                               size="sm"
                             />
+                          </p>
+                          <p className="text-sm">
+                            Prom. / vuelta:{' '}
+                            {row.averageSecondsPerLap === null ? (
+                              'N/A'
+                            ) : (
+                              <SessionTime
+                                seconds={row.averageSecondsPerLap}
+                                state="stop"
+                                format="adaptive"
+                                colorize={false}
+                                size="sm"
+                              />
+                            )}
                           </p>
                           <p className="text-sm">Tiempo: {formatCurrency(row.timeRevenue)}</p>
                           <p className="text-sm">Otros: {formatCurrency(row.otherRevenue)}</p>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Edit2, Trash2, Package, Clock, AlertCircle } from "lucide-react";
+import { Search, Plus, Edit2, Package, Clock, AlertCircle } from "lucide-react";
 import { DesktopShell } from "@/components/DesktopShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatPrice, formatTimeValue, isTimeProduct, type Product, createProduct, updateProduct, deleteProduct, type CreateProductRequest, type UpdateProductRequest } from "@/api/products";
 
 export function ProductsView() {
+	const CATEGORY_OPTIONS = ["Tiempo", "Accesorios", "Consumo", "Otros"] as const;
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [editingProduct, setEditingProduct] = useState<string | null>(null);
@@ -83,13 +84,21 @@ export function ProductsView() {
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 
+		const parsedTimeValueSeconds = formData.timeValueSeconds === ""
+			? undefined
+			: parseInt(formData.timeValueSeconds);
+
+		if (parsedTimeValueSeconds !== undefined && (Number.isNaN(parsedTimeValueSeconds) || parsedTimeValueSeconds <= 0)) {
+			return;
+		}
+
 		const productData: CreateProductRequest = {
 			name: formData.name,
 			description: formData.description || undefined,
 			price: parseFloat(formData.price),
 			category: formData.category,
 			required: formData.required,
-			timeValueSeconds: formData.timeValueSeconds ? parseInt(formData.timeValueSeconds) : undefined,
+			timeValueSeconds: parsedTimeValueSeconds,
 		};
 
 		if (editingProduct) {
@@ -99,7 +108,7 @@ export function ProductsView() {
 				price: productData.price,
 				category: productData.category,
 				required: productData.required,
-				timeValueSeconds: productData.timeValueSeconds,
+				timeValueSeconds: formData.timeValueSeconds === "" ? null : productData.timeValueSeconds,
 			};
 			updateMutation.mutate({ id: editingProduct, ...updateData });
 		} else {
@@ -128,6 +137,8 @@ export function ProductsView() {
 	const handleDelete = (productId: string) => {
 		if (confirm("¿Estás seguro de que quieres eliminar este producto?")) {
 			deleteMutation.mutate(productId);
+			setIsCreateModalOpen(false);
+			resetForm();
 		}
 	};
 
@@ -240,19 +251,10 @@ export function ProductsView() {
 												onClick={() => handleEdit(product)}
 												variant="outline"
 												size="sm"
-												className="flex-1"
+												className="w-full"
 											>
 												<Edit2 className="w-3 h-3 mr-1" />
 												Editar
-											</Button>
-											<Button
-												onClick={() => handleDelete(product.id)}
-												variant="outline"
-												size="sm"
-												className="flex-1 text-destructive hover:text-destructive"
-											>
-												<Trash2 className="w-3 h-3 mr-1" />
-												Eliminar
 											</Button>
 										</div>
 									</div>
@@ -292,9 +294,9 @@ export function ProductsView() {
 				{/* Create/Edit Modal */}
 				{isCreateModalOpen && (
 					<div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center px-4">
-						<GlassCard className="w-full max-w-md">
+						<div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
 							<div className="flex items-center justify-between mb-6">
-								<h3 className="text-lg font-semibold">
+								<h3 className="text-lg font-semibold text-slate-900">
 									{editingProduct ? "Editar Producto" : "Nuevo Producto"}
 								</h3>
 								<Button
@@ -346,13 +348,22 @@ export function ProductsView() {
 
 									<div>
 										<Label htmlFor="category">Categoría *</Label>
-										<Input
+										<select
 											id="category"
 											value={formData.category}
 											onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-											placeholder="Tiempo, Accesorios, etc."
+											className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
 											required
-										/>
+										>
+											<option value="" disabled>
+												Selecciona una categoría
+											</option>
+											{CATEGORY_OPTIONS.map((option) => (
+												<option key={option} value={option}>
+													{option}
+												</option>
+											))}
+										</select>
 									</div>
 								</div>
 
@@ -365,6 +376,7 @@ export function ProductsView() {
 										<Input
 											id="timeValueSeconds"
 											type="number"
+											min={1}
 											value={formData.timeValueSeconds}
 											onChange={(e) => setFormData({ ...formData, timeValueSeconds: e.target.value })}
 											placeholder="1800 (30 minutos)"
@@ -372,7 +384,7 @@ export function ProductsView() {
 										/>
 									</div>
 									<p className="text-xs text-muted-foreground mt-1">
-										Deja vacío para productos sin tiempo (ej: medias, snacks)
+										Deja vacío para productos sin tiempo (ej: medias, snacks). Si completas, debe ser mayor a 0.
 									</p>
 								</div>
 
@@ -390,6 +402,17 @@ export function ProductsView() {
 								</div>
 
 								<div className="flex justify-end gap-2 pt-4">
+									{editingProduct && (
+										<Button
+											type="button"
+											variant="destructive"
+											onClick={() => handleDelete(editingProduct)}
+											disabled={deleteMutation.isPending}
+											className="mr-auto"
+										>
+											{deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
+										</Button>
+									)}
 									<Button
 										type="button"
 										variant="outline"
@@ -410,7 +433,7 @@ export function ProductsView() {
 									</Button>
 								</div>
 							</form>
-						</GlassCard>
+						</div>
 					</div>
 				)}
 			</div>

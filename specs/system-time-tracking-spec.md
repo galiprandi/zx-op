@@ -196,6 +196,8 @@ Returns operational performance metrics for the current day.
 interface PerformanceMetrics {
   averageWaitTime: number;        // Average time from check-in to first activation (seconds)
   averagePlayTime: number;        // Average play duration per completed session (seconds)
+  averageSecondsPerLap: number | null; // Weighted avg lap time: live consumed seconds / total laps
+  totalLaps: number;              // Total laps registered in the operational day
   totalCompletedSessions: number;  // Total sessions finished today
   dailyOccupancyRate: number;      // Average utilization percentage (0-100)
   totalPlayTimeConsumed: number;   // Total play time consumed today (seconds)
@@ -215,6 +217,15 @@ interface PerformanceMetrics {
 - Calculation: `total_play_time / completed_sessions`
 - Purpose: Understand typical session length
 - Usage: Helps with capacity planning
+
+**Average Seconds Per Lap**
+- Scope: only sessions with `laps_count > 0` in the operational-day window
+- Calculation (weighted): `sum(consumed_seconds_live) / sum(laps_count)`
+- Live consumed per session:
+  - paused/waiting: `accumulated_seconds`
+  - active: `accumulated_seconds + (now - last_start_at)`
+- Fallback: `null` when `sum(laps_count) = 0` (UI renders `N/A`)
+- Purpose: Measure lap pace quality for operation and historical analysis
 
 **Daily Occupancy Rate**
 - Calculation: `(total_occupied_minutes / (available_minutes * max_capacity)) * 100`
@@ -247,6 +258,7 @@ Performance metrics display in a dedicated card on MonitorView:
 // Key metrics to display
 - Tiempo promedio de espera: formatTime(averageWaitTime)
 - Tiempo promedio de juego: formatTime(averagePlayTime)  
+- Tiempo promedio por vuelta: formatTime(averageSecondsPerLap) or N/A
 - Sesiones completadas: totalCompletedSessions
 - Tasa de ocupación: dailyOccupancyRate%
 - Pico máximo: peakOccupancy jugadores

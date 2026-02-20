@@ -43,8 +43,8 @@ export function ConfirmSheet({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 bottom-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm animate-fadeIn min-h-screen" style={{top: '0', left: '0', right: '0', bottom: '0', height: '100vh', minHeight: '100vh'}}>
-      <GlassCard className="w-full max-w-sm animate-slideIn bg-white border-border/50 shadow-xl">
+    <div className="fixed top-0 left-0 right-0 bottom-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm min-h-screen" style={{top: '0', left: '0', right: '0', bottom: '0', height: '100vh', minHeight: '100vh'}}>
+      <GlassCard className="w-full max-w-sm bg-white border-border/50 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", config.color)}>

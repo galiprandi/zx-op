@@ -45,7 +45,11 @@ export class ProductController {
         return reply.status(400).send({ error: 'Category is required' });
       }
       
-      if (body.timeValueSeconds !== undefined && (typeof body.timeValueSeconds !== 'number' || body.timeValueSeconds < 0)) {
+      if (
+        body.timeValueSeconds !== undefined &&
+        body.timeValueSeconds !== null &&
+        (typeof body.timeValueSeconds !== 'number' || body.timeValueSeconds <= 0)
+      ) {
         return reply.status(400).send({ error: 'timeValueSeconds must be a positive number or null' });
       }
 
@@ -80,7 +84,11 @@ export class ProductController {
         return reply.status(400).send({ error: 'Category must be a non-empty string' });
       }
       
-      if (body.timeValueSeconds !== undefined && (typeof body.timeValueSeconds !== 'number' || body.timeValueSeconds < 0)) {
+      if (
+        body.timeValueSeconds !== undefined &&
+        body.timeValueSeconds !== null &&
+        (typeof body.timeValueSeconds !== 'number' || body.timeValueSeconds <= 0)
+      ) {
         return reply.status(400).send({ error: 'timeValueSeconds must be a positive number or null' });
       }
 

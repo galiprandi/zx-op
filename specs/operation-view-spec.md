@@ -87,13 +87,9 @@ The footer is always pinned to the bottom when `barcodeId && session` is true, a
 
 3. Secondary CTA (lap action):
 - Visible only when `session.isActive && session.remainingSeconds > 0`.
-- Label: `Registrar vuelta`.
+- Label: `+1 Vuelta (Total: N)`.
 - Action: one tap = one lap (`lapsCount += 1`) with no confirmation modal.
 - Disabled while lap mutation is pending.
-
-4. Lap stats panel:
-- `Vueltas`: from `session.lapsCount`.
-- `Promedio/vuelta`: `avgSecondsPerLap` (null-safe fallback when laps are zero).
 
 ## 6. Time Formatting Rules
 
@@ -145,4 +141,4 @@ This avoids ambiguous displays like `518:00` for long durations.
 7. If history fails, operation control still works.
 8. Secondary `Registrar vuelta` button appears only during active play.
 9. Tapping `Registrar vuelta` increments lap counter by one and updates UI in real time.
-10. `Promedio/vuelta` is displayed from session status and handles zero laps without errors.
+10. The lap action button shows current lap feedback (`Total: N`) for staff operation context.
