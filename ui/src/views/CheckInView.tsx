@@ -1,11 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { createCheckin, type CheckinResponse, type CheckinPayload } from "@/api/checkin";
 import { formatPrice, formatTimeValue, isTimeProduct, type Product } from "@/api/products";
 import { notifyCartUpdate, type CartItem as ApiCartItem } from "@/api/cart";
 import { MobileShell } from "@/components/MobileShell";
 import { ActionButton } from "@/components/ActionButton";
 import { QRScanner } from "@/components/QRScanner";
+import { SessionTime } from "@/components/SessionTime";
 import { StatusBadge } from "@/components/StatusBadge";
 import { GlassCard } from "@/components/GlassCard";
 import { CartSheet } from "@/components/CartSheet";
@@ -13,8 +14,10 @@ import { Modal } from "@/components/Modal";
 import { ChevronDown, ShoppingCart } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useSocket } from "@/hooks/useSocket";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useActiveSessions, usePlayerSession } from "@/hooks/usePlayerSession";
 import { formatCurrency } from "@/lib/currency";
+import { resolveDisplaySeconds, resolveVisualState } from "@/lib/sessionTimeCalc";
+import { getSyncedNowMs } from "@/lib/serverClock";
 
 interface CartItem {
 	product: Product;
@@ -30,6 +33,12 @@ export function CheckInView() {
 	const [showConfirmation, setShowConfirmation] = useState(false);
 	const [lastCheckinData, setLastCheckinData] = useState<CheckinResponse | null>(null);
 	const [isCartOpen, setIsCartOpen] = useState(false);
+	const [nowTs, setNowTs] = useState(() => getSyncedNowMs());
+
+	useEffect(() => {
+		const id = setInterval(() => setNowTs(getSyncedNowMs()), 1000);
+		return () => clearInterval(id);
+	}, []);
 
 	const {
 		requiredProducts,
@@ -40,6 +49,7 @@ export function CheckInView() {
 
 	// Get current session status only when we actively search
 	const { session } = usePlayerSession(activeBarcode);
+	const { waitingSessions } = useActiveSessions();
 
 	const checkinMutation = useMutation({
 		mutationFn: (data: CheckinPayload) => createCheckin(data),
@@ -193,6 +203,8 @@ export function CheckInView() {
 
 	const isMissingRequired = !hasRequiredProducts();
 
+	const getSessionVisualState = () => (session ? resolveVisualState(session) : "expired");
+
 	const handleCheckin = () => {
 		const effectiveBarcode = (activeBarcode || barcodeId).trim();
 		
@@ -227,22 +239,27 @@ export function CheckInView() {
 			return null;
 		}
 
+		const visualState = getSessionVisualState();
+		const displaySeconds = resolveDisplaySeconds(session, nowTs, waitingSessions);
+		const timeState = visualState === "waiting" || visualState === "paused" ? "stop" : undefined;
+
 		return (
 			<GlassCard className="px-2 py-1">
 				<div className="flex items-center justify-between">
 					<StatusBadge 
-						status={session.isActive ? "playing" : "paused"} 
+						status={visualState}
 						size="sm"
 					/>
 					<div className="flex items-center gap-2">
-						<div className={`font-bold text-xs ${
-							session.remainingSeconds > 300 ? 'text-green-400' : 
-							session.remainingSeconds > 60 ? 'text-yellow-400' : 'text-red-400'
-						}`}>
-							{formatTimeValue(session.remainingSeconds)}
-						</div>
+						<SessionTime
+							seconds={displaySeconds}
+							visualState={visualState}
+							state={timeState}
+							format="adaptive"
+							size="sm"
+						/>
 						<div className="text-[8px] text-muted-foreground">
-							({Math.floor(session.remainingSeconds / 60)}min)
+							({Math.floor(displaySeconds / 60)}min)
 						</div>
 					</div>
 				</div>
@@ -321,7 +338,7 @@ export function CheckInView() {
 									Productos Obligatorios
 								</h3>
 								{session ? (
-									<StatusBadge status={session.isActive ? "playing" : "paused"} size="sm" showIcon={false} />
+									<StatusBadge status={getSessionVisualState()} size="sm" showIcon={false} />
 								) : (
 									<StatusBadge status="waiting" size="sm" showIcon={false} />
 								)}

@@ -1,6 +1,12 @@
 import Axios from "axios";
-const { VITE_API_BASE_URL, VITE_API_BASE_PORT } = import.meta.env;
+import { updateServerClockFromHeader } from "@/lib/serverClock";
 
 export const API = Axios.create({
-	baseURL: `${VITE_API_BASE_URL}:${VITE_API_BASE_PORT}`,
+	baseURL: "",
+});
+
+API.interceptors.response.use((response) => {
+	const serverDate = response.headers?.date as string | undefined;
+	updateServerClockFromHeader(serverDate);
+	return response;
 });

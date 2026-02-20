@@ -7,6 +7,7 @@ This document defines the `OperationView` behavior for Zona Xtreme staff, includ
 ## 2. Core Purpose
 
 - Provide a fast mobile interface to control a player session (`PLAY` / `PAUSE`) by scanning a wristband.
+- Allow lap registration (`+1`) during active play for per-session statistics.
 - Show live remaining time and session status.
 - Show purchased products summary for the scanned wristband (time products and accessories).
 - Keep the primary CTA always visible at the bottom of the viewport.
@@ -26,6 +27,7 @@ This document defines the `OperationView` behavior for Zona Xtreme staff, includ
   - `GET /api/sessions/status/:barcodeId`
   - `POST /api/sessions/play`
   - `POST /api/sessions/pause`
+  - `POST /api/sessions/lap`
 
 ### 4.2 Purchased products summary
 
@@ -83,6 +85,16 @@ The footer is always pinned to the bottom when `barcodeId && session` is true, a
   - `Cargando...` disabled while session is loading.
 - Tap opens `ConfirmSheet` before executing mutation.
 
+3. Secondary CTA (lap action):
+- Visible only when `session.isActive && session.remainingSeconds > 0`.
+- Label: `Registrar vuelta`.
+- Action: one tap = one lap (`lapsCount += 1`) with no confirmation modal.
+- Disabled while lap mutation is pending.
+
+4. Lap stats panel:
+- `Vueltas`: from `session.lapsCount`.
+- `Promedio/vuelta`: `avgSecondsPerLap` (null-safe fallback when laps are zero).
+
 ## 6. Time Formatting Rules
 
 ### 6.1 Big timer (`BigTimer`)
@@ -90,6 +102,8 @@ The footer is always pinned to the bottom when `barcodeId && session` is true, a
 - `seconds <= 0` -> `00:00`
 - `seconds < 3600` -> `MM:SS` (example: `58:12`)
 - `seconds >= 3600` -> `formatTimeValue(seconds)` (example: `8h 38m`)
+- For sessions in `waiting` state (never started), the big timer shows **elapsed wait time** (ascending), aligned with monitor behavior.
+- Timer color and direction must follow the shared session-state contract (`waiting/playing/paused/expiring/expired`) used across the UI.
 
 This avoids ambiguous displays like `518:00` for long durations.
 
@@ -129,3 +143,6 @@ This avoids ambiguous displays like `518:00` for long durations.
 5. Long timers display in `h m` format (not long raw minute values).
 6. New check-in transactions update summary via socket-driven invalidation.
 7. If history fails, operation control still works.
+8. Secondary `Registrar vuelta` button appears only during active play.
+9. Tapping `Registrar vuelta` increments lap counter by one and updates UI in real time.
+10. `Promedio/vuelta` is displayed from session status and handles zero laps without errors.

@@ -1,8 +1,8 @@
 import { BarChart3, CalendarDays, Clock3, DollarSign, Gift, Percent, Timer, TrendingUp, Users } from 'lucide-react';
 import { DesktopShell } from '@/components/DesktopShell';
 import { GlassCard } from '@/components/GlassCard';
+import { SessionTime } from '@/components/SessionTime';
 import { StatCard } from '@/components/StatCard';
-import { TimeFormatter } from '@/components/TimeFormatter';
 import { useReportsSummary } from '@/hooks/useReports';
 import { useSocket } from '@/hooks/useSocket';
 import { formatCurrency } from '@/lib/currency';
@@ -197,9 +197,13 @@ export function ReportsView() {
                               <td className="py-3 pr-3 text-right">{row.occupancyPct.toFixed(1)}%</td>
                               <td className="py-3 pr-3 text-right">{row.sessionCount}</td>
                               <td className="py-3 pr-3 text-right">
-                                <TimeFormatter seconds={row.totalTimeSeconds} state="stop">
-                                  {({ minutes }) => <>{minutes} min</>}
-                                </TimeFormatter>
+                                <SessionTime
+                                  seconds={row.totalTimeSeconds}
+                                  state="stop"
+                                  format="adaptive"
+                                  colorize={false}
+                                  size="sm"
+                                />
                               </td>
                               <td className="py-3 pr-3 text-right">{formatCurrency(row.timeRevenue)}</td>
                               <td className="py-3 pr-3 text-right">{formatCurrency(row.otherRevenue)}</td>
@@ -221,9 +225,13 @@ export function ReportsView() {
                           </div>
                           <p className="text-sm text-muted-foreground">
                             Tiempo:{' '}
-                            <TimeFormatter seconds={row.totalTimeSeconds} state="stop">
-                              {({ minutes }) => <>{minutes} min</>}
-                            </TimeFormatter>
+                            <SessionTime
+                              seconds={row.totalTimeSeconds}
+                              state="stop"
+                              format="adaptive"
+                              colorize={false}
+                              size="sm"
+                            />
                           </p>
                           <p className="text-sm">Tiempo: {formatCurrency(row.timeRevenue)}</p>
                           <p className="text-sm">Otros: {formatCurrency(row.otherRevenue)}</p>

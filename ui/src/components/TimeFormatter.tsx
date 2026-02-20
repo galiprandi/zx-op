@@ -20,6 +20,10 @@ export function TimeFormatter({ seconds, state = "stop", onTimeUpdate, children 
 	const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
+		setDisplaySeconds(seconds);
+	}, [seconds]);
+
+	useEffect(() => {
 		// Clear any existing interval
 		if (intervalRef.current) {
 			clearInterval(intervalRef.current);
@@ -55,10 +59,6 @@ export function TimeFormatter({ seconds, state = "stop", onTimeUpdate, children 
 			};
 		} else if (state === "asc") {
 			// Count up mode
-			const initTimer = setTimeout(() => {
-				setDisplaySeconds(0);
-			}, 0);
-			
 			intervalRef.current = setInterval(() => {
 				setDisplaySeconds(prev => {
 					const newValue = prev + 1;
@@ -66,19 +66,9 @@ export function TimeFormatter({ seconds, state = "stop", onTimeUpdate, children 
 					return newValue;
 				});
 			}, 1000);
-
-			return () => {
-				clearTimeout(initTimer);
-			};
 		} else {
 			// Stop mode - just display the provided seconds
-			const stopTimer = setTimeout(() => {
-				setDisplaySeconds(seconds);
-			}, 0);
-			
-			return () => {
-				clearTimeout(stopTimer);
-			};
+			setDisplaySeconds(seconds);
 		}
 
 		// Cleanup function

@@ -1,5 +1,6 @@
 import { Play, Pause, AlertCircle, Clock, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sessionBadgeColorClass } from "@/lib/sessionVisual";
 
 type StatusType = "playing" | "paused" | "expired" | "expiring" | "waiting";
 
@@ -12,27 +13,27 @@ interface StatusBadgeProps {
 
 const statusConfig = {
   playing: {
-    color: "bg-green-500/20 text-green-400 border-green-500/30",
+    color: sessionBadgeColorClass.playing,
     icon: Play,
     label: "Jugando",
   },
   paused: {
-    color: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    color: sessionBadgeColorClass.paused,
     icon: Pause,
     label: "Pausa",
   },
   expired: {
-    color: "bg-red-500/20 text-red-400 border-red-500/30",
+    color: sessionBadgeColorClass.expired,
     icon: AlertCircle,
     label: "Tiempo Agotado",
   },
   expiring: {
-    color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    color: sessionBadgeColorClass.expiring,
     icon: Clock,
     label: "Expirando",
   },
   waiting: {
-    color: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    color: sessionBadgeColorClass.waiting,
     icon: Users,
     label: "Esperando",
   },

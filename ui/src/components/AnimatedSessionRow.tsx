@@ -5,7 +5,7 @@ interface AnimatedSessionRowProps {
   barcodeId: string;
   rightText: string | ReactNode;
   className?: string;
-  tone?: "green" | "yellow" | "orange" | "red" | "muted";
+  tone?: "green" | "blue" | "yellow" | "orange" | "red" | "muted";
 }
 
 const formatId = (barcodeId: string) => {
@@ -15,6 +15,7 @@ const formatId = (barcodeId: string) => {
 
 const toneClass: Record<Required<AnimatedSessionRowProps>["tone"], string> = {
   green: "text-green-400",
+  blue: "text-blue-400",
   yellow: "text-yellow-400",
   orange: "text-orange-400",
   red: "text-red-500",

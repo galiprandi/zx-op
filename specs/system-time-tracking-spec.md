@@ -10,7 +10,8 @@ CREATE TABLE player_sessions (
     accumulated_seconds INTEGER DEFAULT 0, -- Time consumed in previous finished segments
     last_start_at TIMESTAMP WITH TIME ZONE, -- The moment the player hit "Play"
     is_active BOOLEAN DEFAULT FALSE, -- Current state: playing or paused
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL, -- End of day/business hours
+    expires_at TIMESTAMP WITH TIME ZONE, -- Legacy compatibility field (not used for consumption logic)
+    laps_count INTEGER DEFAULT 0, -- Manual lap counter from operation flow
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -22,7 +23,7 @@ CREATE INDEX idx_barcode ON player_sessions(barcode_id);
 ### A. Event: Start/Resume (POST /play)
 
 1. Lookup session by `barcode_id`.
-2. Ensure `is_active` is false and `expires_at` is in the future.
+2. Ensure `is_active` is false and `remaining_seconds > 0`.
 3. Update:
 
 ```sql
@@ -50,12 +51,38 @@ WHERE barcode_id = $1;
 Remaining seconds derive from the current state; never stored directly.
 
 ```sql
-SELECT 
+SELECT
     barcode_id,
-    GREATEST(0, EXTRACT(EPOCH FROM (expires_at - NOW())))::INT AS remaining_seconds
+    GREATEST(
+      0,
+      total_allowed_seconds
+      - accumulated_seconds
+      - CASE
+          WHEN is_active = true AND last_start_at IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (NOW() - last_start_at))::INT
+          ELSE 0
+        END
+    ) AS remaining_seconds
 FROM player_sessions
 WHERE barcode_id = $1;
 ```
+
+### D. Event: Register Lap (POST /lap)
+
+1. Lookup session by `barcode_id`.
+2. Validate:
+   * `is_active = true`
+   * `remaining_seconds > 0`
+3. Update:
+
+```sql
+UPDATE player_sessions
+SET laps_count = laps_count + 1
+WHERE barcode_id = $1;
+```
+
+4. Append `LAP` action in `session_logs`.
+5. Emit socket event for real-time UI refresh.
 
 ## 3. Future-Proofing
 
@@ -78,14 +105,14 @@ WHERE barcode_id = $1;
 * `is_active = false`
 * `last_start_at IS NULL`
 * `accumulated_seconds = 0`
-* `expires_at > NOW()` (i.e., `remaining_seconds > 0`)
+* `remaining_seconds > 0` (computed from total/accumulated/active segment)
 
 **Why it matters:** These IDs are shown on the monitor (and later on the TV “next to enter” view) so staff can prioritize onboarding.
 
 **Backend source:** `/api/sessions/active` returns only operationally valid sessions:
 
 * within current operational day range (`created_at >= startUtc` and `< endUtc`)
-* not expired (`expires_at > NOW()`)
+* with computed `remaining_seconds > 0`
 
 The waiting subset is then derived in the client using the predicate above, but expired/out-of-range rows are already excluded by backend.
 
@@ -144,6 +171,18 @@ Based on the MonitorView implementation, the official visual design for session 
 * **Real-time Updates**: All state changes reflect immediately via Socket.IO
 * **Separation Logic**: Waiting sessions never appear in paused bucket (per specification)
 * **Progress Indicators**: Only playing sessions show progress bars; waiting sessions show elapsed wait time
+
+### Unified State/Timer Contract (All Views)
+
+All UI views must use the same semantic state mapping for time and color:
+
+* **waiting**: Blue color, ascending timer (elapsed waiting time)
+* **playing**: Green color, descending timer (remaining play time)
+* **paused**: Orange color, ascending timer (elapsed pause time)
+* **expiring**: Yellow color, descending timer (remaining time in warning window)
+* **expired**: Red color, stopped timer (`00:00` or static exhausted state)
+
+UI implementation must reuse shared state/time components to avoid per-view color or timer logic divergence.
 
 ## 5. Performance Metrics API
 

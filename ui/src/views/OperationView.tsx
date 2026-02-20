@@ -1,18 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Scan, AlertCircle } from "lucide-react";
 import { MobileShell } from "@/components/MobileShell";
 import { QRScanner } from "@/components/QRScanner";
 import { ActionButton } from "@/components/ActionButton";
-import { BigTimer } from "@/components/BigTimer";
+import { SessionTime } from "@/components/SessionTime";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ConfirmSheet } from "@/components/ConfirmSheet";
 import { GlassCard } from "@/components/GlassCard";
-import { TimeFormatter, type TimerState } from "@/components/TimeFormatter";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { TimeFormatter } from "@/components/TimeFormatter";
+import { useActiveSessions, usePlayerSession } from "@/hooks/usePlayerSession";
 import { getCheckinHistory } from "@/api/checkin";
 import { formatTimeValue } from "@/api/products";
 import { useSocket } from "@/hooks/useSocket";
+import { Button } from "@/components/ui/button";
+import { resolveDisplaySeconds, resolveVisualState } from "@/lib/sessionTimeCalc";
+import { getSyncedNowMs } from "@/lib/serverClock";
 
 interface ProductSummaryItem {
 	productId: string;
@@ -28,6 +31,12 @@ export function OperationView() {
 	const [inputValue, setInputValue] = useState("");
 	const [showConfirm, setShowConfirm] = useState(false);
 	const [pendingAction, setPendingAction] = useState<'play' | 'pause' | null>(null);
+	const [nowTs, setNowTs] = useState(() => getSyncedNowMs());
+
+	useEffect(() => {
+		const id = setInterval(() => setNowTs(getSyncedNowMs()), 1000);
+		return () => clearInterval(id);
+	}, []);
 
 	// Get current session status for the scanned barcode
 	const { 
@@ -37,8 +46,10 @@ export function OperationView() {
 		canPlay,
 		canPause,
 		playMutation,
-		pauseMutation
+		pauseMutation,
+		lapMutation
 	} = usePlayerSession(barcodeId);
+	const { waitingSessions } = useActiveSessions();
 
 	const {
 		data: checkinHistory = [],
@@ -80,17 +91,16 @@ export function OperationView() {
 		};
 	}, [checkinHistory]);
 
-	// Determine timer state based on session status
-	const getTimerState = (): TimerState => {
-		if (!session) return "stop";
-		if (session.isActive && session.remainingSeconds > 0) return "desc";
-		return "stop";
-	};
+	const displayedTimerSeconds = useMemo(() => {
+		if (!session) return 0;
+		return resolveDisplaySeconds(session, nowTs, waitingSessions);
+	}, [session, nowTs, waitingSessions]);
 
 	// Handle QR scanner submit
 	const handleScannerSubmit = (value: string) => {
-		setBarcodeId(value);
-		setInputValue(value);
+		const normalized = value.trim();
+		setBarcodeId(normalized);
+		setInputValue(normalized);
 	};
 
 	// Handle play/pause with confirmation modal
@@ -154,6 +164,8 @@ export function OperationView() {
 	};
 
 	const buttonConfig = getButtonConfig();
+	const visualState = session ? resolveVisualState(session) : "expired";
+	const timeState = visualState === "waiting" || visualState === "paused" ? "stop" : undefined;
 
 	return (
 		<MobileShell
@@ -213,6 +225,18 @@ export function OperationView() {
 						>
 							{buttonConfig.text}
 						</ActionButton>
+
+						{session.isActive && session.remainingSeconds > 0 && (
+							<Button
+								type="button"
+								variant="outline"
+								className="w-full h-12 text-base"
+								onClick={() => lapMutation.mutate()}
+								disabled={lapMutation.isPending}
+							>
+								{lapMutation.isPending ? "Registrando..." : "Registrar vuelta"}
+							</Button>
+						)}
 					</div>
 				) : null
 			}
@@ -243,29 +267,30 @@ export function OperationView() {
 							</GlassCard>
 						) : session ? (
 							<div className="text-center space-y-6">
-								{/* Timer Display */}
-								<TimeFormatter 
-									seconds={session.remainingSeconds} 
-									state={getTimerState()}
-								>
-									{({ raw }) => (
-										<BigTimer 
-											seconds={raw} 
-											size="md"
-											showMinutes={false}
-										/>
-									)}
-								</TimeFormatter>
-								
-								{/* Status Badge */}
-								<StatusBadge 
-									status={
-										session.remainingSeconds <= 0 ? "expired" :
-										session.remainingSeconds <= 60 ? "expiring" :
-										session.status
-									}
-									size="lg"
-								/>
+								<div className="flex flex-col items-center gap-3">
+									<SessionTime
+										seconds={displayedTimerSeconds}
+										visualState={visualState}
+										state={timeState}
+										format="adaptive"
+										size="xl"
+									/>
+									<StatusBadge status={visualState} size="lg" />
+								</div>
+
+								<div className="space-y-1">
+									<p className="text-sm text-muted-foreground">Vueltas: <span className="text-foreground font-semibold">{session.lapsCount}</span></p>
+									<p className="text-sm text-muted-foreground">
+										Promedio/vuelta:{" "}
+										{session.avgSecondsPerLap === null ? (
+											<span className="text-foreground font-semibold">N/A</span>
+										) : (
+											<TimeFormatter seconds={session.avgSecondsPerLap} state="stop">
+												{({ formatted }) => <span className="text-foreground font-semibold">{formatted}</span>}
+											</TimeFormatter>
+										)}
+									</p>
+								</div>
 							</div>
 						) : (
 							<GlassCard className="text-center">

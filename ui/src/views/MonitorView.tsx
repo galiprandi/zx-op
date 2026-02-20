@@ -10,10 +10,13 @@ import { useActiveSessions } from "@/hooks/usePlayerSession";
 import { useDashboardStats, usePerformanceMetrics } from "@/hooks/useDashboardStats";
 import { useSystemSettings } from "@/hooks/useSystemSettingsQuery";
 import { formatCurrency } from "@/lib/currency";
+import { sessionRowTone } from "@/lib/sessionVisual";
+import { resolvePausedElapsedSeconds, resolveVisualState, resolveWaitingElapsedSeconds } from "@/lib/sessionTimeCalc";
+import { getSyncedNowMs } from "@/lib/serverClock";
 
 export function MonitorView() {
 	useSocket(); // Initialize socket connection for real-time updates
-	const [nowTs, setNowTs] = useState(() => Date.now());
+	const [nowTs, setNowTs] = useState(() => getSyncedNowMs());
 
 	// Get real-time active sessions data
 	const {
@@ -38,7 +41,7 @@ export function MonitorView() {
 	const { settings: systemSettings } = useSystemSettings();
 
 	useEffect(() => {
-		const id = setInterval(() => setNowTs(Date.now()), 60000); // Update every 1 minute
+		const id = setInterval(() => setNowTs(getSyncedNowMs()), 1000);
 		return () => clearInterval(id);
 	}, []);
 
@@ -65,8 +68,7 @@ export function MonitorView() {
 
 	const waitingWithElapsed = useMemo(() => {
 		return waitingSessions.map((s) => {
-			const createdAtMs = s.createdAt ? new Date(s.createdAt).getTime() : nowTs;
-			const elapsedSec = Math.max(0, Math.floor((nowTs - createdAtMs) / 1000));
+			const elapsedSec = resolveWaitingElapsedSeconds(s, nowTs, waitingSessions);
 			return { ...s, waitingElapsed: elapsedSec };
 		});
 	}, [waitingSessions, nowTs]);
@@ -84,8 +86,7 @@ export function MonitorView() {
 
 	const pausedWithElapsed = useMemo(() => {
 		return pausedSessionsFinal.map((s) => {
-			const updatedAtMs = s.updatedAt ? new Date(s.updatedAt).getTime() : nowTs;
-			const elapsedSec = Math.max(0, Math.floor((nowTs - updatedAtMs) / 1000));
+			const elapsedSec = resolvePausedElapsedSeconds(s, nowTs);
 			return { ...s, pausedElapsed: elapsedSec };
 		});
 	}, [pausedSessionsFinal, nowTs]);
@@ -221,8 +222,8 @@ export function MonitorView() {
 									<AnimatedSessionRow
 										key={session.id}
 										barcodeId={session.barcodeId}
-										rightText={<MonitorTime seconds={session.waitingElapsed} state="asc" />}
-										tone="yellow"
+										rightText={<MonitorTime seconds={session.waitingElapsed} state="stop" visualState="waiting" />}
+										tone={sessionRowTone.waiting}
 										className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 									/>
 								))
@@ -252,8 +253,14 @@ export function MonitorView() {
 									<AnimatedSessionRow
 										key={session.id}
 										barcodeId={session.barcodeId}
-										rightText={<MonitorTime seconds={session.remainingSeconds} state="desc" />}
-										tone={session.remainingSeconds <= 60 ? "red" : session.remainingSeconds <= 300 ? "orange" : "green"}
+										rightText={
+											<MonitorTime
+												seconds={session.remainingSeconds}
+												state="desc"
+												visualState={resolveVisualState(session)}
+											/>
+										}
+										tone={sessionRowTone[resolveVisualState(session)]}
 										className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 									/>
 								))
@@ -284,8 +291,8 @@ export function MonitorView() {
 										<AnimatedSessionRow
 											key={`${session.id}-paused`}
 											barcodeId={session.barcodeId}
-											rightText={<MonitorTime seconds={session.pausedElapsed} state="asc" />}
-											tone="orange"
+											rightText={<MonitorTime seconds={session.pausedElapsed} state="stop" visualState="paused" />}
+											tone={sessionRowTone.paused}
 											className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 										/>
 									))}
@@ -293,8 +300,8 @@ export function MonitorView() {
 										<AnimatedSessionRow
 											key={`${session.id}-expiring`}
 											barcodeId={session.barcodeId}
-											rightText={<MonitorTime seconds={session.remainingSeconds} state="desc" />}
-											tone={session.remainingSeconds <= 60 ? "red" : session.remainingSeconds <= 300 ? "orange" : "green"}
+											rightText={<MonitorTime seconds={session.remainingSeconds} state="desc" visualState="expiring" />}
+											tone={sessionRowTone.expiring}
 											className={index === 0 ? "animate-in slide-in-from-top-2 duration-300" : ""}
 										/>
 									))}
