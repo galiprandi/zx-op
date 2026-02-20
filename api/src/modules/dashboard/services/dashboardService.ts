@@ -5,9 +5,7 @@ const prisma = new PrismaClient();
 
 export interface DashboardStats {
   todayRevenue: number;
-  topProducts: Array<{
-    productId: string;
-    name: string;
+  salesByCategory: Array<{
     category: string;
     totalQuantity: number;
     totalRevenue: number;
@@ -45,50 +43,46 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     const todayRevenue = Number(todayRevenueResult._sum.totalPrice || 0);
 
-    const topProductsResult = await prisma.transaction.groupBy({
-      by: ['productId'],
+    const transactions = await prisma.transaction.findMany({
       where: {
         createdAt: {
           gte: startUtc,
           lt: endUtc,
         },
       },
-      _sum: {
+      select: {
         quantity: true,
         totalPrice: true,
-      },
-      orderBy: {
-        _sum: {
-          quantity: 'desc',
+        product: {
+          select: {
+            category: true,
+          },
         },
-      },
-      take: 4,
-    });
-
-    const productIds = topProductsResult.map((item) => item.productId);
-    const products = await prisma.product.findMany({
-      where: {
-        id: {
-          in: productIds,
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        category: true,
       },
     });
 
-    const topProducts = topProductsResult.map((item) => {
-      const product = products.find((p) => p.id === item.productId);
-      return {
-        productId: item.productId,
-        name: product?.name || 'Unknown',
-        category: product?.category || 'Unknown',
-        totalQuantity: item._sum.quantity || 0,
-        totalRevenue: Number(item._sum.totalPrice || 0),
-      };
-    });
+    const groupedByCategory = new Map<string, { totalQuantity: number; totalRevenue: number }>();
+    for (const tx of transactions) {
+      const category = tx.product?.category || 'unknown';
+      const existing = groupedByCategory.get(category);
+      if (existing) {
+        existing.totalQuantity += tx.quantity;
+        existing.totalRevenue += Number(tx.totalPrice || 0);
+      } else {
+        groupedByCategory.set(category, {
+          totalQuantity: tx.quantity,
+          totalRevenue: Number(tx.totalPrice || 0),
+        });
+      }
+    }
+
+    const salesByCategory = Array.from(groupedByCategory.entries())
+      .map(([category, values]) => ({
+        category,
+        totalQuantity: values.totalQuantity,
+        totalRevenue: values.totalRevenue,
+      }))
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
     const allSessions = await prisma.playerSession.findMany({
       where: {
@@ -115,7 +109,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     return {
       todayRevenue,
-      topProducts,
+      salesByCategory,
       waitingCount: finalWaitingCount,
     };
   } catch (error) {

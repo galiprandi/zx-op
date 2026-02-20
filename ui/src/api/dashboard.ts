@@ -2,9 +2,7 @@ import { API } from './api';
 
 export interface DashboardStats {
   todayRevenue: number;
-  topProducts: Array<{
-    productId: string;
-    name: string;
+  salesByCategory: Array<{
     category: string;
     totalQuantity: number;
     totalRevenue: number;

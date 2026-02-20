@@ -120,6 +120,14 @@ export function MonitorView() {
 	// Calculate waiting count from dashboard stats or fallback
 	const waitingCount = totalWaiting;
 
+	const resolveCategoryLabel = (category: string) => {
+		const normalized = category.toLowerCase();
+		if (normalized === "time") return "Tiempo";
+		if (normalized === "accessory" || normalized === "accessories") return "Accesorios";
+		if (normalized === "required") return "Requeridos";
+		return category.charAt(0).toUpperCase() + category.slice(1);
+	};
+
 	// Error state
 	if (error) {
 		return (
@@ -412,21 +420,21 @@ export function MonitorView() {
 
 						<div className="mt-4">
 							<div className="space-y-2">
-								{dashboardStats?.topProducts?.length ? (
-									dashboardStats.topProducts.map((product) => (
+								{dashboardStats?.salesByCategory?.length ? (
+									dashboardStats.salesByCategory.map((item) => (
 										<div
-											key={product.productId}
+											key={item.category}
 											className="flex items-center justify-between"
 										>
 											<span className="text-sm font-medium text-foreground truncate">
-												{product.name}
+												{resolveCategoryLabel(item.category)}
 											</span>
 											<div className="flex items-center gap-4">
 												<span className="text-base text-muted-foreground">
-													{product.totalQuantity} un
+													{item.totalQuantity} un
 												</span>
 												<span className="text-base font-bold whitespace-nowrap">
-													{formatCurrency(product.totalRevenue)}
+													{formatCurrency(item.totalRevenue)}
 												</span>
 											</div>
 										</div>
