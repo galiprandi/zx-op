@@ -31,3 +31,28 @@ export function formatCurrency(value: number, options: CurrencyFormatOptions = {
 
   return `${sign}${cfg.symbol} ${formatIntegerPart(Math.floor(abs))}`;
 }
+
+export function formatCompactCurrency(value: number, symbol = '$'): string {
+  const sign = value < 0 ? '-' : '';
+  const abs = Math.abs(value);
+
+  if (abs >= 1_000_000) {
+    const millions = abs / 1_000_000;
+    const formatted = new Intl.NumberFormat('es-AR', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(millions);
+    return `${sign}${symbol} ${formatted}m`;
+  }
+
+  if (abs >= 1_000) {
+    const thousands = abs / 1_000;
+    const formatted = new Intl.NumberFormat('es-AR', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(thousands);
+    return `${sign}${symbol} ${formatted}k`;
+  }
+
+  return `${sign}${symbol} ${formatIntegerPart(Math.floor(abs))}`;
+}

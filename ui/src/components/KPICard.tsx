@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { LucideIcon } from "lucide-react";
+import { DollarSign, LucideIcon } from "lucide-react";
 import { GlassCard } from "./GlassCard";
 import { cn } from "@/lib/utils";
 
@@ -31,13 +31,17 @@ export function KPICard({
   footer,
 }: KPICardProps) {
   const iconColor = colorClasses[color];
+  const normalizedValue =
+    Icon === DollarSign && typeof value === "string"
+      ? value.replace(/^\s*[$]\s*/, "")
+      : value;
 
   return (
     <GlassCard className={cn("!p-0 bg-slate-300/85 border-2 border-slate-600 rounded-xl shadow-none", className)}>
       <div className="p-6 md:px-8 md:py-7">
         <div className="flex items-center gap-3">
           <Icon className={cn("w-6 h-6 shrink-0", iconColor)} />
-          <p className="text-4xl md:text-5xl font-extrabold leading-none text-slate-900">{value}</p>
+          <p className="text-3xl md:text-4xl font-extrabold leading-none text-slate-900">{normalizedValue}</p>
         </div>
         <p className="mt-2 text-xs uppercase tracking-wide text-slate-700">{title}</p>
         {description && <p className="mt-3 text-xs text-slate-500">{description}</p>}

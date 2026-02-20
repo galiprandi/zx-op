@@ -21,7 +21,7 @@ import { SurfaceCard } from '@/components/SurfaceCard';
 import { TimeFormatter } from '@/components/TimeFormatter';
 import { useOperationalDayDetail, useOperationalDaysPage, useReportsSummary } from '@/hooks/useReports';
 import { useSocket } from '@/hooks/useSocket';
-import { formatCurrency } from '@/lib/currency';
+import { formatCompactCurrency, formatCurrency } from '@/lib/currency';
 
 const PAGE_SIZE = 15;
 
@@ -131,7 +131,7 @@ export function ReportsView() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <KPICard
                 title="Ventas día cerrado"
-                value={formatCurrency(topKpis.operationalRevenue)}
+                value={formatCompactCurrency(topKpis.operationalRevenue)}
                 icon={DollarSign}
                 color="success"
                 description="Ingreso del último día operativo cerrado"
@@ -427,7 +427,7 @@ export function ReportsView() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <KPICard
                       title="Ventas totales"
-                      value={formatCurrency(dayDetail.revenue.totalRevenue)}
+                      value={formatCompactCurrency(dayDetail.revenue.totalRevenue)}
                       icon={DollarSign}
                       color="success"
                       description="Facturación total de la jornada"
