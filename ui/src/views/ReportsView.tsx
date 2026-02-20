@@ -17,6 +17,7 @@ import { DesktopShell } from '@/components/DesktopShell';
 import { GlassCard } from '@/components/GlassCard';
 import { KPICard } from '@/components/KPICard';
 import { modalOverlayClass, modalPanelBaseClass } from '@/components/modalStyles';
+import { SurfaceCard } from '@/components/SurfaceCard';
 import { TimeFormatter } from '@/components/TimeFormatter';
 import { useOperationalDayDetail, useOperationalDaysPage, useReportsSummary } from '@/hooks/useReports';
 import { useSocket } from '@/hooks/useSocket';
@@ -76,7 +77,6 @@ export function ReportsView() {
   const topKpis = data?.topKpis;
   const salesPeriods = data?.salesPeriods;
   const dayItems = daysPage?.items || [];
-
   useEffect(() => {
     if (dayItems.length > 0 && !selectedOperationalDate) {
       setSelectedOperationalDate(dayItems[0].operationalDateKey);
@@ -153,7 +153,7 @@ export function ReportsView() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <GlassCard className="py-3">
+              <SurfaceCard contentPaddingClassName="[&>div]:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Últimos 7 días</p>
@@ -164,9 +164,9 @@ export function ReportsView() {
                     <p className="text-xs text-muted-foreground">{formatDelta(salesPeriods.weekOverWeekPct)}</p>
                   </div>
                 </div>
-              </GlassCard>
+              </SurfaceCard>
 
-              <GlassCard className="py-3">
+              <SurfaceCard contentPaddingClassName="[&>div]:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Últimos 30 días</p>
@@ -177,9 +177,9 @@ export function ReportsView() {
                     <p className="text-xs text-muted-foreground">{formatDelta(salesPeriods.monthOverMonthPct)}</p>
                   </div>
                 </div>
-              </GlassCard>
+              </SurfaceCard>
 
-              <GlassCard className="py-3">
+              <SurfaceCard contentPaddingClassName="[&>div]:p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">General histórico</p>
@@ -187,10 +187,10 @@ export function ReportsView() {
                   </div>
                   <BarChart3 className="w-4 h-4 text-primary" />
                 </div>
-              </GlassCard>
+              </SurfaceCard>
             </div>
 
-            <GlassCard>
+            <SurfaceCard>
               <div className="space-y-4">
                 <div className="flex flex-col gap-1">
                   <h3 className="text-lg font-semibold">Historial de jornadas operativas cerradas</h3>
@@ -281,8 +281,8 @@ export function ReportsView() {
                             return (
                               <tr
                                 key={row.operationalDateKey}
-                                className={`border-b border-border/20 cursor-pointer transition-colors ${
-                                  isSelected ? 'bg-primary/10' : 'hover:bg-card/60'
+                                className={`border-b border-slate-300/80 cursor-pointer transition-colors ${
+                                  isSelected ? 'bg-slate-200/70' : 'hover:bg-slate-200/50'
                                 }`}
                                 onClick={() => {
                                   setSelectedOperationalDate(row.operationalDateKey);
@@ -320,8 +320,8 @@ export function ReportsView() {
                               setSelectedOperationalDate(row.operationalDateKey);
                               setIsDayDetailOpen(true);
                             }}
-                            className={`w-full text-left rounded-lg border p-3 space-y-1 bg-card/40 ${
-                              isSelected ? 'border-primary/60' : 'border-border/30'
+                            className={`w-full text-left rounded-lg border p-3 space-y-1 bg-slate-100/80 ${
+                              isSelected ? 'border-slate-400/60' : 'border-slate-200'
                             }`}
                           >
                             <div className="flex justify-between items-center">
@@ -374,7 +374,7 @@ export function ReportsView() {
                   </>
                 )}
               </div>
-            </GlassCard>
+            </SurfaceCard>
 
             <p className="text-xs text-muted-foreground text-center">
               Reportes muestra solo días operativos cerrados. Para ver el día en curso, usa Monitor.
@@ -449,7 +449,7 @@ export function ReportsView() {
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <GlassCard>
+                    <SurfaceCard contentPaddingClassName="[&>div]:p-4">
                       <div className="space-y-2">
                         <h4 className="text-base font-semibold">Métricas operativas</h4>
                         <div className="space-y-1 text-sm">
@@ -483,9 +483,9 @@ export function ReportsView() {
                           </div>
                         </div>
                       </div>
-                    </GlassCard>
+                    </SurfaceCard>
 
-                    <GlassCard>
+                    <SurfaceCard contentPaddingClassName="[&>div]:p-4">
                       <div className="space-y-2">
                         <h4 className="text-base font-semibold">Ventas de la jornada</h4>
                         <div className="space-y-1 text-sm">
@@ -522,7 +522,7 @@ export function ReportsView() {
                           )}
                         </div>
                       </div>
-                    </GlassCard>
+                    </SurfaceCard>
                   </div>
                 </div>
               )}

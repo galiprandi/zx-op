@@ -4,6 +4,7 @@ import { DesktopShell } from "@/components/DesktopShell";
 import { KPICard } from "@/components/KPICard";
 import { AnimatedSessionRow } from "@/components/AnimatedSessionRow";
 import { GlassCard } from "@/components/GlassCard";
+import { SurfaceCard } from "@/components/SurfaceCard";
 import { MonitorTime } from "@/components/MonitorTime";
 import { useSocket } from "@/hooks/useSocket";
 import { useActiveSessions } from "@/hooks/usePlayerSession";
@@ -209,7 +210,7 @@ export function MonitorView() {
 				{/* Active Sessions Grid (Esperando, En Juego, En Pausa) */}
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 					{/* Waiting to Enter - Never Started */}
-					<GlassCard>
+					<SurfaceCard contentPaddingClassName="[&>div]:p-6">
 						<div className="mb-4">
 							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
 								<Users className="w-5 h-5 text-primary" />
@@ -237,10 +238,10 @@ export function MonitorView() {
 								))
 							)}
 						</div>
-					</GlassCard>
+					</SurfaceCard>
 
 					{/* In the Air - Active Playing Sessions */}
-					<GlassCard>
+					<SurfaceCard contentPaddingClassName="[&>div]:p-6">
 						<div className="mb-4">
 							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
 								<Play className="w-5 h-5 text-green-400" />
@@ -274,10 +275,10 @@ export function MonitorView() {
 								))
 							)}
 						</div>
-					</GlassCard>
+					</SurfaceCard>
 
 					{/* Preparing for Landing - Paused or Expiring */}
-					<GlassCard>
+					<SurfaceCard contentPaddingClassName="[&>div]:p-6">
 						<div className="mb-4">
 							<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
 								<Pause className="w-5 h-5 text-yellow-400" />
@@ -316,12 +317,12 @@ export function MonitorView() {
 								</>
 							)}
 						</div>
-					</GlassCard>
+					</SurfaceCard>
 				</div>
 
 				{/* Secondary Metrics */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-					<GlassCard>
+					<SurfaceCard contentPaddingClassName="[&>div]:p-6">
 						<div className="flex items-center justify-between mb-4">
 							<div>
 								<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -402,9 +403,9 @@ export function MonitorView() {
 								)}
 							</div>
 						</div>
-					</GlassCard>
+					</SurfaceCard>
 
-					<GlassCard>
+					<SurfaceCard contentPaddingClassName="[&>div]:p-6">
 						<div className="flex items-center justify-between">
 							<div>
 								<h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -444,7 +445,7 @@ export function MonitorView() {
 								)}
 							</div>
 						</div>
-					</GlassCard>
+					</SurfaceCard>
 				</div>
 
 				{/* Expired Sessions Alert */}

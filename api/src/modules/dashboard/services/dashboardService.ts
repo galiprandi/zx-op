@@ -172,7 +172,7 @@ export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
     }, 0);
 
     const currentlyActiveSessions = todaySessions.filter((s) => s.isActive);
-    const peakOccupancy = Math.max(currentlyActiveSessions.length, 1);
+    const peakOccupancy = currentlyActiveSessions.length;
 
     const completedSessions = todaySessions.filter((session) => {
       const usagePercentage = session.totalAllowedSeconds > 0 ? session.accumulatedSeconds / session.totalAllowedSeconds : 0;

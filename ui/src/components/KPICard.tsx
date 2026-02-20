@@ -14,11 +14,11 @@ export interface KPICardProps {
 }
 
 const colorClasses = {
-  primary: "text-primary",
-  success: "text-green-400",
-  warning: "text-yellow-400",
-  danger: "text-red-400",
-  muted: "text-muted-foreground",
+  primary: "text-blue-600",
+  success: "text-emerald-600",
+  warning: "text-amber-500",
+  danger: "text-rose-600",
+  muted: "text-slate-500",
 };
 
 export function KPICard({
@@ -33,15 +33,15 @@ export function KPICard({
   const iconColor = colorClasses[color];
 
   return (
-    <GlassCard className={cn("text-center", className)}>
-      <div className="flex items-center justify-center mb-3">
-        <Icon className={cn("w-6 h-6", iconColor)} />
-      </div>
-      <div className="space-y-1">
-        <div className="text-3xl font-bold text-foreground">{value}</div>
-        <div className="text-sm font-medium text-muted-foreground">{title}</div>
-        {description && <div className="text-xs text-muted-foreground mt-2">{description}</div>}
-        {footer && <div className="mt-3">{footer}</div>}
+    <GlassCard className={cn("!p-0 bg-slate-300/85 border-2 border-slate-600 rounded-xl shadow-none", className)}>
+      <div className="p-6 md:px-8 md:py-7">
+        <div className="flex items-center gap-3">
+          <Icon className={cn("w-6 h-6 shrink-0", iconColor)} />
+          <p className="text-4xl md:text-5xl font-extrabold leading-none text-slate-900">{value}</p>
+        </div>
+        <p className="mt-2 text-xs uppercase tracking-wide text-slate-700">{title}</p>
+        {description && <p className="mt-3 text-xs text-slate-500">{description}</p>}
+        {footer && <div className="mt-4">{footer}</div>}
       </div>
     </GlassCard>
   );

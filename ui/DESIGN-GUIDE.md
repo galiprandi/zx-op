@@ -4,7 +4,7 @@ description: Dark theme, mobile-first guidelines for reusable shadcn-based compo
 ---
 
 ## 1. Design Principles
-1. **Dark-first experience:** Every screen loads in dark mode; avoid light backgrounds. Use light surfaces only as accents or overlays with opacity under 10%.
+1. **Dark shell + steel surfaces:** Keep the app shell dark, but operational cards can use steel-neutral surfaces to improve scanability (`slate` range).
 2. **Mobile-first:** Design bottom-up for 360–480px widths, then scale up to tablets (768–1024px) and desktop (1280px+). Changes on larger screens should feel like progressive enhancement.
 3. **Minimalist Vercel-inspired visuals:** Keep layouts clean, remove decorative clutter, leverage whitespace, and favor purposeful typography.
 4. **Consistent component library:** Build UI blocks as reusable shadcn components under `ui/src/components`. Avoid inline styling except for quick prototypes.
@@ -41,7 +41,11 @@ description: Dark theme, mobile-first guidelines for reusable shadcn-based compo
   - Mobile: full-bleed with 16px horizontal padding.
   - Tablet: max-width 768px, 24px padding.
   - Desktop: max-width 1200px, 32px padding; split panes at ≥1024px using `grid-cols-[1fr_320px]` where needed.
-- **Cards:** Apply `.glass` utility or Tailwind classes `bg-card/70 backdrop-blur border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.35)]`.
+- **KPI Cards (high emphasis):** Use `KPICard` with a darker steel tone for fast numeric scanning.
+  - Base: `bg-slate-300/85 border-2 border-slate-600 shadow-none rounded-xl`
+- **Surface Cards (secondary sections):** Use `SurfaceCard` for non-KPI blocks (tables, lists, supporting metrics).
+  - Base: `bg-slate-100/85 border border-slate-200 shadow-none rounded-xl`
+- **Avoid ad-hoc card styling:** Do not duplicate utility strings in views when `KPICard`/`SurfaceCard` already covers the use case.
 
 ## 5. Component Guidelines (shadcn wrappers)
 1. **Location:** `ui/src/components/<ComponentName>`. Export composed components that wrap shadcn primitives plus domain props.

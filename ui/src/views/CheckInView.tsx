@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { GlassCard } from "@/components/GlassCard";
 import { CartSheet } from "@/components/CartSheet";
 import { Modal } from "@/components/Modal";
+import { SurfaceCard } from "@/components/SurfaceCard";
 import { ChevronDown, ShoppingCart } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useSocket } from "@/hooks/useSocket";
@@ -423,39 +424,41 @@ function ProductButton({ product, onClick, quantity }: { product: Product; onCli
 	const formatPrice = (price: number) => formatCurrency(price);
 
 	return (
-		<button
-			type="button"
-			onClick={onClick}
-			className="relative overflow-hidden border border-border/20 rounded-xl bg-gradient-to-br from-slate-800/5 to-slate-900/8 backdrop-blur-sm p-4 hover:from-slate-800/10 hover:to-slate-900/12 hover:border-primary/30 transition-all duration-200 text-left transform hover:scale-[1.02] active:scale-[0.98] min-h-[88px] w-full"
+		<SurfaceCard
+			className="min-h-[88px] transition-all duration-200 hover:border-primary/40"
+			contentPaddingClassName="[&>button]:p-4"
 		>
-			<div className="flex flex-col h-full justify-between space-y-2">
-				{/* Nombre del producto */}
-				<div className="font-semibold text-sm text-foreground line-clamp-2 leading-tight pr-8">
-					{product.name}
+			<button
+				type="button"
+				onClick={onClick}
+				className="relative w-full h-full text-left transform hover:scale-[1.01] active:scale-[0.99] transition-transform"
+			>
+				<div className="flex flex-col h-full justify-between space-y-2">
+					<div className="font-semibold text-sm text-foreground line-clamp-2 leading-tight pr-8">
+						{product.name}
+					</div>
+
+					<div className="space-y-1">
+						{isTimeProduct(product) && product.timeValueSeconds && (
+							<div className="flex items-center gap-2">
+								<span className="text-[10px] bg-blue-500/20 text-blue-500 px-2 py-0.5 rounded-md font-medium">
+									({formatTimeValue(product.timeValueSeconds)})
+								</span>
+							</div>
+						)}
+						<span className="text-lg font-bold text-primary">
+							{formatPrice(product.price)}
+						</span>
+					</div>
 				</div>
-				
-				{/* Tiempo y precio */}
-				<div className="space-y-1">
-					{isTimeProduct(product) && product.timeValueSeconds && (
-						<div className="flex items-center gap-2">
-							<span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md font-medium">
-								({formatTimeValue(product.timeValueSeconds)})
-							</span>
-						</div>
-					)}
-					<span className="text-lg font-bold text-primary">
-						{formatPrice(product.price)}
-					</span>
-				</div>
-			</div>
-			
-			{/* Badge de cantidad */}
-			{quantity && quantity > 0 && (
-				<div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium min-w-[20px] text-center">
-					{quantity}
-				</div>
-			)}
-		</button>
+
+				{quantity && quantity > 0 && (
+					<div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium min-w-[20px] text-center">
+						{quantity}
+					</div>
+				)}
+			</button>
+		</SurfaceCard>
 	);
 }
 
@@ -464,31 +467,36 @@ function ProductListItem({ product, onClick, quantity }: { product: Product; onC
 	const formatPrice = (price: number) => formatCurrency(price);
 
 	return (
-		<button
-			type="button"
-			onClick={onClick}
-			className="w-full p-3 border border-border/20 rounded-lg bg-card/50 hover:bg-card hover:border-primary/30 transition-all duration-200 text-left"
+		<SurfaceCard
+			className="rounded-lg transition-all duration-200 hover:border-primary/40"
+			contentPaddingClassName="[&>button]:p-3"
 		>
-			<div className="flex items-center justify-between">
-				<div className="flex-1">
-					<div className="font-medium text-sm text-foreground mb-1">
-						{product.name}
+			<button
+				type="button"
+				onClick={onClick}
+				className="w-full text-left"
+			>
+				<div className="flex items-center justify-between">
+					<div className="flex-1">
+						<div className="font-medium text-sm text-foreground mb-1">
+							{product.name}
+						</div>
+						<div className="flex items-center gap-3 text-xs text-muted-foreground">
+							<span className="text-primary font-bold">{formatPrice(product.price)}</span>
+							{isTimeProduct(product) && product.timeValueSeconds && (
+								<span className="text-blue-500">
+									+{formatTimeValue(product.timeValueSeconds)}
+								</span>
+							)}
+						</div>
 					</div>
-					<div className="flex items-center gap-3 text-xs text-muted-foreground">
-						<span className="text-primary font-bold">{formatPrice(product.price)}</span>
-						{isTimeProduct(product) && product.timeValueSeconds && (
-							<span className="text-blue-400">
-								+{formatTimeValue(product.timeValueSeconds)}
-							</span>
-						)}
-					</div>
+					{quantity && quantity > 0 && (
+						<div className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full font-medium min-w-[2rem] text-center">
+							{quantity}
+						</div>
+					)}
 				</div>
-				{quantity && quantity > 0 && (
-					<div className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full font-medium min-w-[2rem] text-center">
-						{quantity}
-					</div>
-				)}
-			</div>
-		</button>
+			</button>
+		</SurfaceCard>
 	);
 }
