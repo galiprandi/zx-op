@@ -28,6 +28,24 @@ docker compose run --rm api pnpm --filter api exec prisma migrate deploy
 # Start or rebuild application containers.
 docker compose up -d --build api ui
 
-# Basic health checks after startup.
-curl -fsS http://127.0.0.1:3000/api/health >/dev/null
-curl -fsS http://127.0.0.1:4173/ >/dev/null
+# Basic health checks after startup with retries.
+echo "Esperando a que la API esté lista..."
+for i in {1..10}; do
+  if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
+    echo "API Saludable!"
+    break
+  fi
+  echo "Reintentando salud de la API... ($i/10)"
+  sleep 3
+done
+
+echo "Esperando a que la UI esté lista..."
+for i in {1..5}; do
+  if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+    echo "UI Saludable!"
+    break
+  fi
+  echo "Reintentando salud de la UI... ($i/5)"
+  sleep 2
+done
+
