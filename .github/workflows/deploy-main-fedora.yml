@@ -1,0 +1,22 @@
+name: Deploy Main on Fedora
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main-fedora
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, fedora]
+    steps:
+      - name: Validate deploy script exists
+        run: |
+          test -x /home/zx/zx-op/update-app.sh
+
+      - name: Run deployment on production host
+        run: |
+          /home/zx/zx-op/update-app.sh

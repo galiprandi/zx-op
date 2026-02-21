@@ -9,17 +9,11 @@ Local-first operation platform for Zona Xtreme, with real-time synchronization b
 - Realtime: Socket.IO
 - Runtime: Docker Compose
 
-## Production Runtime (Windows 11 + LAN)
+## Production Runtime (Fedora Server + LAN)
 This repository includes a Docker Compose production model for:
 - `postgres`
 - `api`
 - `ui`
-
-### Prerequisites
-- Docker Desktop (or Docker Engine + Compose) installed on the Windows host
-- Git installed
-- PowerShell execution policy allowing local scripts
-- LAN Git remote configured as `lan-origin`
 
 ### Required Environment Variables
 Set these in `.env` at repository root:
@@ -31,84 +25,64 @@ POSTGRES_PASSWORD=zx_password
 POSTGRES_PORT=5432
 API_PORT=3000
 UI_PORT=4173
-PUBLIC_API_BASE_URL=http://192.168.68.100
+PUBLIC_API_BASE_URL=http://192.168.68.62
 ```
 
 `PUBLIC_API_BASE_URL` must be the LAN IP used by client devices to reach the API.
 
-### Manual First Start
+### Manual Start
 ```bash
-docker compose build api ui
-docker compose up -d postgres
-docker compose run --rm api pnpm --filter api exec prisma migrate deploy
-docker compose up -d api ui
+./start-app.sh
 ```
+
+This script:
+1. Detects host LAN IP and refreshes `.env`.
+2. Starts `postgres`.
+3. Runs Prisma `db:generate`.
+4. Runs Prisma `migrate deploy` (safe for production).
+5. Builds and starts `api` + `ui`.
+6. Validates `/api/health` and UI root.
 
 ### Health Validation
 - API: `http://<server-ip>:3000/api/health`
 - UI: `http://<server-ip>:4173/`
 
-## Auto-Deploy by Polling (`main` from LAN remote)
-Operational scripts are in `/ops`:
-- `ops/deploy.ps1`
-- `ops/rollback.ps1`
-- `ops/healthcheck.ps1`
-- `ops/start-system.ps1`
-- `ops/stop-system.ps1`
-- `ops/install-autostart.ps1`
+## Auto-Deploy on Push to `main` (Fedora)
 
-### Deploy Script Behavior
-1. lock execution to avoid overlapping deploys
-2. `git fetch lan-origin main`
-3. compare local/remote commit
-4. if changed: `git pull --ff-only`
-5. tag rollback images (`:prev`)
-6. build `api` and `ui`
-7. run `prisma generate`
-8. run `prisma migrate deploy`
-9. restart stack
-10. run API/UI health checks
-11. rollback automatically on failure
+### Overview
+Deploy is executed by GitHub Actions on a self-hosted runner installed on the same Fedora server.
 
-### Windows Task Scheduler Setup
-Create a task that runs every 1 minute:
+Workflow file:
+- `.github/workflows/deploy-main-fedora.yml`
 
-- Program: `powershell.exe`
-- Arguments:
-  ```text
-  -ExecutionPolicy Bypass -File C:\path\to\zx-op\ops\deploy.ps1
-  ```
-- Start in:
-  ```text
-  C:\path\to\zx-op
-  ```
-- Run whether user is logged on or not
+Deployment script:
+- `update-app.sh`
 
-## End-User Startup (Simple Mode)
-For non-technical operators on Windows:
+### Deployment behavior
+1. Acquires a file lock to avoid concurrent deploys.
+2. Verifies internet/GitHub reachability.
+3. `git fetch origin main`.
+4. If commit changed: `git pull --ff-only origin main`.
+5. Runs `./start-app.sh`.
+6. Writes deployment log (`/var/log/zx-op-deploy.log` or `ops/logs/deploy.log`).
 
-1. Double-click:
-   - `ops/START_SYSTEM.cmd` to start the full system (`db + api + ui`)
-   - `ops/STOP_SYSTEM.cmd` to stop it
-2. Run once (as Administrator):
-   - `ops/INSTALL_AUTOSTART.cmd`
-   - This installs:
-     - `ZXOP-StartSystem` on Windows startup
-     - `ZXOP-AutoDeploy` every 1 minute
+### Self-hosted runner requirements
+On Fedora server:
+1. Install GitHub Actions self-hosted runner.
+2. Register labels including: `self-hosted`, `linux`, `fedora`.
+3. Keep runner service enabled (`systemctl`).
+4. Ensure runner user can execute Docker (`docker` group).
 
-PowerShell direct commands:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\ops\start-system.ps1
-powershell -ExecutionPolicy Bypass -File .\ops\install-autostart.ps1
+### Verification steps
+After pushing a commit to `main`:
+```bash
+# On Fedora server
+sudo tail -n 100 /var/log/zx-op-deploy.log
+cd /home/zx/zx-op && git rev-parse HEAD
+docker compose ps
+curl -fsS http://127.0.0.1:3000/api/health
+curl -fsS http://127.0.0.1:4173/
 ```
-
-## About `db:generate`
-- End users do not need to decide this.
-- `db:generate` is executed automatically by:
-  - `ops/start-system.ps1`
-  - `ops/deploy.ps1`
-- This guarantees Prisma Client compatibility on every startup/deploy cycle.
 
 ## Development
 ```bash

@@ -1,17 +1,33 @@
 #!/bin/bash
-# start-app.sh
+set -euo pipefail
 
-cd /home/zx/zx-op
+APP_DIR="/home/zx/zx-op"
+cd "$APP_DIR"
 
-# Detect the main local IP address
+# Detect the primary local IP address.
 IP=$(hostname -I | awk '{print $1}')
 
-# Recreate or update the .env file
-echo "PUBLIC_API_BASE_URL=http://$IP" > .env
+# Upsert PUBLIC_API_BASE_URL without dropping existing settings.
+if [[ -f .env ]]; then
+  if grep -q '^PUBLIC_API_BASE_URL=' .env; then
+    sed -i "s|^PUBLIC_API_BASE_URL=.*|PUBLIC_API_BASE_URL=http://$IP|" .env
+  else
+    echo "PUBLIC_API_BASE_URL=http://$IP" >> .env
+  fi
+else
+  echo "PUBLIC_API_BASE_URL=http://$IP" > .env
+fi
 
-# Run database schema push before starting services
-# We use --accept-data-loss to ensure it never asks for confirmation (as requested)
-docker compose run --rm api npx prisma db push --accept-data-loss
+# Keep database service available before running migrations.
+docker compose up -d postgres
 
-# Start the docker containers
-docker compose up -d --build
+# Generate Prisma client and run safe production migrations.
+docker compose run --rm api pnpm --filter api db:generate
+docker compose run --rm api pnpm --filter api exec prisma migrate deploy
+
+# Start or rebuild application containers.
+docker compose up -d --build api ui
+
+# Basic health checks after startup.
+curl -fsS http://127.0.0.1:3000/api/health >/dev/null
+curl -fsS http://127.0.0.1:4173/ >/dev/null
