@@ -1,5 +1,7 @@
 FROM node:20-slim AS builder
 
+RUN apt-get update -y && apt-get install -y openssl
+
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
@@ -19,6 +21,8 @@ RUN pnpm --filter api db:generate
 RUN pnpm --filter api build
 
 FROM node:20-slim AS runner
+
+RUN apt-get update -y && apt-get install -y openssl
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH

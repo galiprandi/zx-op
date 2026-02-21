@@ -1,8 +1,10 @@
 import Axios from "axios";
 import { updateServerClockFromHeader } from "@/lib/serverClock";
 
+const baseURL = `${import.meta.env.VITE_API_BASE_URL}:${import.meta.env.VITE_API_BASE_PORT}`;
+
 export const API = Axios.create({
-	baseURL: "",
+	baseURL,
 });
 
 API.interceptors.response.use((response) => {

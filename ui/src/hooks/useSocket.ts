@@ -19,8 +19,9 @@ export function useSocket() {
 	const queryClient = useQueryClient();
 
 	useEffect(() => {
-		// Conectar al servidor de Socket.IO
-		const socket = io("/", {
+		// Conectar al servidor de Socket.IO usando URL absoluta
+		const socketURL = `${import.meta.env.VITE_API_BASE_URL}:${import.meta.env.VITE_API_BASE_PORT}`;
+		const socket = io(socketURL, {
 			transports: ["polling", "websocket"],
 			timeout: 10000,
 			reconnection: true,
@@ -37,14 +38,14 @@ export function useSocket() {
 
 		socket.on("product:updated", ({ product }: { product: Product }) => {
 			// OPTIMIZED: Use setQueryData for immediate update
-			queryClient.setQueryData(["products"], (old: any[] = []) => 
+			queryClient.setQueryData(["products"], (old: any[] = []) =>
 				old.map((p: any) => p.id === product.id ? product : p)
 			);
 		});
 
 		socket.on("product:deleted", ({ productId }: { productId: string }) => {
 			// OPTIMIZED: Use setQueryData for immediate update
-			queryClient.setQueryData(["products"], (old: any[] = []) => 
+			queryClient.setQueryData(["products"], (old: any[] = []) =>
 				old.filter((p: any) => p.id !== productId)
 			);
 		});
@@ -87,14 +88,14 @@ export function useSocket() {
 			if (playerSession) {
 				queryClient.setQueryData(["playerSession", playerSession.barcodeId], playerSession);
 			}
-			
+
 			// OPTIMIZED: Use setQueryData for dashboard if partial data provided
 			if (dashboardStats) {
 				queryClient.setQueryData(["dashboardStats"], dashboardStats);
 			} else {
 				queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 			}
-			
+
 			queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
 			queryClient.invalidateQueries({ queryKey: ["reportsSummary"] });
 			queryClient.invalidateQueries({ queryKey: ["reportsDays"] });
@@ -115,7 +116,7 @@ export function useSocket() {
 			// Update transaction history
 			queryClient.invalidateQueries({ queryKey: ["transactions"] });
 			queryClient.invalidateQueries({ queryKey: ["checkinHistory"] });
-			
+
 			// OPTIMIZED: Use setQueryData for dashboard if partial data provided
 			if (dashboardStats) {
 				queryClient.setQueryData(["dashboardStats"], dashboardStats);
