@@ -10,6 +10,13 @@ export interface RecentOperationalDaySales {
   totalRevenue: number;
 }
 
+export interface PaymentBreakdownRow {
+  paymentMethodId: string;
+  name: string;
+  totalAmount: number;
+  salesCount: number;
+}
+
 export interface OperationalDayListItem {
   operationalDateKey: string;
   operationalDateLabel: string;
@@ -60,6 +67,7 @@ export interface OperationalDayDetailResponse {
     totalLaps: number;
     averageSecondsPerLap: number | null;
   };
+  paymentBreakdown: PaymentBreakdownRow[];
   topProducts: OperationalDayTopProduct[];
 }
 
@@ -76,5 +84,6 @@ export interface ReportsSummaryResponse {
     weekOverWeekPct: number | null;
     monthOverMonthPct: number | null;
   };
+  paymentBreakdown: PaymentBreakdownRow[];
   recentOperationalDaySales: RecentOperationalDaySales[];
 }

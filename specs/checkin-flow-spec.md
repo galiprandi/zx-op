@@ -19,7 +19,7 @@ This document describes the complete check-in flow for the Zona Xtreme attractio
 - **No Session**: Barcode exists but no active session → Create new session
 
 ### 2.3 Product Assignment Rules
-- **Required Products**: Must be selected for ALL check-ins (new and existing)
+- **Favorite Products (required=true flag)**: Shown with visual priority in check-in, but not mandatory for checkout
 - **Optional Products**: Can be added to any check-in
 - **Time Products**: Add to existing time or create new time allocation
 - **Non-time Products**: Always added (medias, snacks, etc.)
@@ -85,19 +85,24 @@ This document describes the complete check-in flow for the Zona Xtreme attractio
 ```
 
 ### 3.4 Product Selection
-- **Required Products**: Auto-selected if already owned, must be selected for new
+- **Favorite Products**: Displayed first for quick tap access (non-blocking)
 - **Time Products**: Add to existing time or create new allocation
 - **Quantity Controls**: +1/-1 buttons for each product
 - **Price Calculation**: Real-time total update
 
-### 3.5 Checkout Process
-1. **Validation**: Ensure required products are selected
-2. **Payment Processing**: Create transaction record
-3. **Session Creation/Update**: 
+### 3.5 Checkout Process (Two-Step)
+1. **Validation**: Ensure barcode and at least one product are selected
+2. **Step 2 - Payment Method Selection**:
+   - Open dedicated payment step view after pressing `COBRAR`
+   - Allow one or multiple payment methods with split amounts
+   - Enforce strict validation: sum(split amounts) == cart total (integer amounts, no decimals)
+   - If no active methods are configured, block checkout and redirect to Settings
+3. **Payment Processing**: Create check-in sale header + transaction items + payment allocations
+4. **Session Creation/Update**:
    - New wristband: Create new PlayerSession
    - Existing: Update session with additional time/products
-4. **Success Feedback**: Show confirmation overlay
-5. **Form Reset**: Clear barcode and selections
+5. **Success Feedback**: Show immediate optimistic confirmation ("Confirmando cobro..."), then success on API response
+6. **Form Reset**: Clear barcode and selections
 
 ## 4. Technical Implementation
 
@@ -110,6 +115,12 @@ POST /api/checkin
 - Body: CheckinPayload
 - Creates: Transaction + PlayerSession (if new) or updates existing
 
+GET /api/payment-methods
+- Returns: Active payment methods only
+
+GET /api/payment-methods/admin
+- Returns: Full list (including inactive/deleted) for settings CRUD
+
 GET /api/products
 - Returns: All available products
 ```
@@ -120,6 +131,8 @@ interface CheckinState {
   barcodeId: string;
   session?: SessionStatusResponse;
   cart: CartItem[];
+  paymentAllocations: Array<{ paymentMethodId: string; amount: number }>;
+  currentStep: "products" | "payment";
   isLoading: boolean;
   showConfirmation: boolean;
 }
@@ -128,9 +141,10 @@ interface CheckinState {
 ### 4.3 Business Rules
 1. **Barcode Input**: Accept any string, no validation on entry
 2. **Session Lookup**: Debounced API call after typing stops
-3. **Product Selection**: Required products mandatory for checkout
+3. **Product Selection**: Favorite products are prioritized visually, not required
 4. **Time Calculation**: Add to existing time or create new session
 5. **Transaction Creation**: Always create transaction record
+6. **Payment Allocation Validation**: Strict split sum validation with integer precision (no decimals)
 
 ## 5. Edge Cases
 
@@ -142,6 +156,7 @@ interface CheckinState {
 - **Invalid Products**: Handle product not found errors gracefully
 - **Price Changes**: Use current price from API at checkout time
 - **Session Conflicts**: Handle concurrent session updates
+- **No Payment Methods**: Prevent checkout and require configuration in Settings
 
 ### 5.3 User Experience
 - **Fast Typing**: Debounce API calls to avoid excessive requests

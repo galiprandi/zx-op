@@ -9,6 +9,10 @@ export interface CheckinProductPayload {
 export interface CheckinPayload {
 	barcodeId: string;
 	products: CheckinProductPayload[];
+	paymentAllocations: {
+		paymentMethodId: string;
+		amount: number;
+	}[];
 }
 
 export interface CheckinResponse {

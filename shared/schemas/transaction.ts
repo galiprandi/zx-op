@@ -4,6 +4,7 @@ import { z } from "zod";
 export const TransactionSchema = z.object({
   id: z.string(),
   playerSessionId: z.string(),
+  checkinSaleId: z.string().nullable().optional(),
   productId: z.string(),
   quantity: z.number().int().min(1),
   totalPrice: z.number().nonnegative(),

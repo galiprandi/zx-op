@@ -31,6 +31,7 @@ export type {
 
 export type {
   RecentOperationalDaySales,
+  PaymentBreakdownRow,
   ReportsSummaryResponse,
   OperationalDayListItem,
   OperationalDaysPageResponse,

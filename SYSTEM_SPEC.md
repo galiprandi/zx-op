@@ -40,6 +40,22 @@ A local-first management system for a massive inflatable attraction. The system 
 
 * Linked to `player_sessions` and `products` (records consumptions and time purchases)
 
+### `payment_methods`
+
+* `name`: unique payment method name (case-insensitive uniqueness at DB level)
+* `is_active`: operational status for checkout usage
+* `is_deleted`: soft-delete marker to preserve historical references
+
+### `checkin_sales`
+
+* Sale header per checkout operation (`player_session`, `barcode_id_snapshot`, `total_amount`)
+* Grouping key for transaction items and payment allocations
+
+### `checkin_sale_payment_allocations`
+
+* Split-payment rows per sale (`payment_method`, `amount`)
+* Validation rule: allocation sum equals sale total (integer amounts, no decimals)
+
 ---
 
 ## 4. Operational Flow & Business Logic
@@ -47,6 +63,9 @@ A local-first management system for a massive inflatable attraction. The system 
 ### A. Check-in (Caja)
 
 * Staff scans a wristband (barcode) and selects products (tiempo + adicionales).
+* Staff must select payment method(s) in a dedicated second step before confirming checkout.
+* Split payments are allowed by amount across multiple methods.
+* If no active payment methods exist, checkout is blocked until configuration is completed.
 * The system creates or finds the `player_session` and adds purchased time (`total_allowed_seconds += time_value_seconds`), keeping existing balance.
 * Session stays **paused/inactive** until Play at the gate.
 * **Timer policy:** check-in only loads credit. Time does not start consuming at check-in.

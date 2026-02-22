@@ -10,6 +10,12 @@ export interface DashboardStats {
     totalQuantity: number;
     totalRevenue: number;
   }>;
+  paymentBreakdown: Array<{
+    paymentMethodId: string;
+    name: string;
+    totalAmount: number;
+    salesCount: number;
+  }>;
   waitingCount: number;
 }
 
@@ -84,6 +90,40 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       }))
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
+    const paymentRows = await prisma.checkinSalePaymentAllocation.groupBy({
+      by: ['paymentMethodId'],
+      where: {
+        checkinSale: {
+          createdAt: {
+            gte: startUtc,
+            lt: endUtc,
+          },
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+      _count: {
+        checkinSaleId: true,
+      },
+    });
+
+    const paymentMethodIds = paymentRows.map((row) => row.paymentMethodId);
+    const paymentMethods = await prisma.paymentMethod.findMany({
+      where: { id: { in: paymentMethodIds } },
+      select: { id: true, name: true },
+    });
+    const methodNameById = new Map(paymentMethods.map((method) => [method.id, method.name]));
+
+    const paymentBreakdown = paymentRows
+      .map((row) => ({
+        paymentMethodId: row.paymentMethodId,
+        name: methodNameById.get(row.paymentMethodId) || 'Desconocido',
+        totalAmount: Number((row._sum.amount || 0).toFixed(2)),
+        salesCount: row._count.checkinSaleId,
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount);
+
     const allSessions = await prisma.playerSession.findMany({
       where: {
         createdAt: {
@@ -110,6 +150,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     return {
       todayRevenue,
       salesByCategory,
+      paymentBreakdown,
       waitingCount: finalWaitingCount,
     };
   } catch (error) {

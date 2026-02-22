@@ -7,6 +7,12 @@ export interface DashboardStats {
     totalQuantity: number;
     totalRevenue: number;
   }>;
+  paymentBreakdown: Array<{
+    paymentMethodId: string;
+    name: string;
+    totalAmount: number;
+    salesCount: number;
+  }>;
   waitingCount: number;
 }
 

@@ -20,6 +20,7 @@ model PlayerSession {
   updatedAt           DateTime      @updatedAt
   logs                SessionLog[]
   transactions        Transaction[]
+  checkinSales        CheckinSale[]
 }
 
 model SessionLog {
@@ -56,10 +57,43 @@ model Transaction {
   id              String        @id @default(cuid())
   playerSession   PlayerSession @relation(fields: [playerSessionId], references: [id], onDelete: Cascade)
   playerSessionId String
+  checkinSale     CheckinSale?  @relation(fields: [checkinSaleId], references: [id], onDelete: SetNull)
+  checkinSaleId   String?
   product         Product       @relation(fields: [productId], references: [id])
   productId       String
   quantity        Int           @default(1)
   totalPrice      Float
+  createdAt       DateTime      @default(now())
+}
+
+model PaymentMethod {
+  id          String                         @id @default(cuid())
+  name        String                         @unique
+  isActive    Boolean                        @default(true)
+  isDeleted   Boolean                        @default(false)
+  createdAt   DateTime                       @default(now())
+  updatedAt   DateTime                       @updatedAt
+  allocations CheckinSalePaymentAllocation[]
+}
+
+model CheckinSale {
+  id                 String                         @id @default(cuid())
+  playerSession      PlayerSession                  @relation(fields: [playerSessionId], references: [id], onDelete: Cascade)
+  playerSessionId    String
+  barcodeIdSnapshot  String
+  totalAmount        Float
+  createdAt          DateTime                       @default(now())
+  transactions       Transaction[]
+  paymentAllocations CheckinSalePaymentAllocation[]
+}
+
+model CheckinSalePaymentAllocation {
+  id              String       @id @default(cuid())
+  checkinSale     CheckinSale  @relation(fields: [checkinSaleId], references: [id], onDelete: Cascade)
+  checkinSaleId   String
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  paymentMethodId String
+  amount          Float
   createdAt       DateTime      @default(now())
 }
 

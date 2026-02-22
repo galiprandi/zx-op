@@ -5,6 +5,7 @@ export interface Transaction {
   id: string;
   playerSessionId: string;
   playerSession?: PlayerSession;
+  checkinSaleId?: string | null;
   productId: string;
   product?: Product;
   quantity: number;

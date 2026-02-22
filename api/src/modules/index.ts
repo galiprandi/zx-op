@@ -16,6 +16,7 @@ import { dashboardRoutes } from './dashboard/routes/dashboardRoutes';
 import { systemRoutes } from './system/routes/systemRoutes';
 import { cartRoutes } from './cart/routes/cartRoutes';
 import { reportsRoutes } from './reports/routes/reportsRoutes';
+import { paymentMethodRoutes } from './paymentMethods/routes/paymentMethodRoutes';
 import { initializeSocketIO } from './playerSessions/services/socketService';
 
 /**
@@ -52,6 +53,9 @@ export async function registerModules(app: FastifyInstance) {
 
   await app.register(reportsRoutes);
   app.log.info('Reports module registered');
+
+  await app.register(paymentMethodRoutes);
+  app.log.info('Payment methods module registered');
 
   app.log.info('All modules registered successfully');
 }
@@ -138,6 +142,19 @@ export const moduleInfo = {
         'PUT /api/system/settings'
       ],
       dependencies: []
+    },
+    {
+      name: 'paymentMethods',
+      description: 'Payment method configuration with soft delete support',
+      routes: [
+        'GET /api/payment-methods',
+        'GET /api/payment-methods/admin',
+        'POST /api/payment-methods',
+        'PUT /api/payment-methods/:id',
+        'DELETE /api/payment-methods/:id',
+        'PATCH /api/payment-methods/:id/toggle-active'
+      ],
+      dependencies: ['socketIO']
     }
   ],
   removedModules: [

@@ -174,6 +174,20 @@ Backend Data Persistence → Socket Event Emission → Frontend Socket Listeners
 
 **Frontend Response**: `setQueryData(["systemSettings"], settings)`
 
+#### `payment-method:created|updated|deleted|status-changed`
+**Trigger**: When payment methods CRUD/status changes are persisted
+
+**Payload**:
+```typescript
+{
+  paymentMethod: PaymentMethod
+}
+```
+
+**Frontend Response**:
+- Invalidate `["paymentMethods"]`
+- Invalidate `["paymentMethodsAdmin"]`
+
 #### `system:capacity:changed`
 **Trigger**: When occupancy limits change
 

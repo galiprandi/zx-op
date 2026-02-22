@@ -48,3 +48,11 @@ export function emitSystemEvent(event: 'system:settings-updated', data: unknown)
   const socketIO = getSocketIO();
   socketIO.emit(event, data);
 }
+
+export function emitPaymentMethodEvent(
+  event: 'payment-method:created' | 'payment-method:updated' | 'payment-method:deleted' | 'payment-method:status-changed',
+  data: unknown,
+) {
+  const socketIO = getSocketIO();
+  socketIO.emit(event, data);
+}

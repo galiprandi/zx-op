@@ -190,6 +190,27 @@ export function ReportsView() {
               </SurfaceCard>
             </div>
 
+            <SurfaceCard contentPaddingClassName="[&>div]:p-4">
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">Medios de pago (último día cerrado)</h3>
+                {data.paymentBreakdown.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sin ventas para desglosar</p>
+                ) : (
+                  <div className="space-y-2">
+                    {data.paymentBreakdown.map((row) => (
+                      <div key={row.paymentMethodId} className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{row.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-muted-foreground">{row.salesCount} ventas</span>
+                          <span>{formatCurrency(row.totalAmount)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </SurfaceCard>
+
             <SurfaceCard>
               <div className="space-y-4">
                 <div className="flex flex-col gap-1">
@@ -501,6 +522,25 @@ export function ReportsView() {
                             <span>Total</span>
                             <span>{formatCurrency(dayDetail.revenue.totalRevenue)}</span>
                           </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-border/30">
+                          <p className="text-sm font-medium mb-2">Medios de pago</p>
+                          {dayDetail.paymentBreakdown.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Sin pagos registrados</p>
+                          ) : (
+                            <div className="space-y-2 mb-3">
+                              {dayDetail.paymentBreakdown.map((row) => (
+                                <div key={row.paymentMethodId} className="flex items-center justify-between text-sm">
+                                  <span>{row.name}</span>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-muted-foreground">{row.salesCount} ventas</span>
+                                    <span className="font-medium">{formatCurrency(row.totalAmount)}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div className="pt-2 border-t border-border/30">

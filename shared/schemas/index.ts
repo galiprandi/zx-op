@@ -38,6 +38,7 @@ export {
 
 export {
   RecentOperationalDaySalesSchema,
+  PaymentBreakdownRowSchema,
   ReportsSummarySchema,
   OperationalDayListItemSchema,
   OperationalDaysPageSchema,

@@ -12,6 +12,13 @@ export const RecentOperationalDaySalesSchema = z.object({
   totalRevenue: z.number().nonnegative(),
 });
 
+export const PaymentBreakdownRowSchema = z.object({
+  paymentMethodId: z.string(),
+  name: z.string(),
+  totalAmount: z.number().nonnegative(),
+  salesCount: z.number().int().nonnegative(),
+});
+
 export const ReportsSummarySchema = z.object({
   topKpis: z.object({
     operationalRevenue: z.number().nonnegative(),
@@ -25,6 +32,7 @@ export const ReportsSummarySchema = z.object({
     weekOverWeekPct: z.number().nullable(),
     monthOverMonthPct: z.number().nullable(),
   }),
+  paymentBreakdown: z.array(PaymentBreakdownRowSchema),
   recentOperationalDaySales: z.array(RecentOperationalDaySalesSchema),
 });
 
@@ -78,10 +86,12 @@ export const OperationalDayDetailSchema = z.object({
     totalLaps: z.number().int().nonnegative(),
     averageSecondsPerLap: z.number().int().nonnegative().nullable(),
   }),
+  paymentBreakdown: z.array(PaymentBreakdownRowSchema),
   topProducts: z.array(OperationalDayTopProductSchema),
 });
 
 export type RecentOperationalDaySalesSchema = z.infer<typeof RecentOperationalDaySalesSchema>;
+export type PaymentBreakdownRowSchema = z.infer<typeof PaymentBreakdownRowSchema>;
 export type ReportsSummarySchema = z.infer<typeof ReportsSummarySchema>;
 export type OperationalDayListItemSchema = z.infer<typeof OperationalDayListItemSchema>;
 export type OperationalDaysPageSchema = z.infer<typeof OperationalDaysPageSchema>;

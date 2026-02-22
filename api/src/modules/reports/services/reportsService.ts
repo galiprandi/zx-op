@@ -16,6 +16,13 @@ export interface RecentOperationalDaySales {
   totalRevenue: number;
 }
 
+export interface PaymentBreakdownRow {
+  paymentMethodId: string;
+  name: string;
+  totalAmount: number;
+  salesCount: number;
+}
+
 export interface ReportsSummaryResponse {
   topKpis: {
     operationalRevenue: number;
@@ -29,6 +36,7 @@ export interface ReportsSummaryResponse {
     weekOverWeekPct: number | null;
     monthOverMonthPct: number | null;
   };
+  paymentBreakdown: PaymentBreakdownRow[];
   recentOperationalDaySales: RecentOperationalDaySales[];
 }
 
@@ -82,6 +90,7 @@ export interface OperationalDayDetailResponse {
     totalLaps: number;
     averageSecondsPerLap: number | null;
   };
+  paymentBreakdown: PaymentBreakdownRow[];
   topProducts: OperationalDayTopProduct[];
 }
 
@@ -183,6 +192,39 @@ async function getRevenueBetween(start: Date, end: Date): Promise<number> {
   return Number(revenue._sum.totalPrice || 0);
 }
 
+async function getPaymentBreakdownBetween(start: Date, end: Date): Promise<PaymentBreakdownRow[]> {
+  const rows = await prisma.checkinSalePaymentAllocation.groupBy({
+    by: ['paymentMethodId'],
+    where: {
+      checkinSale: {
+        createdAt: {
+          gte: start,
+          lt: end,
+        },
+      },
+    },
+    _sum: { amount: true },
+    _count: { checkinSaleId: true },
+  });
+
+  if (rows.length === 0) return [];
+
+  const methods = await prisma.paymentMethod.findMany({
+    where: { id: { in: rows.map((row) => row.paymentMethodId) } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(methods.map((method) => [method.id, method.name]));
+
+  return rows
+    .map((row) => ({
+      paymentMethodId: row.paymentMethodId,
+      name: nameById.get(row.paymentMethodId) || 'Desconocido',
+      totalAmount: Number((row._sum.amount || 0).toFixed(2)),
+      salesCount: row._count.checkinSaleId,
+    }))
+    .sort((a, b) => b.totalAmount - a.totalAmount);
+}
+
 function calculateComparisonPct(current: number, previous: number): number | null {
   if (previous <= 0) {
     return null;
@@ -200,7 +242,7 @@ function formatOperationalDate(startUtc: Date, timeZone: string): string {
   }).format(startUtc);
 }
 
-function toAggregateSql(tableAlias: 't' | 's', timezone: string, start: ParsedOperationalStart): Prisma.Sql {
+function toAggregateSql(tableAlias: string, timezone: string, start: ParsedOperationalStart): Prisma.Sql {
   const shiftMinutes = start.hours * 60 + start.minutes;
   return Prisma.sql`(((${Prisma.raw(`"${tableAlias}"."createdAt"`)} AT TIME ZONE ${timezone}) - (${shiftMinutes} * interval '1 minute'))::date)`;
 }
@@ -446,7 +488,7 @@ export async function getOperationalDayDetail(params: { operationalDate: string 
   const txOperationalDateExpr = toAggregateSql('t', timezone, parsedStart);
   const sessionOperationalDateExpr = toAggregateSql('s', timezone, parsedStart);
 
-  const [totalsRows, topProductsRows, dayWindowRows] = await Promise.all([
+  const [totalsRows, topProductsRows, dayWindowRows, paymentBreakdownRows] = await Promise.all([
     prisma.$queryRaw<Array<{
       sessionCount: number;
       totalTimeSeconds: number;
@@ -512,6 +554,24 @@ export async function getOperationalDayDetail(params: { operationalDate: string 
       FROM "Transaction" t
       WHERE ${txOperationalDateExpr} = ${operationalDate}::date
     `,
+    prisma.$queryRaw<Array<{
+      paymentMethodId: string;
+      name: string;
+      totalAmount: number;
+      salesCount: bigint | number;
+    }>>`
+      SELECT
+        pm."id" AS "paymentMethodId",
+        pm."name" AS "name",
+        COALESCE(SUM(a."amount"), 0)::float AS "totalAmount",
+        COUNT(DISTINCT a."checkinSaleId") AS "salesCount"
+      FROM "CheckinSalePaymentAllocation" a
+      INNER JOIN "CheckinSale" cs ON cs."id" = a."checkinSaleId"
+      INNER JOIN "PaymentMethod" pm ON pm."id" = a."paymentMethodId"
+      WHERE ${toAggregateSql('cs', timezone, parsedStart)} = ${operationalDate}::date
+      GROUP BY pm."id", pm."name"
+      ORDER BY "totalAmount" DESC, "salesCount" DESC
+    `,
   ]);
 
   if (totalsRows.length === 0) {
@@ -546,6 +606,12 @@ export async function getOperationalDayDetail(params: { operationalDate: string 
       totalLaps: totals.totalLaps,
       averageSecondsPerLap: totals.totalLaps > 0 ? Math.round(totals.totalLapSeconds / totals.totalLaps) : null,
     },
+    paymentBreakdown: paymentBreakdownRows.map((row) => ({
+      paymentMethodId: row.paymentMethodId,
+      name: row.name,
+      totalAmount: Number(row.totalAmount.toFixed(2)),
+      salesCount: Number(row.salesCount),
+    })),
     topProducts: topProductsRows.map((row) => ({
       productId: row.productId,
       name: row.name,
@@ -564,6 +630,7 @@ export async function getReportsSummary(): Promise<ReportsSummaryResponse> {
 
   const [
     closedDayStats,
+    paymentBreakdown,
     recentOperationalDaySales,
     last7OperationalDays,
     prev7OperationalDays,
@@ -572,6 +639,7 @@ export async function getReportsSummary(): Promise<ReportsSummaryResponse> {
     lifetimeRevenue,
   ] = await Promise.all([
     getOperationalDaySales(closedDayStartUtc, closedDayEndUtc, timezone, maxOccupancy),
+    getPaymentBreakdownBetween(closedDayStartUtc, closedDayEndUtc),
     getRecentOperationalDaySales(closedDayStartUtc, timezone, maxOccupancy),
     getRevenueBetween(new Date(closedDayEndUtc.getTime() - 7 * ONE_DAY_MS), closedDayEndUtc),
     getRevenueBetween(new Date(closedDayEndUtc.getTime() - 14 * ONE_DAY_MS), new Date(closedDayEndUtc.getTime() - 7 * ONE_DAY_MS)),
@@ -593,6 +661,7 @@ export async function getReportsSummary(): Promise<ReportsSummaryResponse> {
       weekOverWeekPct: calculateComparisonPct(last7OperationalDays, prev7OperationalDays),
       monthOverMonthPct: calculateComparisonPct(last30OperationalDays, prev30OperationalDays),
     },
+    paymentBreakdown,
     recentOperationalDaySales,
   };
 }

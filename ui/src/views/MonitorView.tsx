@@ -445,6 +445,25 @@ export function MonitorView() {
 								)}
 							</div>
 						</div>
+
+						<div className="mt-5 pt-4 border-t border-border/30">
+							<h4 className="text-sm font-semibold text-foreground mb-2">Ventas por medio (hoy)</h4>
+							<div className="space-y-2">
+								{dashboardStats?.paymentBreakdown?.length ? (
+									dashboardStats.paymentBreakdown.map((row) => (
+										<div key={row.paymentMethodId} className="flex items-center justify-between">
+											<span className="text-sm font-medium">{row.name}</span>
+											<div className="flex items-center gap-4">
+												<span className="text-xs text-muted-foreground">{row.salesCount} ventas</span>
+												<span className="text-sm font-semibold whitespace-nowrap">{formatCurrency(row.totalAmount)}</span>
+											</div>
+										</div>
+									))
+								) : (
+									<p className="text-muted-foreground text-sm">Sin pagos registrados</p>
+								)}
+							</div>
+						</div>
 					</SurfaceCard>
 				</div>
 

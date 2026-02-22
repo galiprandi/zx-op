@@ -15,6 +15,10 @@ interface TransactionPayload {
 	dashboardStats?: unknown;
 }
 
+interface PaymentMethodPayload {
+	paymentMethod: { id: string };
+}
+
 export function useSocket() {
 	const queryClient = useQueryClient();
 
@@ -138,6 +142,26 @@ export function useSocket() {
 			queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
 			queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 			queryClient.invalidateQueries({ queryKey: ["performanceMetrics"] });
+		});
+
+		socket.on("payment-method:created", (_payload: PaymentMethodPayload) => {
+			queryClient.invalidateQueries({ queryKey: ["paymentMethods"] });
+			queryClient.invalidateQueries({ queryKey: ["paymentMethodsAdmin"] });
+		});
+
+		socket.on("payment-method:updated", (_payload: PaymentMethodPayload) => {
+			queryClient.invalidateQueries({ queryKey: ["paymentMethods"] });
+			queryClient.invalidateQueries({ queryKey: ["paymentMethodsAdmin"] });
+		});
+
+		socket.on("payment-method:deleted", (_payload: PaymentMethodPayload) => {
+			queryClient.invalidateQueries({ queryKey: ["paymentMethods"] });
+			queryClient.invalidateQueries({ queryKey: ["paymentMethodsAdmin"] });
+		});
+
+		socket.on("payment-method:status-changed", (_payload: PaymentMethodPayload) => {
+			queryClient.invalidateQueries({ queryKey: ["paymentMethods"] });
+			queryClient.invalidateQueries({ queryKey: ["paymentMethodsAdmin"] });
 		});
 
 		// Cleanup

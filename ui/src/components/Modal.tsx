@@ -12,6 +12,7 @@ interface ModalProps {
   details?: React.ReactNode;
   autoClose?: boolean;
   autoCloseDelay?: number;
+  closable?: boolean;
 }
 
 const modalConfig = {
@@ -46,7 +47,8 @@ export function Modal({
   type, 
   details,
   autoClose = false,
-  autoCloseDelay = 3000
+  autoCloseDelay = 3000,
+  closable = true,
 }: ModalProps) {
   const config = modalConfig[type];
   const Icon = config.icon;
@@ -66,17 +68,19 @@ export function Modal({
     <div className={modalOverlayClass}>
       <GlassCard className={`${modalPanelBaseClass} max-w-sm text-center ${config.cardBg}`}>
         {/* Close Button */}
-        <div className="absolute top-4 right-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-8 w-8 p-0"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
+        {closable && (
+          <div className="absolute top-4 right-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-8 w-8 p-0"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
 
         {/* Icon */}
         <div className={`w-16 h-16 ${config.bgColor} rounded-full flex items-center justify-center mx-auto mb-4`}>
@@ -103,7 +107,7 @@ export function Modal({
         )}
 
         {/* Close Button */}
-        {!autoClose && (
+        {!autoClose && closable && (
           <Button
             type="button"
             onClick={onClose}
