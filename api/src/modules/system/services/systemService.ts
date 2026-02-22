@@ -23,6 +23,7 @@ export class SystemService {
     logoUrl?: string | null,
     operationalDayStart?: string,
     timezone?: string,
+    autoExpireGraceMinutes?: number,
   ) {
     const updateData: {
       maxOccupancy?: number;
@@ -30,6 +31,7 @@ export class SystemService {
       logoUrl?: string | null;
       operationalDayStart?: string;
       timezone?: string;
+      autoExpireGraceMinutes?: number;
     } = {};
     
     if (maxOccupancy !== undefined) {
@@ -73,6 +75,14 @@ export class SystemService {
       updateData.timezone = timezone;
     }
 
+    if (autoExpireGraceMinutes !== undefined) {
+      const parsed = Number(autoExpireGraceMinutes);
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        throw new Error('autoExpireGraceMinutes must be an integer >= 0');
+      }
+      updateData.autoExpireGraceMinutes = parsed;
+    }
+
     const updated = await prisma.systemSetting.upsert({
       where: { id: 'system' },
       update: updateData,
@@ -83,6 +93,7 @@ export class SystemService {
         logoUrl: updateData.logoUrl || null,
         operationalDayStart: updateData.operationalDayStart || '07:00',
         timezone: updateData.timezone || 'America/Argentina/Tucuman',
+        autoExpireGraceMinutes: updateData.autoExpireGraceMinutes ?? 5,
       },
     });
 

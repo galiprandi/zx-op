@@ -185,6 +185,40 @@ export function ProductsView() {
 	const requiredProducts = filteredProducts.filter((product) => product.required);
 	const optionalProducts = filteredProducts.filter((product) => !product.required);
 
+	const renderMobileProductList = (productsToRender: Product[], emptyMessage: string) => {
+		if (productsToRender.length === 0) {
+			return <p className="px-4 py-6 text-center text-sm text-muted-foreground">{emptyMessage}</p>;
+		}
+
+		return (
+			<div className="divide-y divide-border">
+				{productsToRender.map((product) => (
+					<div key={product.id} className="p-4 space-y-3">
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<p className="font-medium leading-tight break-words">{product.name}</p>
+								<p className="text-xs text-muted-foreground break-words">{product.category}</p>
+							</div>
+							<Button onClick={() => handleEdit(product)} variant="outline" size="sm" className="shrink-0">
+								<Edit2 className="w-3 h-3" />
+							</Button>
+						</div>
+						<div className="grid grid-cols-2 gap-2 text-xs">
+							<div className="rounded-md bg-muted/30 px-2 py-1.5">
+								<p className="text-muted-foreground">Tiempo</p>
+								<p className="font-medium">{isTimeProduct(product) ? formatTimeValue(product.timeValueSeconds!) : "-"}</p>
+							</div>
+							<div className="rounded-md bg-muted/30 px-2 py-1.5">
+								<p className="text-muted-foreground">Precio</p>
+								<p className="font-medium">{formatPrice(product.price)}</p>
+							</div>
+						</div>
+					</div>
+				))}
+			</div>
+		);
+	};
+
 	return (
 		<DesktopShell>
 			<div className="space-y-5">
@@ -244,7 +278,10 @@ export function ProductsView() {
 								<h3 className="text-lg font-semibold">Obligatorios</h3>
 								<span className="text-sm text-muted-foreground">({requiredProducts.length})</span>
 							</div>
-							<div className="overflow-x-auto">
+							<div className="md:hidden">
+								{renderMobileProductList(requiredProducts, "No hay productos obligatorios")}
+							</div>
+							<div className="hidden md:block overflow-x-auto">
 								<table className="w-full text-sm">
 									<thead className="bg-muted/40">
 										<tr className="text-left">
@@ -288,7 +325,10 @@ export function ProductsView() {
 								<h3 className="text-lg font-semibold">Otros</h3>
 								<span className="text-sm text-muted-foreground">({optionalProducts.length})</span>
 							</div>
-							<div className="overflow-x-auto">
+							<div className="md:hidden">
+								{renderMobileProductList(optionalProducts, "No hay productos en esta lista")}
+							</div>
+							<div className="hidden md:block overflow-x-auto">
 								<table className="w-full text-sm">
 									<thead className="bg-muted/40">
 										<tr className="text-left">

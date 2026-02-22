@@ -17,6 +17,7 @@ interface SettingsFormState {
   logoUrl: string;
   operationalDayStart: string;
   timezone: string;
+  autoExpireGraceMinutes: string;
 }
 
 function isValidHttpUrl(value: string): boolean {
@@ -53,6 +54,7 @@ export function SettingsView() {
     logoUrl: '',
     operationalDayStart: '07:00',
     timezone: 'America/Argentina/Tucuman',
+    autoExpireGraceMinutes: '5',
   });
 
   useEffect(() => {
@@ -63,6 +65,7 @@ export function SettingsView() {
       logoUrl: settings.logoUrl ?? '',
       operationalDayStart: settings.operationalDayStart ?? '07:00',
       timezone: settings.timezone ?? 'America/Argentina/Tucuman',
+      autoExpireGraceMinutes: String(settings.autoExpireGraceMinutes ?? 5),
     });
   }, [settings]);
 
@@ -98,6 +101,12 @@ export function SettingsView() {
       return;
     }
 
+    const parsedGrace = Number(form.autoExpireGraceMinutes);
+    if (!Number.isInteger(parsedGrace) || parsedGrace < 0) {
+      toast.error('Auto-expire debe ser un número entero mayor o igual a 0');
+      return;
+    }
+
     try {
       await updateMultipleSettings({
         maxOccupancy: parsedMax,
@@ -105,6 +114,7 @@ export function SettingsView() {
         logoUrl: normalizedLogoUrl === '' ? null : normalizedLogoUrl,
         operationalDayStart: form.operationalDayStart,
         timezone: normalizedTimezone,
+        autoExpireGraceMinutes: parsedGrace,
       });
       toast.success('Configuración guardada correctamente');
     } catch {
@@ -139,98 +149,135 @@ export function SettingsView() {
         )}
 
         {!isLoading && settings && (
-          <GlassCard>
-            <form className="space-y-6" onSubmit={handleSave}>
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-primary" />
-                <h3 className="text-xl font-semibold">Ajustes del sistema</h3>
-              </div>
+          <form className="space-y-6" onSubmit={handleSave}>
+            <div className="space-y-6">
+              <GlassCard className="space-y-5">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-semibold flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-primary" />
+                    Operación
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Define reglas del día operativo y control de capacidad.
+                  </p>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="maxOccupancy">Ocupación máxima del sitio</Label>
-                <Input
-                  id="maxOccupancy"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={form.maxOccupancy}
-                  onChange={(e) => setForm((prev) => ({ ...prev, maxOccupancy: e.target.value }))}
-                  placeholder="Ej: 100"
-                />
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="maxOccupancy">Ocupación máxima del sitio</Label>
+                    <Input
+                      id="maxOccupancy"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={form.maxOccupancy}
+                      onChange={(e) => setForm((prev) => ({ ...prev, maxOccupancy: e.target.value }))}
+                      placeholder="Ej: 100"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="siteName">Nombre del sitio</Label>
-                <Input
-                  id="siteName"
-                  type="text"
-                  value={form.siteName}
-                  onChange={(e) => setForm((prev) => ({ ...prev, siteName: e.target.value }))}
-                  placeholder="Zona Xtreme"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="autoExpireGraceMinutes">Auto-expire (minutos de gracia)</Label>
+                    <Input
+                      id="autoExpireGraceMinutes"
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={form.autoExpireGraceMinutes}
+                      onChange={(e) => setForm((prev) => ({ ...prev, autoExpireGraceMinutes: e.target.value }))}
+                      placeholder="5"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Tiempo adicional luego de llegar a 0 para liberar ocupación automáticamente.
+                    </p>
+                  </div>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="logoUrl">URL del logo (opcional)</Label>
-                <div className="relative">
-                  <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <div className="space-y-2">
+                  <Label htmlFor="operationalDayStart">Inicio del día operativo</Label>
                   <Input
-                    id="logoUrl"
-                    type="url"
-                    value={form.logoUrl}
-                    onChange={(e) => setForm((prev) => ({ ...prev, logoUrl: e.target.value }))}
-                    placeholder="https://ejemplo.com/logo.png"
-                    className="pl-10"
+                    id="operationalDayStart"
+                    type="time"
+                    value={form.operationalDayStart}
+                    onChange={(e) => setForm((prev) => ({ ...prev, operationalDayStart: e.target.value }))}
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="operationalDayStart">Inicio del día operativo</Label>
-                <Input
-                  id="operationalDayStart"
-                  type="time"
-                  value={form.operationalDayStart}
-                  onChange={(e) => setForm((prev) => ({ ...prev, operationalDayStart: e.target.value }))}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">Zona horaria</Label>
+                  <Input
+                    id="timezone"
+                    type="text"
+                    value={form.timezone}
+                    onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
+                    placeholder="America/Argentina/Tucuman"
+                  />
+                </div>
+              </GlassCard>
 
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Zona horaria</Label>
-                <Input
-                  id="timezone"
-                  type="text"
-                  value={form.timezone}
-                  onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}
-                  placeholder="America/Argentina/Tucuman"
-                />
-              </div>
+              <GlassCard className="space-y-5">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-semibold">Identidad</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Personaliza cómo se muestra el sitio en pantallas internas.
+                  </p>
+                </div>
 
-              <div className="space-y-2 rounded-lg border border-border/30 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="space-y-2">
+                  <Label htmlFor="siteName">Nombre del sitio</Label>
+                  <Input
+                    id="siteName"
+                    type="text"
+                    value={form.siteName}
+                    onChange={(e) => setForm((prev) => ({ ...prev, siteName: e.target.value }))}
+                    placeholder="Zona Xtreme"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="logoUrl">URL del logo (opcional)</Label>
+                  <div className="relative">
+                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="logoUrl"
+                      type="url"
+                      value={form.logoUrl}
+                      onChange={(e) => setForm((prev) => ({ ...prev, logoUrl: e.target.value }))}
+                      placeholder="https://ejemplo.com/logo.png"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </GlassCard>
+
+              <GlassCard>
+                <div className="space-y-2 rounded-lg border border-border/30 p-4">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-semibold">Cobranza</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Administra medios de pago disponibles en check-in.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold flex items-center gap-2">
                       <Wallet className="w-4 h-4 text-primary" />
                       Medios de pago
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Alta, edición, activación y baja lógica de medios para check-in
-                    </p>
+                    <Button type="button" variant="outline" onClick={() => setIsPaymentModalOpen(true)}>
+                      Administrar
+                    </Button>
                   </div>
-                  <Button type="button" variant="outline" onClick={() => setIsPaymentModalOpen(true)}>
-                    Administrar
-                  </Button>
                 </div>
-              </div>
+              </GlassCard>
+            </div>
 
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isUpdating} className="flex items-center gap-2">
-                  <Save className="w-4 h-4" />
-                  {isUpdating ? 'Guardando...' : 'Guardar cambios'}
-                </Button>
-              </div>
-            </form>
-          </GlassCard>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isUpdating} className="flex items-center gap-2">
+                <Save className="w-4 h-4" />
+                {isUpdating ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+            </div>
+          </form>
         )}
 
         {isPaymentModalOpen && (

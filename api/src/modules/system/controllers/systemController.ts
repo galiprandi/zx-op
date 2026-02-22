@@ -17,12 +17,13 @@ export class SystemController {
 
   async updateSettings(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { maxOccupancy, siteName, logoUrl, operationalDayStart, timezone } = request.body as {
+      const { maxOccupancy, siteName, logoUrl, operationalDayStart, timezone, autoExpireGraceMinutes } = request.body as {
         maxOccupancy?: number;
         siteName?: string;
         logoUrl?: string | null;
         operationalDayStart?: string;
         timezone?: string;
+        autoExpireGraceMinutes?: number;
       };
       const settings = await systemService.updateSettings(
         maxOccupancy,
@@ -30,6 +31,7 @@ export class SystemController {
         logoUrl,
         operationalDayStart,
         timezone,
+        autoExpireGraceMinutes,
       );
       emitSystemEvent('system:settings-updated', { settings });
       return settings;

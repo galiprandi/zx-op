@@ -197,6 +197,16 @@ export class PlayerSessionService {
     let current = session;
 
     if (session.isActive && remainingSeconds <= 0) {
+      const settings = await prisma.systemSetting.findUnique({ where: { id: 'system' } });
+      const graceMinutes = Math.max(0, settings?.autoExpireGraceMinutes ?? 5);
+      const graceSeconds = graceMinutes * 60;
+      const consumed = this.computeConsumedSeconds(session);
+      const overrunSeconds = Math.max(0, consumed - (session.totalAllowedSeconds ?? 0));
+
+      if (overrunSeconds < graceSeconds) {
+        return this.buildSessionWithRemaining(current);
+      }
+
       const extra = session.lastStartAt
         ? Math.max(0, Math.floor((new Date().getTime() - session.lastStartAt.getTime()) / 1000))
         : 0;

@@ -101,7 +101,8 @@ A local-first management system for a massive inflatable attraction. The system 
 ### D. Auto-Release & Landing
 
 * **Landing:** When `remaining_seconds` reaches 0, the UI alerts the internal staff.
-* **Auto-Release:** If a wristband is `In-Flight` and reaches `0 + 5 minutes`, the system automatically triggers **Pause** (mark inactive) and decrements `current_occupancy` if the child hasn't been scanned out.
+* **Auto-Release:** If a wristband is `In-Flight` and reaches `0 + grace window`, the system automatically triggers **Pause** (mark inactive) and decrements `current_occupancy` if the child hasn't been scanned out.
+* **Grace Window Source:** Configurable from `/settings` as `autoExpireGraceMinutes` (default `5`).
 
 ---
 

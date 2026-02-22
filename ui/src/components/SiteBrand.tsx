@@ -10,6 +10,7 @@ interface SiteBrandProps {
 export function SiteBrand({ variant = 'full', className = '', showDebug = false }: SiteBrandProps) {
   const { systemSettings, isLoadingSettings } = useUi();
   const [imageError, setImageError] = useState(false);
+  const logoHeightClass = variant === 'full' ? 'h-20' : 'h-8';
 
   if (isLoadingSettings) {
     return (
@@ -29,7 +30,7 @@ export function SiteBrand({ variant = 'full', className = '', showDebug = false 
           <img 
             src={logoUrl} 
             alt={siteName}
-            className="h-8 w-auto object-contain"
+            className={`${logoHeightClass} w-auto object-contain`}
             onError={() => setImageError(true)}
             onLoad={() => setImageError(false)}
           />
@@ -49,7 +50,7 @@ export function SiteBrand({ variant = 'full', className = '', showDebug = false 
       .slice(0, 2) || 'ZX';
     
     return (
-      <div className="h-8 flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold text-lg px-3 rounded">
+      <div className={`${logoHeightClass} flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold text-lg px-3 rounded`}>
         {initials}
       </div>
     );

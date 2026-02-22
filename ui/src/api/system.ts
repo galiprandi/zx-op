@@ -7,6 +7,7 @@ export interface SystemSettings {
 	logoUrl?: string | null;
 	operationalDayStart?: string;
 	timezone?: string;
+	autoExpireGraceMinutes?: number;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -17,7 +18,7 @@ export const getSystemSettings = async (): Promise<SystemSettings> => {
 };
 
 export const updateSystemSettings = async (
-	params: Partial<Pick<SystemSettings, "maxOccupancy" | "siteName" | "logoUrl" | "operationalDayStart" | "timezone">>
+	params: Partial<Pick<SystemSettings, "maxOccupancy" | "siteName" | "logoUrl" | "operationalDayStart" | "timezone" | "autoExpireGraceMinutes">>
 ): Promise<SystemSettings> => {
 	const { data } = await API.put<SystemSettings>("/api/system/settings", params);
 	return data;

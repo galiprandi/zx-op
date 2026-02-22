@@ -104,6 +104,7 @@ model SystemSetting {
   logoUrl       String?
   operationalDayStart String @default("07:00")
   timezone      String   @default("America/Argentina/Tucuman")
+  autoExpireGraceMinutes Int @default(5)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

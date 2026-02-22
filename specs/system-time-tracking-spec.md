@@ -87,7 +87,7 @@ WHERE barcode_id = $1;
 ## 3. Future-Proofing
 
 1. **Automatic Session Termination (Ghost Players)**
-   * Running `GET /status` should detect `remaining_seconds <= 0` and perform the pause logic so the session is marked inactive and time is consumed before showing 0.
+   * Running `GET /status` should detect `remaining_seconds <= 0` and perform pause logic only after a configurable grace window (`autoExpireGraceMinutes`, default `5`), then mark inactive and release occupancy.
 
 2. **Audit Log (History)**
    * Introduce `session_logs` to record each `PLAY` and `PAUSE` event with `session_id` and `timestamp` for support tracing.
