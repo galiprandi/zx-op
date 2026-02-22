@@ -356,7 +356,8 @@ export function CheckInView() {
             </div>
 
             <ActionButton
-              type="checkin"
+              variant="cta"
+              tone="success"
               onClick={handleConfirmPayment}
               disabled={!paymentSummary.valid || checkinMutation.isPending}
               loading={checkinMutation.isPending}
@@ -364,14 +365,19 @@ export function CheckInView() {
               Confirmar cobro
             </ActionButton>
 
-            <button
-              type="button"
+            <ActionButton
+              variant="cancel"
               onClick={() => setShowPaymentStep(false)}
-              className="w-full rounded-lg border border-border/40 px-4 py-2 text-sm hover:bg-card/60"
               disabled={checkinMutation.isPending}
+              size="md"
             >
               Volver
-            </button>
+            </ActionButton>
+            {!paymentSummary.valid && (
+              <p className="text-xs text-amber-300 text-center">
+                Asigna montos hasta completar el total exacto para habilitar el cobro.
+              </p>
+            )}
           </div>
         }
       >
@@ -451,7 +457,8 @@ export function CheckInView() {
           )}
 
           <ActionButton
-            type="checkin"
+            variant="cta"
+            tone="success"
             onClick={handleStartPayment}
             disabled={!(activeBarcode || barcodeId).trim() || cart.length === 0 || isMissingRequired || checkinMutation.isPending}
             loading={checkinMutation.isPending}

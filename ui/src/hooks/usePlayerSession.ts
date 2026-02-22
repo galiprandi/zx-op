@@ -120,7 +120,10 @@ export function useActiveSessions() {
 	);
 
 	const expiringSoonSessions = sessions.filter(session => 
-		session.remainingSeconds > 0 && session.remainingSeconds <= 300 // <= 5 minutes
+		session.remainingSeconds > 0 &&
+		session.remainingSeconds <= 300 && // <= 5 minutes
+		// Exclude never-started waiting sessions (they belong only to "Esperando")
+		!(session.lastStartAt === null && session.accumulatedSeconds === 0)
 	);
 
 	const expiredSessions = sessions.filter(session => 

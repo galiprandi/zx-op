@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Scan, AlertCircle } from "lucide-react";
+import { Scan, AlertCircle, Pause, Play, Plus } from "lucide-react";
 import { MobileShell } from "@/components/MobileShell";
 import { QRScanner } from "@/components/QRScanner";
 import { ActionButton } from "@/components/ActionButton";
@@ -12,7 +12,6 @@ import { useActiveSessions, usePlayerSession } from "@/hooks/usePlayerSession";
 import { getCheckinHistory } from "@/api/checkin";
 import { formatTimeValue } from "@/api/products";
 import { useSocket } from "@/hooks/useSocket";
-import { Button } from "@/components/ui/button";
 import { resolveDisplaySeconds, resolveVisualState } from "@/lib/sessionTimeCalc";
 import { getSyncedNowMs } from "@/lib/serverClock";
 
@@ -129,7 +128,8 @@ export function OperationView() {
 	const getButtonConfig = () => {
 		if (!session || sessionLoading) {
 			return {
-				type: "danger" as const,
+				variant: "danger" as const,
+				icon: AlertCircle,
 				text: "Cargando...",
 				disabled: true,
 				loading: false,
@@ -138,7 +138,8 @@ export function OperationView() {
 
 		if (session.remainingSeconds <= 0) {
 			return {
-				type: "danger" as const,
+				variant: "danger" as const,
+				icon: AlertCircle,
 				text: "Tiempo Agotado",
 				disabled: true,
 				loading: false,
@@ -147,7 +148,9 @@ export function OperationView() {
 
 		if (session.isActive) {
 			return {
-				type: "pause" as const,
+				variant: "cta" as const,
+				tone: "warning" as const,
+				icon: Pause,
 				text: "PAUSAR",
 				disabled: !canPause,
 				loading: pauseMutation.isPending,
@@ -155,7 +158,9 @@ export function OperationView() {
 		}
 
 		return {
-			type: "play" as const,
+			variant: "cta" as const,
+			tone: "success" as const,
+			icon: Play,
 			text: "PLAY",
 			disabled: !canPlay,
 			loading: playMutation.isPending,
@@ -217,26 +222,33 @@ export function OperationView() {
 						</div>
 
 						{session.isActive && session.remainingSeconds > 0 && (
-							<Button
-								type="button"
+							<ActionButton
 								variant="secondary"
-								className="w-full h-12 text-base operation-secondary-cta"
+								icon={Plus}
+								className="h-12 text-base"
 								onClick={() => lapMutation.mutate()}
 								disabled={lapMutation.isPending}
 							>
 								{lapMutation.isPending ? `Registrando... (Total: ${session.lapsCount})` : `+1 Vuelta (Total: ${session.lapsCount})`}
-							</Button>
+							</ActionButton>
 						)}
 
 						<ActionButton
-							type={buttonConfig.type}
+							variant={buttonConfig.variant}
+							tone={buttonConfig.tone}
+							icon={buttonConfig.icon}
 							onClick={() => session && handlePlayPause(session.isActive ? "pause" : "play")}
 							disabled={buttonConfig.disabled}
 							loading={buttonConfig.loading}
-							size="xl"
+							size="lg"
 						>
 							{buttonConfig.text}
 						</ActionButton>
+						{session.remainingSeconds <= 0 && (
+							<p className="text-xs text-amber-300 text-center">
+								Tiempo agotado. Realiza check-in para agregar tiempo.
+							</p>
+						)}
 					</div>
 				) : null
 			}
