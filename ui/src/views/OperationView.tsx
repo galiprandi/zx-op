@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Scan, AlertCircle, Pause, Play, Plus } from "lucide-react";
 import { MobileShell } from "@/components/MobileShell";
@@ -28,8 +28,10 @@ export function OperationView() {
 	const [barcodeId, setBarcodeId] = useState("");
 	const [inputValue, setInputValue] = useState("");
 	const [showConfirm, setShowConfirm] = useState(false);
+	const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
 	const [pendingAction, setPendingAction] = useState<'play' | 'pause' | null>(null);
 	const [nowTs, setNowTs] = useState(() => getSyncedNowMs());
+	const scannerInputRef = useRef<HTMLInputElement | null>(null);
 
 	useEffect(() => {
 		const id = setInterval(() => setNowTs(getSyncedNowMs()), 1000);
@@ -95,11 +97,12 @@ export function OperationView() {
 	}, [session, nowTs, waitingSessions]);
 
 	// Handle QR scanner submit
-	const handleScannerSubmit = (value: string) => {
+	const handleScannerSubmit = useCallback((value: string) => {
 		const normalized = value.trim();
+		if (!normalized) return;
 		setBarcodeId(normalized);
 		setInputValue(normalized);
-	};
+	}, []);
 
 	// Handle play/pause with confirmation modal
 	const handlePlayPause = (action: 'play' | 'pause') => {
@@ -171,6 +174,16 @@ export function OperationView() {
 	const visualState = session ? resolveVisualState(session) : "expired";
 	const timeState = visualState === "waiting" || visualState === "paused" ? "stop" : undefined;
 	const isSessionNotFound = sessionError?.message === "Session not found";
+	const hasValidSelectedWristband = Boolean(barcodeId && session && !sessionError);
+	const shouldAutoFocusScanner = !hasValidSelectedWristband && !sessionLoading && !showConfirm && !isCameraScannerOpen;
+
+	useEffect(() => {
+		if (!shouldAutoFocusScanner) return;
+		const input = scannerInputRef.current;
+		if (!input) return;
+		input.focus();
+		input.select();
+	}, [shouldAutoFocusScanner, barcodeId, sessionError]);
 
 	return (
 		<MobileShell
@@ -256,13 +269,20 @@ export function OperationView() {
 			<div className="flex flex-col h-full space-y-6">
 				{/* Scan Input */}
 				<div className="px-4">
-					<QRScanner
-						value={inputValue}
-						onChange={setInputValue}
-						onSubmit={() => handleScannerSubmit(inputValue)}
-						placeholder="Escanea una pulsera"
-					/>
-				</div>
+						<QRScanner
+							value={inputValue}
+							onChange={setInputValue}
+							onSubmit={() => handleScannerSubmit(inputValue)}
+							onScannedSubmit={handleScannerSubmit}
+							placeholder="Escanea una pulsera"
+							inputRef={scannerInputRef}
+							autoFocus={shouldAutoFocusScanner}
+							selectOnFocus
+							onScannerVisibilityChange={setIsCameraScannerOpen}
+							enableGlobalKeyboardWedge
+							globalKeyboardDisabled={showConfirm}
+						/>
+					</div>
 
 				{/* Main Content */}
 				<div className="flex-1 flex flex-col justify-center px-4">

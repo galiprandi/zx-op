@@ -10,7 +10,7 @@ This document describes the complete check-in flow for the Zona Xtreme attractio
 - **Input Method**: Manual barcode entry via keyboard or QR scanner
 - **Barcode Format**: Any string (numeric, alphanumeric, or QR code data)
 - **Validation**: No validation on input - accepts any barcode
-- **Real-time Lookup**: System queries existing sessions as user types
+- **Lookup Trigger**: Session lookup runs on explicit submit events (manual `Enter`, QR decode, or keyboard wedge `Enter`)
 
 ### 2.2 Session States
 - **New Wristband**: Barcode not found in system → Create new session on checkout
@@ -140,7 +140,7 @@ interface CheckinState {
 
 ### 4.3 Business Rules
 1. **Barcode Input**: Accept any string, no validation on entry
-2. **Session Lookup**: Debounced API call after typing stops
+2. **Session Lookup**: Triggered on submit confirmation (`Enter`, QR decode, keyboard wedge `Enter`)
 3. **Product Selection**: Favorite products are prioritized visually, not required
 4. **Time Calculation**: Add to existing time or create new session
 5. **Transaction Creation**: Always create transaction record
@@ -159,9 +159,21 @@ interface CheckinState {
 - **No Payment Methods**: Prevent checkout and require configuration in Settings
 
 ### 5.3 User Experience
-- **Fast Typing**: Debounce API calls to avoid excessive requests
+- **Fast Typing**: Typed data remains local until a submit event confirms the wristband code
 - **Scanner Input**: Handle QR scanner auto-submit behavior
 - **Error Recovery**: Clear error states on new barcode entry
+- **Keyboard Wedge**: Barcode scanners that emulate keyboard input can submit codes without input focus (submit on `Enter`)
+
+### 5.4 Input Focus & Keyboard Wedge Scanner
+- In check-in products step, scanner input must auto-focus and select current value when no wristband has been confirmed yet.
+- Keyboard wedge capture is enabled only while scanner input is mounted in check-in products step.
+- Keyboard wedge flow:
+  - accumulate printable keys in an internal buffer,
+  - submit on `Enter`,
+  - ignore empty `Enter`,
+  - clear stale buffer after inactivity timeout.
+- A new scan replaces current check-in wristband immediately (`barcodeId` and active lookup target).
+- Keyboard wedge capture is paused while modal overlays for scanner camera or checkout confirmation are visible.
 
 ## 6. Success Metrics
 
@@ -203,3 +215,4 @@ interface CheckinState {
 - Complete check-in flow scenarios
 - Error handling and recovery
 - Performance under load
+- Scanner keyboard wedge submission without input focus

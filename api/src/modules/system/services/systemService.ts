@@ -3,6 +3,17 @@ import { isValidTimeZone, parseOperationalDayStart } from '../../dashboard/servi
 
 const prisma = new PrismaClient();
 
+function isValidLogoReference(value: string): boolean {
+  if (value.startsWith('/')) return true;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'data:';
+  } catch {
+    return false;
+  }
+}
+
 export class SystemService {
   async getSettings() {
     const setting = await prisma.systemSetting.findUnique({ where: { id: 'system' } });
@@ -51,13 +62,11 @@ export class SystemService {
     
     if (logoUrl !== undefined) {
       if (logoUrl !== null && logoUrl !== '') {
-        // Basic URL validation
-        try {
-          new URL(logoUrl);
-          updateData.logoUrl = logoUrl;
-        } catch {
-          throw new Error('logoUrl must be a valid URL or null');
+        if (!isValidLogoReference(logoUrl)) {
+          throw new Error('logoUrl must be an http(s) URL, data URL, root-relative path, or null');
         }
+
+        updateData.logoUrl = logoUrl;
       } else {
         updateData.logoUrl = null;
       }

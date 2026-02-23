@@ -49,6 +49,19 @@ This document defines the `OperationView` behavior for Zona Xtreme staff, includ
 - Top shell header with brand and online indicator.
 - QR/manual scanner input (`QRScanner`) for wristband code.
 
+### 5.1.1 Input Focus & Keyboard Wedge Scanner
+
+- A wristband is considered **validly selected** only when session status request succeeds (`barcodeId` + `session` loaded with no session error).
+- If there is no validly selected wristband (empty state, session not found, or session fetch error), the scanner input must be automatically focused and its text selected.
+- Operation enables keyboard wedge capture through `QRScanner` global keyboard mode.
+- Keyboard wedge flow:
+  - accumulate printable key presses into a local buffer,
+  - submit only on `Enter`,
+  - ignore empty buffer on `Enter`,
+  - clear stale buffer after inactivity timeout.
+- New scans replace the currently selected wristband immediately.
+- Global keyboard wedge capture is paused while modal overlays are open (`ConfirmSheet` or camera scanner modal).
+
 ### 5.2 Main content
 
 Based on scan + session query state:
@@ -142,3 +155,9 @@ This avoids ambiguous displays like `518:00` for long durations.
 8. Secondary `Registrar vuelta` button appears only during active play.
 9. Tapping `Registrar vuelta` increments lap counter by one and updates UI in real time.
 10. The lap action button shows current lap feedback (`Total: N`) for staff operation context.
+11. When no valid wristband is selected, scanner input auto-focuses and selects its current value.
+12. After a "session not found" response, scanner input returns to focused/selected state.
+13. Keyboard wedge scan can submit a wristband even when scanner input is not focused.
+14. Keyboard wedge scan submits only when `Enter` is received.
+15. A new scan replaces the currently loaded wristband without extra confirmation.
+16. Global keyboard wedge capture is disabled while `ConfirmSheet` or camera scanner modal is open.

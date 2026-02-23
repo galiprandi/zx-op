@@ -20,10 +20,12 @@ interface SettingsFormState {
   autoExpireGraceMinutes: string;
 }
 
-function isValidHttpUrl(value: string): boolean {
+function isValidLogoReference(value: string): boolean {
+  if (value.startsWith('/')) return true;
+
   try {
     const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
+    return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'data:';
   } catch {
     return false;
   }
@@ -85,8 +87,8 @@ export function SettingsView() {
     }
 
     const normalizedLogoUrl = form.logoUrl.trim();
-    if (normalizedLogoUrl.length > 0 && !isValidHttpUrl(normalizedLogoUrl)) {
-      toast.error('La URL del logo no es válida');
+    if (normalizedLogoUrl.length > 0 && !isValidLogoReference(normalizedLogoUrl)) {
+      toast.error('El logo debe ser una URL http(s), data URL o ruta relativa iniciando con /');
       return;
     }
 
@@ -240,13 +242,16 @@ export function SettingsView() {
                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       id="logoUrl"
-                      type="url"
+                      type="text"
                       value={form.logoUrl}
                       onChange={(e) => setForm((prev) => ({ ...prev, logoUrl: e.target.value }))}
-                      placeholder="https://ejemplo.com/logo.png"
+                      placeholder="/logo.png o https://ejemplo.com/logo.png"
                       className="pl-10"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Puedes usar una ruta local desde <code>/public</code> (ej: <code>/logo.png</code>) o una URL completa.
+                  </p>
                 </div>
               </GlassCard>
 

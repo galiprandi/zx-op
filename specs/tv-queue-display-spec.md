@@ -26,7 +26,7 @@ model SystemSetting {
 #### Migration Requirements
 - Agregar campo `logoUrl` (String, nullable) a tabla `system_settings`
 - Valor por defecto: null (logo opcional)
-- Soporte para URLs externas o base64
+- Soporte para URLs externas (`http/https`), base64 (`data:`) o ruta relativa local (ej: `/logo.png`)
 
 ### 2. New Route: `/tv-queue`
 
@@ -219,7 +219,7 @@ interface LogoConfig {
 
 #### Storage Options
 1. **Base64 Embed**: Direct in database (≤ 1MB)
-2. **Local File**: Server storage + URL reference
+2. **Local File**: Server storage + root-relative URL reference (`/logo.png`)
 3. **External URL**: Cloud storage reference
 
 ### Settings Page Layout

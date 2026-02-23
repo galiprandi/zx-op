@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createCheckin, type CheckinResponse, type CheckinPayload } from '@/api/checkin';
 import { formatPrice, formatTimeValue, isTimeProduct, type Product } from '@/api/products';
 import { notifyCartUpdate, type CartItem as ApiCartItem } from '@/api/cart';
@@ -48,8 +48,10 @@ export function CheckInView() {
   const [optimisticConfirmation, setOptimisticConfirmation] = useState<OptimisticConfirmation | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showPaymentStep, setShowPaymentStep] = useState(false);
+  const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [nowTs, setNowTs] = useState(() => getSyncedNowMs());
+  const scannerInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNowTs(getSyncedNowMs()), 1000);
@@ -105,14 +107,15 @@ export function CheckInView() {
     }
   };
 
-  const handleBarcodeSearch = () => {
-    const trimmedBarcode = barcodeId.trim();
+  const handleBarcodeSearch = useCallback((value?: string) => {
+    const trimmedBarcode = (value ?? barcodeId).trim();
     if (!trimmedBarcode) {
       alert('Por favor ingrese un código de pulsera válido');
       return;
     }
+    setBarcodeId(trimmedBarcode);
     setActiveBarcode(trimmedBarcode);
-  };
+  }, [barcodeId]);
 
   const addToCart = (product: Product) => {
     if (!product || !product.id) {
@@ -324,6 +327,13 @@ export function CheckInView() {
     );
   };
 
+  const shouldAutoFocusScanner =
+    !activeBarcode &&
+    !checkinMutation.isPending &&
+    !showConfirmation &&
+    !showPaymentStep &&
+    !isCameraScannerOpen;
+
   if (showPaymentStep) {
     return (
       <MobileShell
@@ -477,8 +487,15 @@ export function CheckInView() {
           value={barcodeId}
           onChange={setBarcodeId}
           onSubmit={handleBarcodeSearch}
+          onScannedSubmit={handleBarcodeSearch}
           placeholder={checkinMutation.isPending ? 'Procesando...' : 'Código de pulsera'}
           disabled={checkinMutation.isPending}
+          inputRef={scannerInputRef}
+          autoFocus={shouldAutoFocusScanner}
+          selectOnFocus
+          onScannerVisibilityChange={setIsCameraScannerOpen}
+          enableGlobalKeyboardWedge
+          globalKeyboardDisabled={showConfirmation}
         />
 
         {getSessionStatusDisplay()}

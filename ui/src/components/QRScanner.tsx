@@ -1,5 +1,5 @@
 import { Scan, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -10,6 +10,14 @@ interface QRScannerProps {
 	className?: string;
 	disabled?: boolean;
 	onSubmit?: () => void;
+	inputRef?: React.RefObject<HTMLInputElement | null>;
+	autoFocus?: boolean;
+	selectOnFocus?: boolean;
+	onScannerVisibilityChange?: (visible: boolean) => void;
+	onScannedSubmit?: (value: string) => void;
+	enableGlobalKeyboardWedge?: boolean;
+	globalKeyboardDisabled?: boolean;
+	keyboardWedgeInactivityMs?: number;
 }
 
 interface Html5QrcodeScanner {
@@ -29,11 +37,55 @@ export function QRScanner({
 	className = "",
 	disabled = false,
 	onSubmit,
+	inputRef,
+	autoFocus = false,
+	selectOnFocus = false,
+	onScannerVisibilityChange,
+	onScannedSubmit,
+	enableGlobalKeyboardWedge = false,
+	globalKeyboardDisabled = false,
+	keyboardWedgeInactivityMs = 1500,
 }: QRScannerProps) {
 	const [isScanning, setIsScanning] = useState(false);
 	const [showScanner, setShowScanner] = useState(false);
 	const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 	const scannerContainerRef = useRef<HTMLDivElement>(null);
+	const internalInputRef = useRef<HTMLInputElement | null>(null);
+	const scannerBufferRef = useRef("");
+	const scannerBufferTimeoutRef = useRef<number | null>(null);
+
+	const setInputRefs = (node: HTMLInputElement | null) => {
+		internalInputRef.current = node;
+		if (inputRef) {
+			inputRef.current = node;
+		}
+	};
+
+	const focusAndSelectInput = () => {
+		const target = internalInputRef.current;
+		if (!target || disabled) return;
+		target.focus();
+		target.select();
+	};
+
+	const resetScannerBuffer = useCallback(() => {
+		scannerBufferRef.current = "";
+		if (scannerBufferTimeoutRef.current !== null) {
+			window.clearTimeout(scannerBufferTimeoutRef.current);
+			scannerBufferTimeoutRef.current = null;
+		}
+	}, []);
+
+	const submitScannedValue = useCallback((rawValue: string) => {
+		const normalized = rawValue.trim();
+		if (!normalized) return;
+		onChange(normalized);
+		if (onScannedSubmit) {
+			onScannedSubmit(normalized);
+			return;
+		}
+		onSubmit?.();
+	}, [onChange, onScannedSubmit, onSubmit]);
 
 	useEffect(() => {
 		return () => {
@@ -44,8 +96,73 @@ export function QRScanner({
 					console.log("Scanner already stopped");
 				}
 			}
+			resetScannerBuffer();
 		};
-	}, []);
+	}, [resetScannerBuffer]);
+
+	useEffect(() => {
+		if (!autoFocus || showScanner) return;
+		focusAndSelectInput();
+	}, [autoFocus, disabled, showScanner]);
+
+	useEffect(() => {
+		onScannerVisibilityChange?.(showScanner);
+	}, [onScannerVisibilityChange, showScanner]);
+
+	useEffect(() => {
+		if (!enableGlobalKeyboardWedge || globalKeyboardDisabled || disabled || showScanner) {
+			resetScannerBuffer();
+			return;
+		}
+
+		const handleGlobalKeyboardWedge = (event: KeyboardEvent) => {
+			if (event.ctrlKey || event.altKey || event.metaKey) return;
+			if (document.activeElement === internalInputRef.current) return;
+			if (event.target instanceof HTMLElement) {
+				if (event.target.isContentEditable) return;
+				if (
+					event.target.tagName === "INPUT" ||
+					event.target.tagName === "TEXTAREA" ||
+					event.target.tagName === "SELECT"
+				) return;
+			}
+
+			if (event.key === "Enter") {
+				const bufferedValue = scannerBufferRef.current.trim();
+				if (bufferedValue) {
+					event.preventDefault();
+					submitScannedValue(bufferedValue);
+				}
+				resetScannerBuffer();
+				return;
+			}
+
+			if (event.key.length !== 1 || event.repeat) return;
+			scannerBufferRef.current += event.key;
+
+			if (scannerBufferTimeoutRef.current !== null) {
+				window.clearTimeout(scannerBufferTimeoutRef.current);
+			}
+			scannerBufferTimeoutRef.current = window.setTimeout(() => {
+				scannerBufferRef.current = "";
+				scannerBufferTimeoutRef.current = null;
+			}, keyboardWedgeInactivityMs);
+		};
+
+		window.addEventListener("keydown", handleGlobalKeyboardWedge);
+		return () => {
+			window.removeEventListener("keydown", handleGlobalKeyboardWedge);
+			resetScannerBuffer();
+		};
+	}, [
+		enableGlobalKeyboardWedge,
+		globalKeyboardDisabled,
+		disabled,
+		showScanner,
+		keyboardWedgeInactivityMs,
+		submitScannedValue,
+		resetScannerBuffer,
+	]);
 
 	const startScanner = async () => {
 		if (disabled) return;
@@ -94,7 +211,7 @@ export function QRScanner({
 					qrbox: { width: 250, height: 250 },
 				},
 				(decodedText: string) => {
-					onChange(decodedText);
+					submitScannedValue(decodedText);
 					stopScanner();
 				},
 				// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -135,9 +252,24 @@ export function QRScanner({
 			{/* Main Input */}
 			<div className="relative">
 				<Input
+					ref={setInputRefs}
 					value={value}
 					onChange={(e) => onChange(e.target.value)}
-					onKeyDown={(e) => { if (e.key === 'Enter') onSubmit?.(); }}
+					onKeyDown={(e) => {
+						if (e.key === "Enter") {
+							if (onScannedSubmit) {
+								e.preventDefault();
+								submitScannedValue(value);
+								return;
+							}
+							onSubmit?.();
+						}
+					}}
+					onFocus={(e) => {
+						if (selectOnFocus) {
+							e.currentTarget.select();
+						}
+					}}
 					placeholder={placeholder}
 					disabled={disabled}
 					className={`text-lg pr-16 h-14 text-center ${disabled ? 'bg-muted/50' : ''} ${className}`}
