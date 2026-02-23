@@ -21,6 +21,9 @@ fi
 # Keep database service available before running migrations.
 docker compose up -d postgres
 
+# Build latest API image before migration commands so new migration files are included.
+docker compose build api
+
 # Generate Prisma client and run safe production migrations.
 docker compose run --rm api pnpm --filter api db:generate
 docker compose run --rm api pnpm --filter api exec prisma migrate deploy
@@ -48,4 +51,3 @@ for i in {1..5}; do
   echo "Reintentando salud de la UI... ($i/5)"
   sleep 2
 done
-

@@ -22,6 +22,7 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
+    command: sh -c "pnpm --filter api exec prisma migrate deploy && pnpm --filter api start"
     container_name: zx-op-api
     restart: unless-stopped
     depends_on:

@@ -37,7 +37,7 @@ Deployment objective:
    - `update-app.sh`, `start-app.sh`.
 
 ### High-Level Flow
-`push to main -> GitHub Actions on self-hosted runner -> update-app.sh -> git fetch/pull --ff-only -> prisma migrate deploy -> docker compose up --build -> health checks`
+`push to main -> GitHub Actions on self-hosted runner -> update-app.sh -> git fetch/pull --ff-only -> build api image -> prisma migrate deploy -> docker compose up --build -> health checks`
 
 ## Branch and Trigger Policy
 - Deploy target branch: `main`.
@@ -55,7 +55,8 @@ Deployment objective:
 
 ### API Service
 - Built from `api/Dockerfile`.
-- Runtime command: `pnpm --filter api start`.
+- Runtime command: `pnpm --filter api exec prisma migrate deploy && pnpm --filter api start`.
+- Startup preflight always attempts safe production migrations before API boot.
 - Required endpoint for deploy checks: `GET /api/health`.
 - API health endpoint must validate DB connectivity.
 
@@ -77,11 +78,13 @@ Deployment objective:
 ### Stage 2: Migration
 1. Ensure DB is running:
    - `docker compose up -d postgres`
-2. Generate Prisma client:
+2. Build latest API image before migration commands:
+   - `docker compose build api`
+3. Generate Prisma client:
    - `docker compose run --rm api pnpm --filter api db:generate`
-3. Run production migration:
+4. Run production migration:
    - `docker compose run --rm api pnpm --filter api exec prisma migrate deploy`
-4. If generation/migration fails:
+5. If generation/migration fails:
    - deployment fails,
    - application services are not restarted.
 

@@ -38,10 +38,11 @@ PUBLIC_API_BASE_URL=http://192.168.68.62
 This script:
 1. Detects host LAN IP and refreshes `.env`.
 2. Starts `postgres`.
-3. Runs Prisma `db:generate`.
-4. Runs Prisma `migrate deploy` (safe for production).
-5. Builds and starts `api` + `ui`.
-6. Validates `/api/health` and UI root.
+3. Builds latest `api` image.
+4. Runs Prisma `db:generate`.
+5. Runs Prisma `migrate deploy` (safe for production).
+6. Builds and starts `api` + `ui` (API startup also runs `migrate deploy` preflight).
+7. Validates `/api/health` and UI root.
 
 ### Health Validation
 - API: `http://<server-ip>:3000/api/health`
