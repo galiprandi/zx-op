@@ -20,7 +20,7 @@ ST = RM
 L = Santiago
 O = Zona Xtreme
 OU = Development
-CN = 192.168.68.58
+CN = 102.168.100.2
 
 [v3_req]
 basicConstraints = CA:FALSE
@@ -32,7 +32,7 @@ subjectAltName = @alt_names
 DNS.1 = localhost
 DNS.2 = *.local
 IP.1 = 127.0.0.1
-IP.2 = 192.168.68.58
+IP.2 = 102.168.100.2
 IP.3 = 192.168.1.1
 IP.4 = 10.0.0.1
 IP.5 = 172.16.0.1

@@ -7,11 +7,9 @@ cd "$APP_DIR"
 # Detect the primary local IP address.
 IP=$(hostname -I | awk '{print $1}')
 
-# Upsert PUBLIC_API_BASE_URL without dropping existing settings.
+# Upsert PUBLIC_API_BASE_URL only if it's not already set.
 if [[ -f .env ]]; then
-  if grep -q '^PUBLIC_API_BASE_URL=' .env; then
-    sed -i "s|^PUBLIC_API_BASE_URL=.*|PUBLIC_API_BASE_URL=http://$IP|" .env
-  else
+  if ! grep -q '^PUBLIC_API_BASE_URL=' .env; then
     echo "PUBLIC_API_BASE_URL=http://$IP" >> .env
   fi
 else

@@ -47,7 +47,7 @@ subjectAltName = @alt_names
 DNS.1 = localhost
 DNS.2 = *.local
 IP.1 = 127.0.0.1
-IP.2 = 192.168.68.58
+IP.2 = 192.168.100.2
 IP.3 = 192.168.1.1
 IP.4 = 10.0.0.1
 IP.5 = 172.16.0.1
@@ -83,10 +83,10 @@ console.log("📋 Generando certificados frescos para esta sesión...");
 if (generateCertificates()) {
 	console.log("\n🌐 URLs de acceso:");
 	console.log("   Local:     https://localhost:3000/");
-	console.log("   Móviles:   https://192.168.68.58:3000/");
+	console.log("   Móviles:   https://102.168.100.2:3000/");
 	console.log('\n⚠️  En móviles verás "Tu conexión no es privada" - es NORMAL');
 	console.log(
-		'   Chrome: "Avanzado" → "Continuar a 192.168.68.58 (no seguro)"',
+		'   Chrome: "Avanzado" → "Continuar a 102.168.100.2 (no seguro)"',
 	);
 	console.log('   Safari: "Mostrar detalles" → "Visitar este sitio web"');
 	console.log("\n🚀 Iniciando servidor Vite...\n");
