@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-APP_DIR="/home/zx/zx-op"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$SCRIPT_DIR"
 LOCK_FILE="/tmp/zx-op-deploy.lock"
 LOG_FILE="/var/log/zx-op-deploy.log"
 
@@ -18,10 +19,11 @@ if ! flock -n 9; then
   exit 0
 fi
 
-if ! curl -fsS --max-time 8 https://github.com >/dev/null; then
-  echo "[$(date -Is)] deploy skipped: no internet/GitHub unreachable" | tee -a "$LOG_FILE"
-  exit 0
-fi
+# Optional: allow offline runs (comment out to enforce internet check)
+# if ! curl -fsS --max-time 8 https://github.com >/dev/null; then
+#   echo "[$(date -Is)] deploy skipped: no internet/GitHub unreachable" | tee -a "$LOG_FILE"
+#   exit 0
+# fi
 
 echo "[$(date -Is)] checking updates from origin/main" | tee -a "$LOG_FILE"
 git fetch origin main

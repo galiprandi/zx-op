@@ -1,0 +1,20 @@
+[Unit]
+Description=Zona Xtreme UI Service
+After=network.target zx-api.service
+Requires=zx-api.service
+
+[Service]
+Type=simple
+User=zx
+WorkingDirectory=/home/zx/zx-op
+EnvironmentFile=/home/zx/zx-op/.env
+Environment=PNPM_HOME=/home/zx/.local/share/pnpm
+Environment=PATH=/home/zx/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env bash -c 'cd /home/zx/zx-op && pnpm --filter ui preview --host 0.0.0.0 --port ${UI_PORT:-4173}'
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/zx/zx-op/ops/logs/zx-ui.out.log
+StandardError=append:/home/zx/zx-op/ops/logs/zx-ui.err.log
+
+[Install]
+WantedBy=multi-user.target

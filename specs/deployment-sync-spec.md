@@ -1,20 +1,20 @@
 # Deployment Sync Specification
 
 ## Summary
-This specification defines production deployments for **Zona Xtreme Operation System** on a **customer-hosted Fedora server** using Docker Compose.
+This specification defines production deployments for **Zona Xtreme Operation System** on a **customer-hosted Fedora server** without Docker. The runtime now uses native services (systemd) for PostgreSQL, API and UI while still relying on a GitHub runner that compiles artifacts whenever the host temporarily has internet. The production host must continue working when offline.
 
 Deployment objective:
-- run `api + ui + postgres` in Docker,
-- synchronize updates from `main` using `origin`,
-- perform safe migrations,
-- verify health,
-- avoid destructive schema sync in production.
+- run `postgres + api + ui` as local services managed by systemd,
+- synchronize updates from `main` using `origin` whenever internet is available,
+- perform safe Prisma migrations before restarting the API,
+- publish the built UI assets to a static preview server,
+- verify health and keep rollback procedures documented.
 
 ## Scope
-- Automatic deployment on push to `main`.
-- Local build of API and UI images on the production host.
-- PostgreSQL persistence in Docker volume.
-- Automatic Prisma client generation (`db:generate`) and production migrations (`prisma migrate deploy`).
+- Automatic deployment on push to `main` when the GitHub runner has internet.
+- GitHub runner builds API (Node/Fastify) and UI (Vite static bundle) artifacts and copies them locally.
+- Production Fedora host runs PostgreSQL 16 natively with system service and persistent data directory.
+- Automatic Prisma client generation (`db:generate`) and production migrations (`prisma migrate deploy`) executed directly on the host.
 - Commit-aware deployments with lock to avoid concurrent runs.
 
 ## Out of Scope
@@ -28,16 +28,16 @@ Deployment objective:
 1. **GitHub Repository (`origin`)**
    - Source used by production for deployment synchronization.
 2. **GitHub Actions Workflow**
-   - Triggered on `push` to `main`.
+   - Triggered on `push` to `main` whenever the host has internet.
 3. **Self-Hosted Runner (Fedora production host)**
-   - Executes deployment script locally.
-4. **Docker Compose Stack**
-   - `postgres`, `api`, `ui` services.
+   - Executes deployment script locally, builds artifacts and stores them even if the host goes offline after the build finishes.
+4. **System Services**
+   - `postgresql.service` (native installation), `zx-api.service`, `zx-ui.service` managed through systemd.
 5. **Operational Scripts**
-   - `update-app.sh`, `start-app.sh`.
+   - `update-app.sh`, `start-app.sh`, `ops/install-services.sh`, `ops/restart-services.sh`.
 
 ### High-Level Flow
-`push to main -> GitHub Actions on self-hosted runner -> update-app.sh -> git fetch/pull --ff-only -> build api image -> prisma migrate deploy -> docker compose up --build -> health checks`
+`push to main -> GitHub Actions on self-hosted runner -> update-app.sh -> git fetch/pull --ff-only -> build api dist + ui dist -> prisma migrate deploy -> restart zx-api.service + zx-ui.service -> health checks`
 
 ## Branch and Trigger Policy
 - Deploy target branch: `main`.
@@ -48,67 +48,62 @@ Deployment objective:
 ## Runtime Stack Specification
 
 ### PostgreSQL Service
-- Image: `postgres:16-alpine`
-- Persistent volume: `postgres_data`
-- Health check: `pg_isready`
-- Credentials and DB name from environment.
+- Fedora native `postgresql-16` installation managed via `systemctl`.
+- Data directory: `/var/lib/pgsql/zx_op` (owned by `postgres`).
+- Service enabled with `systemctl enable --now postgresql`.
+- Health check: `pg_isready -U zx_user -d zx_op`.
+- Connection string stored in `.env` (`DATABASE_URL`).
 
-### API Service
-- Built from `api/Dockerfile`.
-- Runtime command: `pnpm --filter api exec prisma migrate deploy && pnpm --filter api start`.
-- Startup preflight always attempts safe production migrations before API boot.
-- Required endpoint for deploy checks: `GET /api/health`.
-- API health endpoint must validate DB connectivity.
+### API Service (`zx-api.service`)
+- Built via `pnpm --filter api build` producing `api/dist/server.cjs`.
+- Runtime command: `NODE_ENV=production node dist/server.cjs` executed with systemd under user `zx`.
+- Pre-start ExecStartPre hook runs `pnpm --filter api db:generate` and `pnpm --filter api exec prisma migrate deploy`.
+- Environment loaded from `/home/zx/zx-op/.env`.
+- Required endpoint for deploy checks: `GET http://127.0.0.1:3000/api/health` and must validate DB connectivity.
 
-### UI Service
-- Built from `ui/Dockerfile`.
-- Runtime command: `pnpm --filter ui preview --host 0.0.0.0 --port 4173`.
-- API base URL/port are injected via environment/config expected by UI build/runtime.
+### UI Service (`zx-ui.service`)
+- Build artifacts generated via `pnpm --filter ui build` stored in `/home/zx/zx-op/ui/dist`.
+- Served by `pnpm --filter ui preview --host 0.0.0.0 --port 4173` (or a lightweight static server) managed by systemd.
+- Environment variables `VITE_API_BASE_URL` and `VITE_API_BASE_PORT` resolved from `.env` before build.
 
 ## Deployment Pipeline Specification
 
 ### Stage 1: Synchronization
-1. Acquire deployment lock to avoid concurrent runs.
-2. Validate internet reachability to GitHub.
-3. `git fetch origin main`
-4. Compare local `HEAD` with `origin/main`.
-5. If equal: log and exit without restart.
-6. If different: `git pull --ff-only origin main`.
+1. Acquire deployment lock to avoid concurrent runs (`flock /tmp/zx-op-deploy.lock`).
+2. Validate internet reachability to GitHub; if offline skip fetch but keep previously built artifacts.
+3. When online: `git fetch origin main` and compare local `HEAD` with `origin/main`.
+4. If equal: log and exit without restarting services.
+5. If different: `git pull --ff-only origin main`.
 
-### Stage 2: Migration
-1. Ensure DB is running:
-   - `docker compose up -d postgres`
-2. Build latest API image before migration commands:
-   - `docker compose build api`
-3. Generate Prisma client:
-   - `docker compose run --rm api pnpm --filter api db:generate`
-4. Run production migration:
-   - `docker compose run --rm api pnpm --filter api exec prisma migrate deploy`
-5. If generation/migration fails:
-   - deployment fails,
-   - application services are not restarted.
+### Stage 2: Build & Migration
+1. Ensure PostgreSQL service is running: `systemctl is-active postgresql` (start if inactive).
+2. Install project dependencies once (pnpm install) when the runner has internet; cache `node_modules` under `/home/zx/.local/share/pnpm`.
+3. Generate Prisma client: `pnpm --filter api db:generate`.
+4. Run production migration: `pnpm --filter api exec prisma migrate deploy`.
+5. Build API: `pnpm --filter api build`.
+6. Build UI: `pnpm --filter ui build` (ensuring `.env` has the current IP for `VITE_API_BASE_URL`).
+7. If any command fails, abort deployment and do not restart services.
 
 ### Stage 3: Activation
-1. Build and start application services:
-   - `docker compose up -d --build api ui`
-2. Restart policy remains `unless-stopped`.
+1. Reload systemd units to pick up new binaries: `systemctl daemon-reload`.
+2. Restart API: `systemctl restart zx-api.service`.
+3. Restart UI: `systemctl restart zx-ui.service`.
+4. Ensure both services are `active (running)` before continuing.
 
 ### Stage 4: Post-Deploy Health Check
-1. Validate API endpoint (default `http://127.0.0.1:3000/api/health`).
-2. Validate UI endpoint (default `http://127.0.0.1:4173/`).
-3. If any check fails: deployment is marked failed for operator intervention.
+1. Validate API endpoint: `curl -fsS http://127.0.0.1:3000/api/health`.
+2. Validate UI endpoint: `curl -fsS http://127.0.0.1:4173/`.
+3. If any check fails, rollback by checkout to previous commit and rerun `start-app.sh`.
 
 ## Failure Modes and Expected Behavior
 1. No internet/GitHub unreachable:
-   - deployment exits safely without changing running services.
+   - deployment exits safely without changing running services; existing builds keep running.
 2. Git fetch/pull fails:
    - running services are unchanged.
-3. Migration fails:
-   - deployment fails,
-   - running services are unchanged.
-4. Build or health check fails:
-   - deployment fails,
-   - operator intervention required.
+3. Migration or build fails:
+   - deployment fails, services keep previous version.
+4. Health check fails:
+   - restart is rolled back, operator notified.
 
 ## Security and Access Rules
 - Run deployment with a dedicated Linux account where possible.
@@ -118,28 +113,32 @@ Deployment objective:
 
 ## Monitoring and Audit
 - Deployment log file: `/var/log/zx-op-deploy.log` (or repository-local fallback).
-- Log fields: timestamp, commit SHA, duration, result.
+- Log fields: timestamp, commit SHA, duration, result, systemd status.
 - Diagnostics source:
-  - `docker compose logs api`
-  - `docker compose logs ui`
-  - `docker compose logs postgres`
+  - `journalctl -u zx-api.service`
+  - `journalctl -u zx-ui.service`
+  - `journalctl -u postgresql.service`
 
 ## Testing and Acceptance Scenarios
 1. Frontend-only commit:
-   - deploy succeeds,
-   - UI reflects new build,
+   - UI build succeeds,
+   - `zx-ui.service` restarts and serves new assets,
    - API health remains OK.
 2. Backend + migration commit:
    - migration applies,
-   - API health OK,
+   - `zx-api.service` restarts and health check passes,
    - data preserved.
 3. No-change cycle:
-   - no build/restart.
-4. Broken migration:
-   - deploy fails,
-   - previous running services remain active.
+   - no build/restart when commits are identical.
+4. Broken migration/build:
+   - deployment fails, previous services keep running.
 5. Host reboot:
-   - compose services restart automatically (`unless-stopped`).
+   - `postgresql`, `zx-api`, `zx-ui` services restart automatically via systemd.
+
+## Offline Operation
+- Runner may lose internet after fetching code; builds must succeed using cached dependencies.
+- `.env` IP updates happen at runtime via `start-app.sh` without rebuilding artifacts.
+- No external Docker registries or npm registries are contacted on the offline host; dependencies must be cached beforehand.
 
 ## Assumptions and Defaults
 - Production source is `main` from `origin`.
