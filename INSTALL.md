@@ -22,7 +22,7 @@ sudo /usr/bin/postgresql-16-setup --initdb
 sudo systemctl enable --now postgresql
 
 # Configure local connections
-sudo sed -i 's/^host\s+all\s+all\s+127\.0\.0\.1\/32\s+ident/host all all 127.0.0.1/32 md5/' /var/lib/pgsql/data/pg_hba.conf
+sudo sed -i -E 's/^host[[:space:]]+all[[:space:]]+all[[:space:]]+127\.0\.0\.1\/32[[:space:]]+ident/host all all 127.0.0.1\/32 md5/' /var/lib/pgsql/data/pg_hba.conf
 
 # Restart to apply changes
 sudo systemctl restart postgresql
