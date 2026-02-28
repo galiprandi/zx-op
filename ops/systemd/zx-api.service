@@ -1,0 +1,22 @@
+[Unit]
+Description=Zona Xtreme API Service
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=zx
+WorkingDirectory=/home/zx/zx-op
+EnvironmentFile=/home/zx/zx-op/.env
+Environment=PNPM_HOME=/home/zx/.local/share/pnpm
+Environment=PATH=/home/zx/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin
+ExecStartPre=/usr/bin/env bash -c 'cd /home/zx/zx-op && pnpm --filter api db:generate'
+ExecStartPre=/usr/bin/env bash -c 'cd /home/zx/zx-op && pnpm --filter api exec prisma migrate deploy'
+ExecStart=/usr/bin/env bash -c 'cd /home/zx/zx-op && pnpm --filter api start'
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/zx/zx-op/ops/logs/zx-api.out.log
+StandardError=append:/home/zx/zx-op/ops/logs/zx-api.err.log
+
+[Install]
+WantedBy=multi-user.target
