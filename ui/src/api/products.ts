@@ -114,9 +114,14 @@ export const formatPrice = (price: number): string => formatCurrency(price);
 export const formatTimeValue = (seconds: number): string => {
 	const minutes = Math.floor(seconds / 60);
 	const hours = Math.floor(minutes / 60);
+	const remainingMinutes = minutes % 60;
 	
 	if (hours > 0) {
-		return `${hours}h ${minutes % 60}m`;
+		if (remainingMinutes > 0) {
+			return `${hours}h ${remainingMinutes}m`;
+		} else {
+			return `${hours}h`;
+		}
 	} else if (minutes > 0) {
 		return `${minutes}m`;
 	} else {

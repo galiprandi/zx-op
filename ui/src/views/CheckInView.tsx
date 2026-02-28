@@ -482,7 +482,7 @@ export function CheckInView() {
         </div>
       }
     >
-      <div className="px-4 space-y-4 min-h-0">
+      <div className="w-full space-y-4 flex-1 min-h-0">
         <QRScanner
           value={barcodeId}
           onChange={setBarcodeId}
@@ -500,49 +500,35 @@ export function CheckInView() {
 
         {getSessionStatusDisplay()}
 
-        <div className="space-y-6">
-          {getAvailableRequiredProducts.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">Productos Obligatorios</h3>
-                {activeBarcode && session ? (
-                  <StatusBadge status={getSessionVisualState()} size="sm" showIcon={false} />
-                ) : activeBarcode ? (
-                  <StatusBadge status="waiting" size="sm" showIcon={false} />
-                ) : null}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {getAvailableRequiredProducts.slice(0, 4).map((product: Product) => {
-                  const cartItem = cart.find((item) => item.product.id === product.id);
-                  return (
-                    <ProductButton
-                      key={product.id}
-                      product={product}
-                      onClick={() => addToCart(product)}
-                      quantity={cartItem?.quantity}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {getAvailableOptionalProducts.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-foreground sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10">Otros productos</h3>
-              <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-                {getAvailableOptionalProducts.map((product: Product) => {
-                  const cartItem = cart.find((item) => item.product.id === product.id);
-                  return (
-                    <ProductListItem
-                      key={product.id}
-                      product={product}
-                      onClick={() => addToCart(product)}
-                      quantity={cartItem?.quantity}
-                    />
-                  );
-                })}
-              </div>
+        <div className="space-y-6 flex-1 min-h-0">
+          {(getAvailableRequiredProducts.length > 0 || getAvailableOptionalProducts.length > 0) && (
+            <div className="w-full max-h-full overflow-y-auto space-y-3 pr-1">
+              {getAvailableRequiredProducts.length > 0 && (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 justify-center">
+                  {getAvailableRequiredProducts.map((product: Product) => {
+                    const cartItem = cart.find((item) => item.product.id === product.id);
+                    return (
+                      <ProductButton
+                        key={product.id}
+                        product={product}
+                        onClick={() => addToCart(product)}
+                        quantity={cartItem?.quantity}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+              {getAvailableOptionalProducts.map((product: Product) => {
+                const cartItem = cart.find((item) => item.product.id === product.id);
+                return (
+                  <ProductListItem
+                    key={product.id}
+                    product={product}
+                    onClick={() => addToCart(product)}
+                    quantity={cartItem?.quantity}
+                  />
+                );
+              })}
             </div>
           )}
 
@@ -609,7 +595,7 @@ function ProductButton({ product, onClick, quantity }: { product: Product; onCli
   const formatPrice = (price: number) => formatCurrency(price);
 
   return (
-    <SurfaceCard className="min-h-[88px] transition-all duration-200 hover:border-primary/40" contentPaddingClassName="[&>button]:p-4">
+    <div className="bg-slate-100/85 border border-slate-200 rounded-lg transition-all duration-200 hover:border-primary/40 p-3 min-h-[72px]">
       <button
         type="button"
         onClick={onClick}
@@ -618,13 +604,13 @@ function ProductButton({ product, onClick, quantity }: { product: Product; onCli
         <div className="flex flex-col h-full justify-between space-y-2">
           <div className="font-semibold text-sm text-foreground line-clamp-2 leading-tight pr-8">{product.name}</div>
 
-          <div className="space-y-1">
+          <div className="flex items-center justify-between">
             {isTimeProduct(product) && product.timeValueSeconds && (
               <div className="flex items-center gap-2">
                 <span className="text-[10px] bg-blue-500/20 text-blue-500 px-2 py-0.5 rounded-md font-medium">({formatTimeValue(product.timeValueSeconds)})</span>
               </div>
             )}
-            <span className="text-lg font-bold text-primary">{formatPrice(product.price)}</span>
+            <span className="text-s font-bold text-primary">{formatPrice(product.price)}</span>
           </div>
         </div>
 
@@ -634,7 +620,7 @@ function ProductButton({ product, onClick, quantity }: { product: Product; onCli
           </div>
         )}
       </button>
-    </SurfaceCard>
+    </div>
   );
 }
 
@@ -642,21 +628,23 @@ function ProductListItem({ product, onClick, quantity }: { product: Product; onC
   const formatPrice = (price: number) => formatCurrency(price);
 
   return (
-    <SurfaceCard className="rounded-lg transition-all duration-200 hover:border-primary/40" contentPaddingClassName="[&>button]:p-3">
-      <button type="button" onClick={onClick} className="w-full text-left">
+    <div className="bg-slate-100/85 border border-slate-200 rounded-lg transition-all duration-200 hover:border-primary/40">
+      <button type="button" onClick={onClick} className="w-full text-left py-3 px-4">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <div className="font-medium text-sm text-foreground mb-1">{product.name}</div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="text-primary font-bold">{formatPrice(product.price)}</span>
-              {isTimeProduct(product) && product.timeValueSeconds && <span className="text-blue-500">+{formatTimeValue(product.timeValueSeconds)}</span>}
-            </div>
+            <div className="font-medium text-base text-foreground">{product.name}</div>
           </div>
-          {quantity && quantity > 0 && (
-            <div className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full font-medium min-w-[2rem] text-center">{quantity}</div>
-          )}
+          <div className="flex items-center gap-2">
+            {isTimeProduct(product) && product.timeValueSeconds && (
+              <span className="text-xs bg-blue-500/20 text-blue-500 px-1.5 py-0.5 rounded-md font-medium">+{formatTimeValue(product.timeValueSeconds)}</span>
+            )}
+            <span className="text-base font-bold text-primary">{formatPrice(product.price)}</span>
+            {quantity && quantity > 0 && (
+              <div className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full font-medium min-w-[2rem] text-center">{quantity}</div>
+            )}
+          </div>
         </div>
       </button>
-    </SurfaceCard>
+    </div>
   );
 }
