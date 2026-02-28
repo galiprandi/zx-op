@@ -6,3 +6,6 @@ zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl status zx-ui.service
 zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
 zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl start postgresql
 zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active postgresql
+# Allow copying service files and setting permissions
+zx ALL=(ALL) NOPASSWD: /usr/bin/cp /home/zx/zx-op/*.service /etc/systemd/system/
+zx ALL=(ALL) NOPASSWD: /usr/bin/chmod * /etc/systemd/system/*.service

@@ -81,3 +81,148 @@ This system manages the flow of passengers in a massive inflatable attraction (*
 * The agent must actively review and maintain existing documentation as part of normal development work.
 * When code and documentation diverge, the agent must propose and apply doc updates in the same task scope whenever possible.
 * New behavior, constraints, and operational rules introduced in code must be reflected in the corresponding spec(s) and technical docs.
+
+## 9. Fedora Server Deployment
+
+### 9.1. Privileged Operations - Password Prompt
+
+When root access is required, use `pkexec` to trigger a **native graphical password dialog**:
+
+```bash
+pkexec <command>
+```
+
+This displays a system authentication dialog. Use it for:
+- Copying files to `/etc/systemd/system/`
+- Modifying SELinux settings (`setenforce`, `/etc/selinux/config`)
+- Updating `/etc/sudoers.d/`
+
+Example workflow:
+```bash
+pkexec cp /home/zx/zx-op/zx-ui.service /etc/systemd/system/
+pkexec setenforce 0
+pkexec sed -i 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+```
+
+### 9.2. Service Architecture
+
+| Service | Port | Protocol | Description |
+|---------|------|----------|-------------|
+| `zx-api.service` | 3000 | HTTP | Express API backend |
+| `zx-ui.service` | 8080 | HTTPS | Vite PWA frontend |
+
+Both services run as `zx` user and log to `/var/log/zx-api/` and `/var/log/zx-ui/`.
+
+### 9.3. Systemd Configuration
+
+**zx-ui.service** (`/etc/systemd/system/zx-ui.service`):
+```ini
+[Unit]
+Description=Zona Xtreme UI Service
+After=network.target
+Wants=zx-api.service  # Soft dependency - UI starts even if API fails
+
+[Service]
+Type=simple
+User=zx
+WorkingDirectory=/home/zx/zx-op
+EnvironmentFile=/home/zx/zx-op/.env
+Environment="PATH=/home/zx/.nvm/versions/node/v24.13.1/bin:/home/zx/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin"
+Environment="PNPM_HOME=/home/zx/.local/share/pnpm"
+ExecStartPre=/usr/bin/bash -c "source /home/zx/.nvm/nvm.sh && cd /home/zx/zx-op && pnpm --filter ui build"
+ExecStart=/usr/bin/bash -c "source /home/zx/.nvm/nvm.sh && cd /home/zx/zx-op && pnpm --filter ui preview --host 0.0.0.0 --port 8080"
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/zx-ui/zx-ui.out.log
+StandardError=append:/var/log/zx-ui/zx-ui.err.log
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Key settings for reliability:**
+- `Wants=` instead of `Requires=`: UI starts independently if API fails
+- `Restart=always`: Auto-recovery on crash
+- `--host 0.0.0.0`: Binds to all interfaces (survives IP changes)
+- `enabled`: Starts automatically at boot
+
+### 9.4. SELinux Configuration
+
+SELinux must be in **permissive mode** to allow systemd to access home directory files and scripts:
+
+```bash
+# Temporary (until reboot)
+pkexec setenforce 0
+
+# Permanent
+pkexec sed -i 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+```
+
+Verify with: `getenforce` → should return `Permissive`
+
+### 9.5. Sudo Configuration
+
+Passwordless sudo for specific operations is configured in `/etc/sudoers.d/zx-op`:
+
+```bash
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart zx-api.service
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart zx-ui.service
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl status zx-api.service
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl status zx-ui.service
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl start postgresql
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active postgresql
+zx ALL=(ALL) NOPASSWD: /usr/bin/cp /home/zx/zx-op/*.service /etc/systemd/system/
+zx ALL=(ALL) NOPASSWD: /usr/bin/chmod * /etc/systemd/system/*.service
+```
+
+Apply with:
+```bash
+sudo cp /home/zx/zx-op/ops/sudoers-zx /etc/sudoers.d/zx-op
+sudo chmod 440 /etc/sudoers.d/zx-op
+sudo visudo -c -f /etc/sudoers.d/zx-op  # Validate syntax
+```
+
+### 9.6. File Permissions
+
+| File | Permission | Reason |
+|------|------------|--------|
+| `/home/zx/zx-op/.env` | 644 | Systemd must read environment variables |
+| `/home/zx/zx-op/scripts/*.sh` | 755 | Executable by systemd |
+| `/var/log/zx-*/` | 755 (zx:zx) | Logs writable by service user |
+
+### 9.7. Startup & Verification
+
+```bash
+# Reload systemd after config changes
+sudo -n systemctl daemon-reload
+
+# Restart services
+sudo -n systemctl restart zx-ui.service
+sudo -n systemctl restart zx-api.service
+
+# Check status
+sudo -n systemctl status zx-ui.service
+
+# Verify accessibility
+curl -kfsS https://127.0.0.1:8080/ -o /dev/null && echo "UI OK"
+curl -fsS http://127.0.0.1:3000/api/health -o /dev/null && echo "API OK"
+```
+
+### 9.8. Network Access
+
+The app serves on **HTTPS port 8080** to the entire LAN:
+- Local: `https://localhost:8080/`
+- Network: `https://<server-ip>:8080/`
+
+Current IP: Check with `hostname -I | awk '{print $1}'`
+
+The `--host 0.0.0.0` flag ensures the service binds to all interfaces, so it survives IP address changes (DHCP renewals, network reconfigurations).
+
+### 9.9. Boot Verification
+
+After reboot, verify services started automatically:
+```bash
+systemctl is-enabled zx-ui.service zx-api.service  # Should show "enabled"
+systemctl is-active zx-ui.service zx-api.service   # Should show "active"
+```
