@@ -1,0 +1,8 @@
+# Allow user zx to manage zx-op services without password
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart zx-api.service
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart zx-ui.service
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl status zx-api.service
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl status zx-ui.service
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl start postgresql
+zx ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active postgresql

@@ -127,15 +127,42 @@ ensure_postgres() {
   wait_for_postgres
 }
 
+# Verificar y configurar permisos de sudo si es necesario
+ensure_sudo_permissions() {
+  if [[ $EUID -ne 0 ]]; then
+    # No somos root, verificar si podemos ejecutar systemctl sin contraseña
+    if ! sudo -n systemctl restart zx-api.service 2>/dev/null; then
+      echo "⚠️  El usuario actual no puede ejecutar systemctl sin contraseña."
+      echo "Ejecuta el siguiente comando como root para configurar los permisos:"
+      echo "  sudo /home/zx/zx-op/ops/setup-sudo.sh"
+      echo "O ejecuta manualmente:"
+      echo "  sudo cp /home/zx/zx-op/ops/sudoers-zx /etc/sudoers.d/zx-op"
+      echo "  sudo chmod 440 /etc/sudoers.d/zx-op"
+      exit 1
+    fi
+  fi
+}
+
 run_step "Instalando dependencias" pnpm install --frozen-lockfile
 ensure_postgres
 run_step "Generando cliente de Prisma" pnpm --filter api db:generate
 run_step "Aplicando migraciones" pnpm --filter api exec prisma migrate deploy
 run_step "Compilando API" pnpm --filter api build
 run_step "Compilando UI" pnpm --filter ui build
+ensure_sudo_permissions
 run_step "Recargando unidades systemd" systemctl_run daemon-reload
-run_step "Reiniciando zx-api.service" systemctl_run restart zx-api.service
-run_step "Reiniciando zx-ui.service" systemctl_run restart zx-ui.service
+run_step "Reiniciando zx-api.service" systemctl_run restart zx-api.service || {
+  echo "Error: No se pudo reiniciar zx-api.service. Verificando estado..."
+  systemctl_run status zx-api.service || echo "zx-api.service no está activo"
+  systemctl_run journalctl -u zx-api.service --no-pager -n 20 || echo "No se pueden obtener logs del servicio"
+  exit 1
+}
+run_step "Reiniciando zx-ui.service" systemctl_run restart zx-ui.service || {
+  echo "Error: No se pudo reiniciar zx-ui.service. Verificando estado..."
+  systemctl_run status zx-ui.service || echo "zx-ui.service no está activo"
+  systemctl_run journalctl -u zx-ui.service --no-pager -n 20 || echo "No se pueden obtener logs del servicio"
+  exit 1
+}
 
 # Basic health checks after startup with retries.
 echo "Esperando a que la API esté lista..."
