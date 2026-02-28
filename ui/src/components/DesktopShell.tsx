@@ -16,8 +16,8 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
   usePageTitle(); // Actualiza el título dinámicamente según la ruta
 
   const navItems = [
-    { path: "/checkin", label: "Check-in", icon: Package },
-    { path: "/operation", label: "Operación", icon: Target },
+    { path: "/checkin", label: "Checkin", icon: Package, external: true },
+    { path: "/operation", label: "Operación", icon: Target, external: true },
     { path: "/monitor", label: "Monitor", icon: BarChart3 },
     { path: "/reports", label: "Reportes", icon: BarChart3 },
     { path: "/products", label: "Productos", icon: Settings },
@@ -38,6 +38,25 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
+            
+            if (item.external) {
+              return (
+                <a
+                  key={item.path}
+                  href={item.path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
+                    "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  {item.label}
+                </a>
+              );
+            }
+            
             return (
               <Link
                 key={item.path}
@@ -90,6 +109,26 @@ export function DesktopShell({ children, className }: DesktopShellProps) {
             <nav className="mt-4 space-y-2 animate-fadeIn">
               {navItems.map((item) => {
                 const Icon = item.icon;
+                
+                if (item.external) {
+                  return (
+                    <a
+                      key={item.path}
+                      href={item.path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
+                        "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {item.label}
+                    </a>
+                  );
+                }
+                
                 return (
                   <Link
                     key={item.path}
