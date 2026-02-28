@@ -36,9 +36,10 @@ This document describes the complete check-in flow for the Zona Xtreme attractio
 │                         │
 │   (No session info)     │
 │                         │
-│ Product Grid (disabled)│
-│   - Required: Show      │
-│   - Optional: Show      │
+│ Product List (disabled) │
+│   - Required: Grid cards │
+│   - Optional: List items │
+│   - Unified scrollable  │
 │                         │
 │ [💳 COBRAR $0] (disabled)│
 └─────────────────────────┘
@@ -55,9 +56,14 @@ This document describes the complete check-in flow for the Zona Xtreme attractio
 │   📋 Nueva Pulsera      │
 │   ⏱️ Sin tiempo         │
 │                         │
-│ Product Grid (enabled)  │
-│   - Required: Selectable │
-│   - Optional: Selectable │
+│ Product List (enabled)   │
+│   - Required: Grid cards │
+│     Responsive: 150px+  │
+│     Auto-fit columns    │
+│   - Optional: List items │
+│     Full width, compact │
+│   - No section titles   │
+│   - Unified scrollable  │
 │                         │
 │ [💳 COBRAR $X] (enabled) │
 └─────────────────────────┘
@@ -74,9 +80,12 @@ This document describes the complete check-in flow for the Zona Xtreme attractio
 │   ▶️ En Juego (15:32)   │
 │   ⏱️ Tiempo restante     │
 │                         │
-│ Product Grid (enabled)  │
-│   - Required: Already ✓ │
-│   - Optional: Selectable │
+│ Product List (enabled)   │
+│   - Required: Grid cards │
+│     Some already ✓      │
+│   - Optional: List items │
+│   - No section titles   │
+│   - Unified scrollable  │
 │                         │
 │ [💳 COBRAR $X] (enabled) │
 │   ⚠️ Agregar tiempo      │
@@ -84,11 +93,18 @@ This document describes the complete check-in flow for the Zona Xtreme attractio
 └─────────────────────────┘
 ```
 
-### 3.4 Product Selection
-- **Favorite Products**: Displayed first for quick tap access (non-blocking)
-- **Time Products**: Add to existing time or create new allocation
-- **Quantity Controls**: +1/-1 buttons for each product
-- **Price Calculation**: Real-time total update
+### 3.4 Product Selection & Layout
+- **Required Products**: Displayed in responsive grid layout
+  - Grid: `repeat(auto-fit, minmax(150px, 1fr))`
+  - Cards: Compact design with centered content
+  - Time format: Shows "50h" instead of "50h 0m" when minutes = 0
+  - Layout: Auto-fits columns based on available width
+- **Optional Products**: Displayed as full-width list items
+  - Horizontal layout: Name | [Time] Price [Quantity]
+  - Compact height with centered vertical alignment
+  - Padding: py-3 px-4 for optimal touch targets
+- **Unified Interface**: No section titles, single scrollable container
+- **Responsive Behavior**: Cards grow from 150px minimum to fill available space
 
 ### 3.5 Checkout Process (Two-Step)
 1. **Validation**: Ensure barcode and at least one product are selected
@@ -141,10 +157,27 @@ interface CheckinState {
 ### 4.3 Business Rules
 1. **Barcode Input**: Accept any string, no validation on entry
 2. **Session Lookup**: Triggered on submit confirmation (`Enter`, QR decode, keyboard wedge `Enter`)
-3. **Product Selection**: Favorite products are prioritized visually, not required
+3. **Product Selection**: 
+   - Required products displayed in responsive grid (minmax(150px, 1fr))
+   - Optional products displayed as full-width list items
+   - No section titles - unified scrollable interface
+   - Time formatting optimized (no "0m" display)
 4. **Time Calculation**: Add to existing time or create new session
 5. **Transaction Creation**: Always create transaction record
 6. **Payment Allocation Validation**: Strict split sum validation with integer precision (no decimals)
+
+### 4.4 UI Component Specifications
+- **ProductButton (Required Products)**:
+  - Layout: Grid with auto-fit columns, min-width 150px
+  - Height: 72px minimum with centered content
+  - Time display: FormatTimeValue optimized (hides 0 minutes)
+  - Responsive: Columns grow to fill available space
+- **ProductListItem (Optional Products)**:
+  - Layout: Full-width horizontal list
+  - Height: Compact with py-3 px-4 padding
+  - Content: Name | [Time] Price [Quantity] in single line
+  - Alignment: Vertically centered with flex items-center
+- **Container**: Single scrollable container with max-h-full
 
 ## 5. Edge Cases
 
