@@ -47,35 +47,8 @@ upsert_env_var() {
   fi
 }
 
-# Detect the primary local IP address for Linux/macOS.
-detect_ip() {
-  local os_name
-  os_name=$(uname -s)
-  local ip=""
-
-  case "$os_name" in
-    Linux*)
-      ip=$(hostname -I 2>/dev/null | awk '{print $1}')
-      ;;
-    Darwin*)
-      if command -v ipconfig >/dev/null 2>&1; then
-        for iface in en0 en1; do
-          ip=$(ipconfig getifaddr "$iface" 2>/dev/null || true)
-          [[ -n "$ip" ]] && break
-        done
-      fi
-      ;;
-  esac
-
-  if [[ -z "$ip" ]]; then
-    ip="127.0.0.1"
-  fi
-
-  echo "$ip"
-}
-
-IP=$(detect_ip)
-upsert_env_var "PUBLIC_API_BASE_URL" "http://$IP"
+# IMPORTANT: Always use fixed IP 192.168.100.2 for the API
+upsert_env_var "PUBLIC_API_BASE_URL" "http://192.168.100.2"
 
 get_env_var() {
   local key="$1"

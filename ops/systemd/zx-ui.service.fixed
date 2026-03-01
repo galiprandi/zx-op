@@ -1,0 +1,37 @@
+[Unit]
+Description=Zona Xtreme UI Service
+After=network.target zx-api.service
+Requires=zx-api.service
+
+[Service]
+Type=simple
+User=zx
+WorkingDirectory=/home/zx/zx-op
+
+# Environment variables defined inline to avoid .env permission issues
+# DO NOT use EnvironmentFile - it causes permission problems when deployed as root
+# IMPORTANT: API is always at 192.168.100.2:3000
+Environment="VITE_API_BASE_URL=http://192.168.100.2"
+Environment="VITE_API_BASE_PORT=3000"
+Environment="VITE_API_SOCKET_PORT=3000"
+Environment="UI_PORT=8080"
+Environment="VITE_API_PROXY_TARGET=http://192.168.100.2:3000"
+Environment="VITE_DEV_OPEN_URL=/monitor"
+Environment="DATABASE_URL=postgresql://zx_user:zx_password@localhost:5432/zx_op"
+Environment="PUBLIC_API_BASE_URL=http://192.168.100.2"
+Environment="PNPM_HOME=/home/zx/.local/share/pnpm"
+Environment="PATH=/home/zx/.local/share/pnpm:/usr/local/bin:/usr/bin:/bin"
+Environment="NODE_ENV=production"
+
+# No ExecStartPre - build should be done during deployment, not service start
+ExecStart=/usr/bin/env bash -c 'source /home/zx/.nvm/nvm.sh && cd /home/zx/zx-op && pnpm --filter ui preview --host 0.0.0.0 --port ${UI_PORT:-4173}'
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/zx/zx-op/ops/logs/zx-ui.out.log
+StandardError=append:/home/zx/zx-op/ops/logs/zx-ui.err.log
+
+# Prevent service from being overwritten by deployment scripts
+# This file should only be modified manually or via: sudo systemctl edit zx-ui.service
+
+[Install]
+WantedBy=multi-user.target
